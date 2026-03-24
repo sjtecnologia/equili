@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.pyo
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+*.env
+.env
+.env.*
+!.env.example
+*.log
+
+# Alembic
+backend/alembic/versions/*.pyc
+
+# Node / Frontend
+node_modules/
+dist/
+.vite/
+*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Coverage / Tests
+.coverage
+htmlcov/
+.pytest_cache/
+coverage.xml

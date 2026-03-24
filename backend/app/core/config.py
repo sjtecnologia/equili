@@ -1,0 +1,38 @@
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    # App
+    APP_NAME: str = "Equili API"
+    APP_VERSION: str = "1.0.0"
+    DEBUG: bool = False
+
+    # Database
+    DATABASE_URL: str
+
+    # Auth
+    SECRET_KEY: str
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+
+    # GitHub Models (LLM)
+    GITHUB_TOKEN: str = ""
+    GITHUB_MODELS_ENDPOINT: str = "https://models.inference.ai.azure.com"
+    GITHUB_MODELS_MODEL: str = "gpt-4o-mini"
+
+    # Email (Resend)
+    RESEND_API_KEY: str = ""
+    EMAIL_FROM: str = "noreply@equili.app"
+
+    # Frontend URL (para CORS)
+    FRONTEND_URL: str = "http://localhost:5173"
+
+    # Limites do plano gratuito
+    PLANO_GRATIS_MAX_DIVIDAS: int = 3
+    PLANO_GRATIS_MAX_PLANOS_IA_MES: int = 3
+
+
+settings = Settings()
