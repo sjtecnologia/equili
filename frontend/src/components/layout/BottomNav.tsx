@@ -1,11 +1,11 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Wallet, CreditCard, Sparkles, ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
+import { LayoutDashboard, Wallet, Sparkles, ArrowDownCircle, ArrowUpCircle, BarChart2 } from 'lucide-react'
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Início' },
-  { to: '/renda', icon: Wallet, label: 'Renda' },
   { to: '/contas-pagar', icon: ArrowUpCircle, label: 'A Pagar' },
   { to: '/contas-receber', icon: ArrowDownCircle, label: 'A Receber' },
+  { to: '/relatorios', icon: BarChart2, label: 'Relatórios' },
   { to: '/plano-de-acao', icon: Sparkles, label: 'Plano IA' },
 ]
 

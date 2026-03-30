@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { Plus, Trash2, Loader2, X, CheckCircle2, RefreshCw, Layers } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
-import CurrencyInput from '@/components/ui/CurrencyInput'
+import { CurrencyInput } from '@/components/ui/CurrencyInput'
 
 interface ContaAReceber {
   id: string
@@ -461,5 +461,4 @@ export default function ContasReceberPage() {
       )}
     </div>
   )
-}
 }
