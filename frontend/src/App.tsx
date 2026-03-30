@@ -11,6 +11,8 @@ import DividasPage from '@/pages/dividas/DividasPage'
 import RendaPage from '@/pages/renda/RendaPage'
 import PlanoAcaoPage from '@/pages/plano-de-acao/PlanoAcaoPage'
 import OnboardingPage from '@/pages/onboarding/OnboardingPage'
+import ContasPagarPage from '@/pages/contas-pagar/ContasPagarPage'
+import ContasReceberPage from '@/pages/contas-receber/ContasReceberPage'
 import AppLayout from '@/components/layout/AppLayout'
 
 function PrivateRoute({ children, ready }: { children: React.ReactNode; ready: boolean }) {
@@ -52,6 +54,8 @@ export default function App() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="renda" element={<RendaPage />} />
           <Route path="dividas" element={<DividasPage />} />
+          <Route path="contas-pagar" element={<ContasPagarPage />} />
+          <Route path="contas-receber" element={<ContasReceberPage />} />
           <Route path="plano-de-acao" element={<PlanoAcaoPage />} />
         </Route>
 

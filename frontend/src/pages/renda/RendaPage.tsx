@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Plus, Trash2, Loader2, X } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency } from '@/utils/format'
+import { CurrencyInput } from '@/components/ui/CurrencyInput'
 
 const FREQUENCIAS = [
   { value: 'mensal', label: 'Mensal' },
@@ -47,6 +48,7 @@ function RendaModal({
 }) {
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
@@ -84,13 +86,16 @@ function RendaModal({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Valor (R$)</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0.01"
-              className={`input-field ${errors.valor ? 'border-danger-500' : ''}`}
-              placeholder="0,00"
-              {...register('valor')}
+            <Controller
+              name="valor"
+              control={control}
+              render={({ field }) => (
+                <CurrencyInput
+                  {...field}
+                  className={`input-field ${errors.valor ? 'border-danger-500' : ''}`}
+                  placeholder="0,00"
+                />
+              )}
             />
             {errors.valor && (
               <p className="mt-1 text-xs text-danger-500">{errors.valor.message}</p>

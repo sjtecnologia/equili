@@ -1,12 +1,12 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Wallet, CreditCard, Sparkles, Bell } from 'lucide-react'
+import { LayoutDashboard, Wallet, CreditCard, Sparkles, ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Início' },
   { to: '/renda', icon: Wallet, label: 'Renda' },
-  { to: '/dividas', icon: CreditCard, label: 'Dívidas' },
+  { to: '/contas-pagar', icon: ArrowUpCircle, label: 'A Pagar' },
+  { to: '/contas-receber', icon: ArrowDownCircle, label: 'A Receber' },
   { to: '/plano-de-acao', icon: Sparkles, label: 'Plano IA' },
-  { to: '/alertas', icon: Bell, label: 'Alertas' },
 ]
 
 export default function BottomNav() {
