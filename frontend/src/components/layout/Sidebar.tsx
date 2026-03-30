@@ -1,10 +1,12 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Wallet, CreditCard, Sparkles, Settings } from 'lucide-react'
+import { LayoutDashboard, Wallet, CreditCard, Sparkles, Settings, ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/renda', icon: Wallet, label: 'Renda' },
   { to: '/dividas', icon: CreditCard, label: 'Dívidas' },
+  { to: '/contas-pagar', icon: ArrowUpCircle, label: 'Contas a Pagar' },
+  { to: '/contas-receber', icon: ArrowDownCircle, label: 'Contas a Receber' },
   { to: '/plano-de-acao', icon: Sparkles, label: 'Plano de Ação' },
 ]
 

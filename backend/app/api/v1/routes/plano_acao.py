@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from uuid import UUID
 
 import httpx
@@ -10,6 +10,7 @@ from sqlalchemy import extract, func, select
 
 from app.core.config import settings
 from app.core.dependencies import CurrentUserID, DBSession
+from app.models.conta_lancamento import ContaAPagar, ContaAReceber
 from app.models.divida import Divida
 from app.models.plano_acao import PlanoAcao
 from app.models.renda import Renda
@@ -28,6 +29,8 @@ Regras:
 - Responda SEMPRE em JSON válido conforme o schema abaixo.
 - Seja específico com datas e valores.
 - Priorize pelo método avalanche (maior juros primeiro) por padrão.
+- Leve em conta o fluxo de caixa real dos próximos 30 dias ao calcular o valor disponível para dívidas.
+- Se houver alerta de fluxo de caixa (ex: contas vencendo antes de recebimentos), mencione em alerta_fluxo_caixa.
 
 Schema de resposta (JSON puro, sem markdown):
 {
@@ -35,6 +38,7 @@ Schema de resposta (JSON puro, sem markdown):
   "estrategia": "avalanche",
   "justificativa_estrategia": "string",
   "valor_mensal_para_dividas": 0.0,
+  "saldo_disponivel_real": 0.0,
   "ordem_quitacao": [
     {
       "ordem": 1,
@@ -46,7 +50,8 @@ Schema de resposta (JSON puro, sem markdown):
   "data_livre_prevista": "YYYY-MM",
   "meses_ate_liberdade": 0,
   "sugestoes_economia": ["string", "string", "string"],
-  "mensagem_motivacional": "string"
+  "mensagem_motivacional": "string",
+  "alerta_fluxo_caixa": "string ou null (alerta sobre contas próximas vs. recebimentos)"
 }
 """
 
@@ -95,6 +100,38 @@ async def gerar_plano(usuario_id: CurrentUserID, db: DBSession):
     renda_total = sum(float(r.valor) for r in rendas)
     total_dividas = sum(float(d.valor_total) for d in dividas)
 
+    # Contas a pagar nos próximos 30 dias
+    hoje = date.today()
+    em_30_dias = hoje + timedelta(days=30)
+    contas_pagar_result = await db.execute(
+        select(ContaAPagar)
+        .where(
+            ContaAPagar.usuario_id == usuario_id,
+            ContaAPagar.status != "pago",
+            ContaAPagar.data_vencimento >= hoje,
+            ContaAPagar.data_vencimento <= em_30_dias,
+        )
+        .order_by(ContaAPagar.data_vencimento)
+    )
+    contas_pagar = contas_pagar_result.scalars().all()
+
+    # Contas a receber nos próximos 30 dias
+    contas_receber_result = await db.execute(
+        select(ContaAReceber)
+        .where(
+            ContaAReceber.usuario_id == usuario_id,
+            ContaAReceber.status != "recebido",
+            ContaAReceber.data_prevista >= hoje,
+            ContaAReceber.data_prevista <= em_30_dias,
+        )
+        .order_by(ContaAReceber.data_prevista)
+    )
+    contas_receber = contas_receber_result.scalars().all()
+
+    total_a_pagar_30d = sum(float(c.valor) for c in contas_pagar)
+    total_a_receber_30d = sum(float(c.valor) for c in contas_receber)
+    saldo_disponivel_real = renda_total + total_a_receber_30d - total_a_pagar_30d
+
     rendas_texto = "\n".join(
         f"- {r.descricao} ({r.tipo}): R$ {float(r.valor):,.2f}/{r.frequencia}" for r in rendas
     )
@@ -108,11 +145,21 @@ async def gerar_plano(usuario_id: CurrentUserID, db: DBSession):
         f"Parcelas restantes: {d.parcelas_restantes} | Sem juros informados"
         for d in dividas
     )
+    contas_pagar_texto = "\n".join(
+        f"- {c.descricao} ({c.categoria}) | Vence: {c.data_vencimento.strftime('%d/%m/%Y')} | "
+        f"R$ {float(c.valor):,.2f} | Status: {c.status}"
+        for c in contas_pagar
+    ) or "Nenhuma conta a pagar registrada nos próximos 30 dias."
+    contas_receber_texto = "\n".join(
+        f"- {c.descricao} ({c.origem}) | Previsto: {c.data_prevista.strftime('%d/%m/%Y')} | "
+        f"R$ {float(c.valor):,.2f}" + (f" | De: {c.devedor}" if c.devedor else "")
+        for c in contas_receber
+    ) or "Nenhuma conta a receber registrada nos próximos 30 dias."
 
     user_prompt = f"""
 Situação financeira da família:
 
-RENDA MENSAL TOTAL: R$ {renda_total:,.2f}
+RENDA MENSAL RECORRENTE: R$ {renda_total:,.2f}
 
 FONTES DE RENDA:
 {rendas_texto}
@@ -122,9 +169,20 @@ TOTAL DE DÍVIDAS: R$ {total_dividas:,.2f}
 DÍVIDAS ATIVAS:
 {dividas_texto}
 
-Data atual: {date.today().strftime("%d/%m/%Y")}
+FLUXO DE CAIXA — PRÓXIMOS 30 DIAS:
+  Total a PAGAR: R$ {total_a_pagar_30d:,.2f}
+  Total a RECEBER: R$ {total_a_receber_30d:,.2f}
+  SALDO DISPONÍVEL REAL (renda + receber - pagar): R$ {saldo_disponivel_real:,.2f}
 
-Crie o plano de ação para esta família sair das dívidas.
+CONTAS A PAGAR (próximos 30 dias):
+{contas_pagar_texto}
+
+CONTAS A RECEBER (próximos 30 dias):
+{contas_receber_texto}
+
+Data atual: {hoje.strftime("%d/%m/%Y")}
+
+Crie o plano de ação para esta família sair das dívidas, levando em conta o fluxo de caixa real.
 """
 
     if not settings.GITHUB_TOKEN:

@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Plus, Trash2, Loader2, X, CheckCircle, Lock } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
+import { CurrencyInput } from '@/components/ui/CurrencyInput'
 
 interface Divida {
   id: string
@@ -36,6 +37,7 @@ function DividaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   const [serverError, setServerError] = useState<string | null>(null)
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({ resolver: zodResolver(schema), defaultValues: { taxa_juros: 0 } })
@@ -81,13 +83,16 @@ function DividaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Valor total (R$)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                className={`input-field ${errors.valor_total ? 'border-danger-500' : ''}`}
-                placeholder="0,00"
-                {...register('valor_total')}
+              <Controller
+                name="valor_total"
+                control={control}
+                render={({ field }) => (
+                  <CurrencyInput
+                    {...field}
+                    className={`input-field ${errors.valor_total ? 'border-danger-500' : ''}`}
+                    placeholder="0,00"
+                  />
+                )}
               />
               {errors.valor_total && (
                 <p className="mt-1 text-xs text-danger-500">{errors.valor_total.message}</p>
