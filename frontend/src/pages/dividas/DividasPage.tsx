@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Trash2, Loader2, X, CheckCircle, Lock, Pencil } from 'lucide-react'
+import { Plus, Trash2, Loader2, X, CheckCircle, Lock, Pencil, AlertTriangle } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
@@ -274,6 +274,121 @@ function DividaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   )
 }
 
+function PagarParcelaModal({
+  divida,
+  onClose,
+  onSuccess,
+}: {
+  divida: Divida
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const hoje = new Date()
+  const vencimento = new Date(divida.data_prox_vencimento + 'T00:00:00')
+  const atrasada = vencimento < hoje
+  const mesAnoAtrasado = vencimento.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+
+  const [dataReferencia, setDataReferencia] = useState(divida.data_prox_vencimento)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+
+  // Calcula o próximo vencimento que resultará da seleção atual
+  const proxDataPreview = (() => {
+    if (!dataReferencia) return '—'
+    const d = new Date(dataReferencia + 'T00:00:00')
+    d.setMonth(d.getMonth() + 1)
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  })()
+
+  async function handleConfirmar() {
+    setErro(null)
+    setIsSubmitting(true)
+    try {
+      await api.post(`/dividas/${divida.id}/pagar-parcela`, {
+        data_referencia: dataReferencia || null,
+      })
+      onSuccess()
+      onClose()
+    } catch {
+      setErro('Erro ao registrar pagamento. Tente novamente.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h2 className="font-semibold text-gray-800">Registrar pagamento</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {/* Info da dívida */}
+          <div className="bg-gray-50 rounded-xl p-3">
+            <p className="font-semibold text-gray-800 truncate">{divida.descricao}</p>
+            {divida.credor && <p className="text-xs text-gray-400">{divida.credor}</p>}
+            <p className="text-sm font-medium text-danger-500 mt-1">
+              {formatCurrency(divida.valor_parcela)} / parcela
+            </p>
+          </div>
+
+          {/* Alerta de atraso */}
+          {atrasada && (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3">
+              <AlertTriangle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-700">
+                A parcela de <strong>{mesAnoAtrasado}</strong> está em atraso. Se você pagou
+                a parcela de outro mês, selecione a data correspondente abaixo.
+              </p>
+            </div>
+          )}
+
+          {/* Seleção da data da parcela */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Data da parcela que você pagou
+            </label>
+            <input
+              type="date"
+              className="input-field"
+              value={dataReferencia}
+              onChange={(e) => setDataReferencia(e.target.value)}
+            />
+            {dataReferencia && divida.parcelas_restantes > 1 && (
+              <p className="mt-1.5 text-xs text-gray-400">
+                Próximo vencimento será: <span className="font-medium text-gray-600">{proxDataPreview}</span>
+              </p>
+            )}
+          </div>
+
+          {erro && (
+            <p className="text-sm text-danger-500">{erro}</p>
+          )}
+
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose} className="btn-ghost flex-1">
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmar}
+              disabled={isSubmitting || !dataReferencia}
+              className="btn-primary flex-1 flex items-center justify-center gap-2"
+            >
+              {isSubmitting && <Loader2 size={14} className="animate-spin" />}
+              Confirmar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function EditarDividaModal({
   divida,
   onClose,
@@ -337,6 +452,7 @@ function EditarDividaModal({
 export default function DividasPage() {
   const [showModal, setShowModal] = useState(false)
   const [editando, setEditando] = useState<Divida | null>(null)
+  const [pagando, setPagando] = useState<Divida | null>(null)
   const queryClient = useQueryClient()
 
   const { data: dividas = [], isLoading } = useQuery<Divida[]>({
@@ -346,12 +462,6 @@ export default function DividasPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/dividas/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['dividas'] }),
-  })
-
-  const pagarParcelaMutation = useMutation({
-    mutationFn: ({ id, valor }: { id: string; valor: number }) =>
-      api.post(`/dividas/${id}/pagar-parcela`, { valor }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['dividas'] }),
   })
 
@@ -466,8 +576,7 @@ export default function DividasPage() {
                 {/* Ações */}
                 <div className="flex gap-2">
                   <button
-                    onClick={() => pagarParcelaMutation.mutate({ id: divida.id, valor: 0 })}
-                    disabled={pagarParcelaMutation.isPending}
+                    onClick={() => setPagando(divida)}
                     className="btn-secondary text-xs flex-1"
                   >
                     Registrar pagamento
@@ -500,6 +609,16 @@ export default function DividasPage() {
           divida={editando}
           onClose={() => setEditando(null)}
           onSuccess={invalidate}
+        />
+      )}
+      {pagando && (
+        <PagarParcelaModal
+          divida={pagando}
+          onClose={() => setPagando(null)}
+          onSuccess={() => {
+            invalidate()
+            setPagando(null)
+          }}
         />
       )}
     </div>

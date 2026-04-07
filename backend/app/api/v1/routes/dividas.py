@@ -68,6 +68,10 @@ class DividaCreate(BaseModel):
         return self
 
 
+class PagarParcelaRequest(BaseModel):
+    data_referencia: date | None = None
+
+
 class DividaUpdate(BaseModel):
     descricao: str | None = None
     credor: str | None = None
@@ -162,7 +166,7 @@ async def remover_divida(divida_id: UUID, usuario_id: CurrentUserID, db: DBSessi
 
 
 @router.post("/{divida_id}/pagar-parcela")
-async def pagar_parcela(divida_id: UUID, usuario_id: CurrentUserID, db: DBSession):
+async def pagar_parcela(divida_id: UUID, data: PagarParcelaRequest, usuario_id: CurrentUserID, db: DBSession):
     divida = await db.get(Divida, divida_id)
     if not divida or divida.usuario_id != usuario_id:
         raise HTTPException(status_code=404, detail="Dívida não encontrada.")
@@ -170,7 +174,9 @@ async def pagar_parcela(divida_id: UUID, usuario_id: CurrentUserID, db: DBSessio
     if divida.parcelas_restantes > 0:
         divida.parcelas_restantes -= 1
         if divida.parcelas_restantes > 0:
-            divida.data_prox_vencimento = _avancar_mes(divida.data_prox_vencimento)
+            # Usa a data informada pelo usuário; caso contrário, a data atual de vencimento
+            base = data.data_referencia or divida.data_prox_vencimento
+            divida.data_prox_vencimento = _avancar_mes(base)
 
     if divida.parcelas_restantes == 0:
         divida.quitada = True
