@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { TrendingUp, TrendingDown, CreditCard, Sparkles, AlertTriangle } from 'lucide-react'
+import { TrendingUp, TrendingDown, CreditCard, Sparkles, AlertTriangle, Clock, Wallet, Calendar } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import api from '@/services/api'
-import { formatCurrency } from '@/utils/format'
+import { formatCurrency, formatDate } from '@/utils/format'
 
 interface DashboardResumo {
   renda_total: number
@@ -10,6 +10,11 @@ interface DashboardResumo {
   total_dividas: number
   total_dividas_ativas: number
   saldo_disponivel: number
+  saldo_projetado_30d: number
+  total_a_pagar_30d: number
+  total_a_receber_30d: number
+  proxima_conta_vencimento: string | null
+  dias_proxima_conta: number | null
   plano_gerado: boolean
   parcelas_atrasadas_total: number
   valor_parcelas_atrasadas: number
@@ -19,27 +24,33 @@ interface DashboardResumo {
 function MetricCard({
   title,
   value,
+  subtitle,
   icon: Icon,
   colorClass = 'text-gray-700',
   bgClass = 'bg-white',
+  to,
 }: {
   title: string
   value: string
+  subtitle?: string
   icon: React.ElementType
   colorClass?: string
   bgClass?: string
+  to?: string
 }) {
-  return (
-    <div className={`card ${bgClass} flex items-center gap-4 p-4`}>
+  const content = (
+    <div className={`card ${bgClass} flex items-center gap-4 p-4 ${to ? 'hover:bg-gray-50 transition-colors' : ''}`}>
       <div className={`p-2 rounded-lg bg-gray-100 ${colorClass}`}>
         <Icon size={20} />
       </div>
       <div className="min-w-0">
         <p className="text-xs text-gray-500 truncate">{title}</p>
         <p className={`text-lg font-bold ${colorClass}`}>{value}</p>
+        {subtitle && <p className="text-xs text-gray-400 truncate mt-0.5">{subtitle}</p>}
       </div>
     </div>
   )
+  return to ? <Link to={to}>{content}</Link> : content
 }
 
 export default function DashboardPage() {
@@ -60,6 +71,7 @@ export default function DashboardPage() {
   }
 
   const saldoPositivo = (data?.saldo_disponivel ?? 0) >= 0
+  const saldoProjetadoPositivo = (data?.saldo_projetado_30d ?? 0) >= 0
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto">
@@ -89,35 +101,84 @@ export default function DashboardPage() {
         </Link>
       )}
 
+      {/* Próxima conta a vencer */}
+      {data?.proxima_conta_vencimento && (
+        <Link
+          to="/contas-pagar"
+          className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3 hover:bg-amber-100 transition-colors"
+        >
+          <Calendar size={16} className="text-amber-500 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-amber-700">
+              Próxima conta vence em {data.dias_proxima_conta === 0
+                ? 'hoje'
+                : data.dias_proxima_conta === 1
+                ? '1 dia'
+                : `${data.dias_proxima_conta} dias`}
+            </p>
+            <p className="text-xs text-amber-600">{formatDate(data.proxima_conta_vencimento)}</p>
+          </div>
+        </Link>
+      )}
+
       {/* Métricas principais */}
       <div className="grid grid-cols-2 gap-3">
         <MetricCard
-          title="Renda total"
+          title="Renda mensal"
           value={formatCurrency(data?.renda_total ?? 0)}
           icon={TrendingUp}
           colorClass="text-success-500"
-        />
-        <MetricCard
-          title="Despesas fixas"
-          value={formatCurrency(data?.total_despesas_fixas ?? 0)}
-          icon={TrendingDown}
-          colorClass="text-danger-500"
-        />
-        <MetricCard
-          title="Total em dívidas"
-          value={formatCurrency(data?.total_dividas ?? 0)}
-          icon={CreditCard}
-          colorClass="text-gray-700"
+          to="/renda"
         />
         <MetricCard
           title="Saldo livre"
           value={formatCurrency(data?.saldo_disponivel ?? 0)}
-          icon={saldoPositivo ? TrendingUp : TrendingDown}
+          icon={saldoPositivo ? Wallet : TrendingDown}
           colorClass={saldoPositivo ? 'text-success-500' : 'text-danger-500'}
+        />
+        <MetricCard
+          title="A pagar (30 dias)"
+          value={formatCurrency(data?.total_a_pagar_30d ?? 0)}
+          icon={TrendingDown}
+          colorClass="text-danger-500"
+          to="/contas-pagar"
+        />
+        <MetricCard
+          title="A receber (30 dias)"
+          value={formatCurrency(data?.total_a_receber_30d ?? 0)}
+          icon={TrendingUp}
+          colorClass="text-success-500"
+          to="/contas-receber"
         />
       </div>
 
-      {/* Data de liberdade — vem do plano ativo, não do dashboard */}
+      {/* Projeção 30 dias */}
+      <div className={`card p-4 border ${saldoProjetadoPositivo ? 'border-green-200 bg-green-50/40' : 'border-red-200 bg-red-50/40'}`}>
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-lg ${saldoProjetadoPositivo ? 'bg-green-100' : 'bg-red-100'}`}>
+            <Clock size={18} className={saldoProjetadoPositivo ? 'text-success-500' : 'text-danger-500'} />
+          </div>
+          <div className="flex-1">
+            <p className="text-xs text-gray-500">Saldo projetado nos próximos 30 dias</p>
+            <p className={`text-xl font-bold ${saldoProjetadoPositivo ? 'text-success-500' : 'text-danger-500'}`}>
+              {formatCurrency(data?.saldo_projetado_30d ?? 0)}
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Renda + a receber − a pagar
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Dívidas */}
+      <MetricCard
+        title="Total em dívidas"
+        value={formatCurrency(data?.total_dividas ?? 0)}
+        subtitle={`${data?.total_dividas_ativas ?? 0} dívida(s) ativa(s)`}
+        icon={CreditCard}
+        colorClass="text-gray-700"
+        to="/dividas"
+      />
 
       {/* Banner de Plano IA */}
       <div className="card border-2 border-dashed border-primary-200 p-4 flex items-start gap-3">
@@ -139,20 +200,6 @@ export default function DashboardPage() {
           className="btn-primary text-xs px-3 py-1.5 whitespace-nowrap self-center"
         >
           {data?.plano_gerado ? 'Ver plano' : 'Gerar'}
-        </Link>
-      </div>
-
-      {/* Atalhos */}
-      <div className="grid grid-cols-2 gap-3">
-        <Link to="/renda" className="card p-4 text-center hover:bg-gray-50 transition-colors">
-          <TrendingUp size={20} className="text-success-500 mx-auto mb-1" />
-          <p className="text-sm font-medium text-gray-700">Gerenciar renda</p>
-        </Link>
-        <Link to="/dividas" className="card p-4 text-center hover:bg-gray-50 transition-colors">
-          <CreditCard size={20} className="text-gray-600 mx-auto mb-1" />
-          <p className="text-sm font-medium text-gray-700">
-            {data?.total_dividas_ativas ?? 0} dívida(s)
-          </p>
         </Link>
       </div>
     </div>

@@ -71,6 +71,7 @@ class DividaCreate(BaseModel):
 
 class PagarParcelaRequest(BaseModel):
     data_referencia: date | None = None
+    data_pagamento: date | None = None
     valor_pago: float | None = None
     observacao: str | None = None
 
@@ -156,14 +157,18 @@ async def listar_dividas(usuario_id: CurrentUserID, db: DBSession):
 
         # Conta meses esperados (agenda a partir da 1ª parcela) que ainda não foram pagos
         parcelas_atrasadas = 0
+        data_primeira_atrasada = None
         if divida.data_primeira_parcela:
             cur = divida.data_primeira_parcela
             while cur < hoje:
                 if cur not in pagas:
+                    if data_primeira_atrasada is None:
+                        data_primeira_atrasada = cur
                     parcelas_atrasadas += 1
                 cur = _avancar_mes(cur)
         elif divida.data_prox_vencimento < hoje:
             # Fallback sem data_primeira_parcela
+            data_primeira_atrasada = divida.data_prox_vencimento
             cur = divida.data_prox_vencimento
             while cur < hoje and parcelas_atrasadas < divida.parcelas_restantes:
                 parcelas_atrasadas += 1
@@ -183,60 +188,7 @@ async def listar_dividas(usuario_id: CurrentUserID, db: DBSession):
             "data_inicio_contrato": divida.data_inicio_contrato.isoformat() if divida.data_inicio_contrato else None,
             "data_primeira_parcela": divida.data_primeira_parcela.isoformat() if divida.data_primeira_parcela else None,
             "data_prox_vencimento": divida.data_prox_vencimento.isoformat(),
-            "quitada": divida.quitada,
-            "parcelas_atrasadas": parcelas_atrasadas,
-        })
-
-    return output
-
-    if not dividas:
-        return []
-
-    hoje = date.today()
-
-    # Busca todas as datas pagas de uma vez (evita N+1)
-    ids = [d.id for d in dividas]
-    pags_result = await db.execute(
-        select(DividaPagamento.divida_id, DividaPagamento.data_referencia)
-        .where(DividaPagamento.divida_id.in_(ids))
-    )
-    pagas_por_divida: dict = {}
-    for divida_id, data_ref in pags_result:
-        pagas_por_divida.setdefault(divida_id, set()).add(data_ref)
-
-    output = []
-    for divida in dividas:
-        pagas = pagas_por_divida.get(divida.id, set())
-
-        # Conta meses esperados (agenda a partir da 1ª parcela) que ainda não foram pagos
-        parcelas_atrasadas = 0
-        if divida.data_primeira_parcela:
-            cur = divida.data_primeira_parcela
-            while cur < hoje:
-                if cur not in pagas:
-                    parcelas_atrasadas += 1
-                cur = _avancar_mes(cur)
-        elif divida.data_prox_vencimento < hoje:
-            # Fallback sem data_primeira_parcela
-            base = divida.data_prox_vencimento
-            while base < hoje and parcelas_atrasadas < divida.parcelas_restantes:
-                parcelas_atrasadas += 1
-                base = _avancar_mes(base)
-
-        output.append({
-            "id": str(divida.id),
-            "usuario_id": str(divida.usuario_id),
-            "descricao": divida.descricao,
-            "credor": divida.credor,
-            "tipo": divida.tipo,
-            "valor_total": float(divida.valor_total),
-            "valor_parcela": float(divida.valor_parcela),
-            "parcelas_totais": divida.parcelas_totais,
-            "parcelas_restantes": divida.parcelas_restantes,
-            "taxa_juros_mensal": float(divida.taxa_juros_mensal) if divida.taxa_juros_mensal else None,
-            "data_inicio_contrato": divida.data_inicio_contrato.isoformat() if divida.data_inicio_contrato else None,
-            "data_primeira_parcela": divida.data_primeira_parcela.isoformat() if divida.data_primeira_parcela else None,
-            "data_prox_vencimento": divida.data_prox_vencimento.isoformat(),
+            "data_primeira_atrasada": data_primeira_atrasada.isoformat() if data_primeira_atrasada else None,
             "quitada": divida.quitada,
             "parcelas_atrasadas": parcelas_atrasadas,
         })
@@ -300,7 +252,7 @@ async def pagar_parcela(divida_id: UUID, data: PagarParcelaRequest, usuario_id: 
         divida_id=divida.id,
         usuario_id=usuario_id,
         data_referencia=base,
-        data_pagamento=hoje,
+        data_pagamento=data.data_pagamento or hoje,
         valor_pago=data.valor_pago if data.valor_pago is not None else float(divida.valor_parcela),
         valor_parcela_original=float(divida.valor_parcela),
         observacao=data.observacao,
@@ -337,6 +289,31 @@ async def pagar_parcela(divida_id: UUID, data: PagarParcelaRequest, usuario_id: 
     await db.commit()
     await db.refresh(divida)
     return {"quitada": divida.quitada, "parcelas_restantes": divida.parcelas_restantes}
+
+
+@router.get("/pagamentos")
+async def listar_todos_pagamentos(usuario_id: CurrentUserID, db: DBSession):
+    result = await db.execute(
+        select(DividaPagamento, Divida.descricao, Divida.credor)
+        .join(Divida, DividaPagamento.divida_id == Divida.id)
+        .where(DividaPagamento.usuario_id == usuario_id)
+        .order_by(DividaPagamento.data_referencia.desc())
+    )
+    rows = result.all()
+    return [
+        {
+            "id": str(p.id),
+            "divida_id": str(p.divida_id),
+            "divida_descricao": descricao,
+            "divida_credor": credor,
+            "data_referencia": p.data_referencia.isoformat(),
+            "data_pagamento": p.data_pagamento.isoformat() if p.data_pagamento else None,
+            "valor_pago": float(p.valor_pago),
+            "valor_parcela_original": float(p.valor_parcela_original),
+            "observacao": p.observacao,
+        }
+        for p, descricao, credor in rows
+    ]
 
 
 @router.get("/{divida_id}/pagamentos")

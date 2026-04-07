@@ -18,6 +18,7 @@ interface Divida {
   parcelas_totais: number | null
   parcelas_restantes: number
   parcelas_atrasadas: number
+  data_primeira_atrasada: string | null
   taxa_juros_mensal: number | null
   data_prox_vencimento: string
   data_inicio_contrato: string | null
@@ -312,6 +313,7 @@ function PagarParcelaModal({
   const mesAnoAtrasado = vencimento.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
 
   const [dataReferencia, setDataReferencia] = useState(divida.data_prox_vencimento)
+  const [dataPagamento, setDataPagamento] = useState(new Date().toISOString().slice(0, 10))
   const [valorPago, setValorPago] = useState(divida.valor_parcela.toFixed(2).replace('.', ','))
   const [observacao, setObservacao] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -333,6 +335,7 @@ function PagarParcelaModal({
     try {
       await api.post(`/dividas/${divida.id}/pagar-parcela`, {
         data_referencia: dataReferencia || null,
+        data_pagamento: dataPagamento || null,
         valor_pago: valorPagoNum > 0 ? valorPagoNum : null,
         observacao: observacao.trim() || null,
       })
@@ -379,7 +382,7 @@ function PagarParcelaModal({
           {/* Seleção da data da parcela */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Data da parcela que você pagou
+              Parcela que foi paga (mês de referência)
             </label>
             <input
               type="date"
@@ -392,6 +395,19 @@ function PagarParcelaModal({
                 Próximo vencimento será: <span className="font-medium text-gray-600">{proxDataPreview}</span>
               </p>
             )}
+          </div>
+
+          {/* Data em que o pagamento foi realizado */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Data em que você pagou
+            </label>
+            <input
+              type="date"
+              className="input-field"
+              value={dataPagamento}
+              onChange={(e) => setDataPagamento(e.target.value)}
+            />
           </div>
 
           {/* Valor pago */}
@@ -835,7 +851,7 @@ export default function DividasPage() {
                     )}
                     <p className={`text-xs mt-0.5 ${atrasadas > 0 ? 'text-red-500 font-medium' : 'text-gray-500'}`}>
                       {atrasadas > 0
-                        ? `Venceu em: ${formatDate(divida.data_prox_vencimento)}`
+                        ? `Venceu em: ${formatDate(divida.data_primeira_atrasada ?? divida.data_prox_vencimento)}`
                         : `Próx. vencimento: ${formatDate(divida.data_prox_vencimento)}`}
                     </p>
                     <p className="text-xs text-gray-500">

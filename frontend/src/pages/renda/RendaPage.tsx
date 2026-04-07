@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Trash2, Loader2, X } from 'lucide-react'
+import { Plus, Trash2, Loader2, X, Pencil } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency } from '@/utils/format'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
@@ -138,8 +138,115 @@ function RendaModal({
   )
 }
 
+function EditarRendaModal({
+  renda,
+  onClose,
+  onSuccess,
+}: {
+  renda: Renda
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      descricao: renda.descricao,
+      valor: renda.valor,
+      frequencia: renda.frequencia,
+      tipo: renda.tipo,
+    },
+  })
+
+  async function onSubmit(data: FormData) {
+    await api.patch(`/rendas/${renda.id}`, data)
+    onSuccess()
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h2 className="font-semibold text-gray-800">Editar renda</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X size={20} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+            <input
+              type="text"
+              className={`input-field ${errors.descricao ? 'border-danger-500' : ''}`}
+              placeholder="Ex.: Salário CLT, Freela design..."
+              {...register('descricao')}
+            />
+            {errors.descricao && (
+              <p className="mt-1 text-xs text-danger-500">{errors.descricao.message}</p>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Valor (R$)</label>
+            <Controller
+              name="valor"
+              control={control}
+              render={({ field }) => (
+                <CurrencyInput
+                  {...field}
+                  className={`input-field ${errors.valor ? 'border-danger-500' : ''}`}
+                  placeholder="0,00"
+                />
+              )}
+            />
+            {errors.valor && (
+              <p className="mt-1 text-xs text-danger-500">{errors.valor.message}</p>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+              <select className="input-field" {...register('tipo')}>
+                {TIPOS.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Frequência</label>
+              <select className="input-field" {...register('frequencia')}>
+                {FREQUENCIAS.map((f) => (
+                  <option key={f.value} value={f.value}>{f.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose} className="btn-ghost flex-1">
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="btn-primary flex-1 flex items-center justify-center gap-2"
+            >
+              {isSubmitting && <Loader2 size={14} className="animate-spin" />}
+              Salvar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 export default function RendaPage() {
   const [showModal, setShowModal] = useState(false)
+  const [editando, setEditando] = useState<Renda | null>(null)
   const queryClient = useQueryClient()
 
   const { data: rendas = [], isLoading } = useQuery<Renda[]>({
@@ -209,6 +316,13 @@ export default function RendaPage() {
                 {formatCurrency(renda.valor)}
               </p>
               <button
+                onClick={() => setEditando(renda)}
+                className="text-gray-300 hover:text-primary-500 transition-colors"
+                aria-label="Editar renda"
+              >
+                <Pencil size={16} />
+              </button>
+              <button
                 onClick={() => deleteMutation.mutate(renda.id)}
                 disabled={deleteMutation.isPending}
                 className="text-gray-300 hover:text-danger-500 transition-colors"
@@ -224,6 +338,16 @@ export default function RendaPage() {
       {showModal && (
         <RendaModal
           onClose={() => setShowModal(false)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['rendas'] })
+            queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+          }}
+        />
+      )}
+      {editando && (
+        <EditarRendaModal
+          renda={editando}
+          onClose={() => setEditando(null)}
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ['rendas'] })
             queryClient.invalidateQueries({ queryKey: ['dashboard'] })

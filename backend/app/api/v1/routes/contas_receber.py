@@ -73,6 +73,10 @@ class ContaAReceberUpdate(BaseModel):
     observacao: str | None = None
 
 
+class ReceberRequest(BaseModel):
+    data_recebimento: date | None = None
+
+
 @router.get("")
 async def listar_contas_receber(
     usuario_id: CurrentUserID,
@@ -175,13 +179,18 @@ async def atualizar_conta_receber(
 
 @router.patch("/{conta_id}/receber", status_code=status.HTTP_200_OK)
 async def marcar_como_recebido(
-    conta_id: UUID, usuario_id: CurrentUserID, db: DBSession
+    conta_id: UUID, usuario_id: CurrentUserID, db: DBSession,
+    data: ReceberRequest | None = None,
 ):
     conta = await db.get(ContaAReceber, conta_id)
     if not conta or conta.usuario_id != usuario_id:
         raise HTTPException(status_code=404, detail="Conta a receber não encontrada.")
     conta.status = "recebido"
-    conta.recebido_em = datetime.now(timezone.utc)
+    if data and data.data_recebimento:
+        from datetime import time
+        conta.recebido_em = datetime.combine(data.data_recebimento, time.min).replace(tzinfo=timezone.utc)
+    else:
+        conta.recebido_em = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(conta)
     return conta

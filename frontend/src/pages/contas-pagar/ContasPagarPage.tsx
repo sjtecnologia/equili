@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Trash2, Loader2, X, CheckCircle2, AlertCircle, RefreshCw, Layers } from 'lucide-react'
+import { Plus, Trash2, Loader2, X, CheckCircle2, AlertCircle, RefreshCw, Layers, Pencil } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
@@ -57,6 +57,154 @@ const schema = z
   )
 
 type FormData = z.infer<typeof schema>
+
+const editSchema = z.object({
+  descricao: z.string().min(1, 'Descrição obrigatória'),
+  categoria: z.string().min(1),
+  valor: z.coerce.number().positive('Valor deve ser positivo'),
+  data_vencimento: z.string().min(1, 'Data obrigatória'),
+  observacao: z.string().optional(),
+})
+type EditFormData = z.infer<typeof editSchema>
+
+function EditarContaModal({
+  conta,
+  onClose,
+  onSuccess,
+}: {
+  conta: ContaAPagar
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<EditFormData>({
+    resolver: zodResolver(editSchema),
+    defaultValues: {
+      descricao: conta.descricao,
+      categoria: conta.categoria,
+      valor: conta.valor,
+      data_vencimento: conta.data_vencimento,
+      observacao: conta.observacao ?? '',
+    },
+  })
+
+  async function onSubmit(data: EditFormData) {
+    await api.patch(`/contas-pagar/${conta.id}`, data)
+    onSuccess()
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h2 className="font-semibold text-gray-800">Editar conta</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+        </div>
+        <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+            <input type="text" className={`input-field ${errors.descricao ? 'border-danger-500' : ''}`}
+              {...register('descricao')} />
+            {errors.descricao && <p className="mt-1 text-xs text-danger-500">{errors.descricao.message}</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Valor (R$)</label>
+              <Controller name="valor" control={control}
+                render={({ field }) => (
+                  <CurrencyInput {...field} className={`input-field ${errors.valor ? 'border-danger-500' : ''}`} />
+                )} />
+              {errors.valor && <p className="mt-1 text-xs text-danger-500">{errors.valor.message}</p>}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Vencimento</label>
+              <input type="date" className={`input-field ${errors.data_vencimento ? 'border-danger-500' : ''}`}
+                {...register('data_vencimento')} />
+              {errors.data_vencimento && <p className="mt-1 text-xs text-danger-500">{errors.data_vencimento.message}</p>}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+            <select className="input-field" {...register('categoria')}>
+              {CATEGORIAS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Observação</label>
+            <input type="text" className="input-field" {...register('observacao')} />
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose} className="btn-ghost flex-1">Cancelar</button>
+            <button type="submit" disabled={isSubmitting}
+              className="btn-primary flex-1 flex items-center justify-center gap-2">
+              {isSubmitting && <Loader2 size={14} className="animate-spin" />}
+              Salvar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function PagarContaModal({
+  conta,
+  onClose,
+  onSuccess,
+}: {
+  conta: ContaAPagar
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [dataPagamento, setDataPagamento] = useState(new Date().toISOString().slice(0, 10))
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  async function handleConfirmar() {
+    setIsSubmitting(true)
+    try {
+      await api.patch(`/contas-pagar/${conta.id}/pagar`, { data_pagamento: dataPagamento || null })
+      onSuccess()
+      onClose()
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h2 className="font-semibold text-gray-800">Confirmar pagamento</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+        </div>
+        <div className="p-4 space-y-4">
+          <div className="bg-gray-50 rounded-xl p-3">
+            <p className="font-semibold text-gray-800 truncate">{conta.descricao}</p>
+            <p className="text-sm font-bold text-danger-500 mt-1">{formatCurrency(conta.valor)}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Data do pagamento</label>
+            <input type="date" className="input-field" value={dataPagamento}
+              onChange={(e) => setDataPagamento(e.target.value)} />
+          </div>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="btn-ghost flex-1">Cancelar</button>
+            <button onClick={handleConfirmar} disabled={isSubmitting || !dataPagamento}
+              className="btn-primary flex-1 flex items-center justify-center gap-2">
+              {isSubmitting && <Loader2 size={14} className="animate-spin" />}
+              Confirmar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function ContaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (count: number) => void }) {
   const [serverError, setServerError] = useState<string | null>(null)
@@ -245,6 +393,8 @@ function ContaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (c
 
 export default function ContasPagarPage() {
   const [showModal, setShowModal] = useState(false)
+  const [editando, setEditando] = useState<ContaAPagar | null>(null)
+  const [pagando, setPagando] = useState<ContaAPagar | null>(null)
   const [filtroStatus, setFiltroStatus] = useState<string>('todos')
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const queryClient = useQueryClient()
@@ -402,18 +552,21 @@ export default function ContasPagarPage() {
                 <div className="flex gap-2">
                   {conta.status !== 'pago' && (
                     <button
-                      onClick={() => pagarMutation.mutate(conta.id)}
+                      onClick={() => setPagando(conta)}
                       disabled={pagarMutation.isPending}
                       className="btn-secondary text-xs flex-1 flex items-center justify-center gap-1"
                     >
-                      {pagarMutation.isPending ? (
-                        <Loader2 size={12} className="animate-spin" />
-                      ) : (
-                        <CheckCircle2 size={12} />
-                      )}
+                      <CheckCircle2 size={12} />
                       Marcar como pago
                     </button>
                   )}
+                  <button
+                    onClick={() => setEditando(conta)}
+                    className="text-gray-300 hover:text-primary-500 transition-colors p-1"
+                    aria-label="Editar conta"
+                  >
+                    <Pencil size={16} />
+                  </button>
                   <button
                     onClick={() => deleteMutation.mutate(conta.id)}
                     disabled={deleteMutation.isPending}
@@ -439,6 +592,20 @@ export default function ContasPagarPage() {
               setTimeout(() => setSuccessMsg(null), 4000)
             }
           }}
+        />
+      )}
+      {editando && (
+        <EditarContaModal
+          conta={editando}
+          onClose={() => setEditando(null)}
+          onSuccess={invalidate}
+        />
+      )}
+      {pagando && (
+        <PagarContaModal
+          conta={pagando}
+          onClose={() => setPagando(null)}
+          onSuccess={invalidate}
         />
       )}
 
