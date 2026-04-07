@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { TrendingUp, TrendingDown, CreditCard, Sparkles } from 'lucide-react'
+import { TrendingUp, TrendingDown, CreditCard, Sparkles, AlertTriangle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import api from '@/services/api'
 import { formatCurrency } from '@/utils/format'
@@ -11,6 +11,9 @@ interface DashboardResumo {
   total_dividas_ativas: number
   saldo_disponivel: number
   plano_gerado: boolean
+  parcelas_atrasadas_total: number
+  valor_parcelas_atrasadas: number
+  dividas_com_atraso: number
 }
 
 function MetricCard({
@@ -66,6 +69,25 @@ export default function DashboardPage() {
       </div>
 
       {/* Alertas */}
+      {(data?.parcelas_atrasadas_total ?? 0) > 0 && (
+        <Link
+          to="/dividas"
+          className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-3 hover:bg-red-100 transition-colors"
+        >
+          <AlertTriangle size={16} className="text-red-500 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-red-700">
+              {data!.parcelas_atrasadas_total === 1
+                ? '1 parcela em atraso'
+                : `${data!.parcelas_atrasadas_total} parcelas em atraso`}
+              {data!.dividas_com_atraso > 1 ? ` em ${data!.dividas_com_atraso} dívidas` : ''}
+            </p>
+            <p className="text-xs text-red-600 mt-0.5">
+              Total em aberto: <strong>{formatCurrency(data!.valor_parcelas_atrasadas)}</strong> — toque para ver detalhes
+            </p>
+          </div>
+        </Link>
+      )}
 
       {/* Métricas principais */}
       <div className="grid grid-cols-2 gap-3">
