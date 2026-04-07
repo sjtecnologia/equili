@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from calendar import monthrange
 
 from fastapi import APIRouter
 from sqlalchemy import func, select
@@ -10,6 +11,25 @@ from app.models.plano_acao import PlanoAcao
 from app.models.renda import Renda
 
 router = APIRouter()
+
+
+def _avancar_mes(d: date) -> date:
+    mes_novo = d.month % 12 + 1
+    ano_novo = d.year + (1 if d.month == 12 else 0)
+    dia_novo = min(d.day, monthrange(ano_novo, mes_novo)[1])
+    return date(ano_novo, mes_novo, dia_novo)
+
+
+def _parcelas_atrasadas(data_prox: date, parcelas_restantes: int, hoje: date) -> int:
+    """Conta quantas parcelas venceram sem pagamento (data_prox < hoje)."""
+    if data_prox >= hoje:
+        return 0
+    count = 0
+    base = data_prox
+    while base < hoje and count < parcelas_restantes:
+        count += 1
+        base = _avancar_mes(base)
+    return count
 
 
 @router.get("/resumo")
@@ -72,6 +92,25 @@ async def resumo_dashboard(usuario_id: CurrentUserID, db: DBSession):
         select(func.count()).where(PlanoAcao.usuario_id == usuario_id)
     ) or 0
 
+    # Parcelas de dívidas atrasadas (data_prox_vencimento antes de hoje)
+    result_dividas = await db.execute(
+        select(Divida).where(
+            Divida.usuario_id == usuario_id,
+            Divida.quitada == False,  # noqa: E712
+            Divida.data_prox_vencimento < hoje,
+        )
+    )
+    dividas_atrasadas = result_dividas.scalars().all()
+    parcelas_atrasadas_total = 0
+    valor_parcelas_atrasadas = 0.0
+    dividas_com_atraso = 0
+    for d in dividas_atrasadas:
+        n = _parcelas_atrasadas(d.data_prox_vencimento, d.parcelas_restantes, hoje)
+        if n > 0:
+            parcelas_atrasadas_total += n
+            valor_parcelas_atrasadas += n * float(d.valor_parcela)
+            dividas_com_atraso += 1
+
     # Saldo projetado real: renda + a_receber - a_pagar
     saldo_projetado = (
         float(renda_total) + float(total_a_receber_30d) - float(total_a_pagar_30d)
@@ -90,4 +129,7 @@ async def resumo_dashboard(usuario_id: CurrentUserID, db: DBSession):
         "proxima_conta_vencimento": proxima_conta.isoformat() if proxima_conta else None,
         "dias_proxima_conta": (proxima_conta - hoje).days if proxima_conta else None,
         "plano_gerado": plano_count > 0,
+        "parcelas_atrasadas_total": parcelas_atrasadas_total,
+        "valor_parcelas_atrasadas": valor_parcelas_atrasadas,
+        "dividas_com_atraso": dividas_com_atraso,
     }

@@ -37,6 +37,25 @@ interface LimiteError {
   response?: { status: number; data?: { detail?: string } }
 }
 
+/** Conta quantas parcelas venceram sem pagamento (data_prox < hoje). */
+function calcParcelasAtrasadas(data_prox_vencimento: string, parcelas_restantes: number): number {
+  const hoje = new Date()
+  hoje.setHours(0, 0, 0, 0)
+  const base = new Date(data_prox_vencimento + 'T00:00:00')
+  if (base >= hoje) return 0
+  let count = 0
+  let cur = base
+  while (cur < hoje && count < parcelas_restantes) {
+    count++
+    const m = cur.getMonth() // 0-based
+    const y = m === 11 ? cur.getFullYear() + 1 : cur.getFullYear()
+    const newM = (m + 1) % 12
+    const maxDay = new Date(y, newM + 1, 0).getDate()
+    cur = new Date(y, newM, Math.min(cur.getDate(), maxDay))
+  }
+  return count
+}
+
 const schema = z.object({
   descricao: z.string().min(1, 'Descrição obrigatória'),
   credor: z.string().optional(),
@@ -728,6 +747,19 @@ export default function DividasPage() {
   )
   const atingiuLimite = dividasAtivas.length >= 3
 
+  // Parcelas em atraso (calculado client-side)
+  const dividasComAtraso = dividasAtivas.filter(
+    (d) => calcParcelasAtrasadas(d.data_prox_vencimento, d.parcelas_restantes) > 0
+  ).length
+  const parcelasAtrasadasTotal = dividasAtivas.reduce(
+    (acc, d) => acc + calcParcelasAtrasadas(d.data_prox_vencimento, d.parcelas_restantes),
+    0
+  )
+  const valorAtrasado = dividasAtivas.reduce(
+    (acc, d) => acc + calcParcelasAtrasadas(d.data_prox_vencimento, d.parcelas_restantes) * d.valor_parcela,
+    0
+  )
+
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['dividas'] })
 
   return (
@@ -767,6 +799,24 @@ export default function DividasPage() {
         <p className="text-2xl font-bold text-danger-500">{formatCurrency(totalDevido)}</p>
       </div>
 
+      {/* Banner de parcelas atrasadas */}
+      {parcelasAtrasadasTotal > 0 && (
+        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-3">
+          <AlertTriangle size={16} className="text-red-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-red-700">
+              {parcelasAtrasadasTotal === 1
+                ? '1 parcela em atraso'
+                : `${parcelasAtrasadasTotal} parcelas em atraso`}
+              {dividasComAtraso > 1 ? ` em ${dividasComAtraso} dívidas` : ''}
+            </p>
+            <p className="text-xs text-red-600 mt-0.5">
+              Total em aberto: <strong>{formatCurrency(valorAtrasado)}</strong> — registre os pagamentos e informe a data correta de cada parcela.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Lista */}
       {isLoading ? (
         <div className="space-y-3">
@@ -788,17 +838,28 @@ export default function DividasPage() {
               divida.valor_total > 0
                 ? Math.min(100, ((divida.valor_total - restante) / divida.valor_total) * 100)
                 : 0
+            const atrasadas = calcParcelasAtrasadas(divida.data_prox_vencimento, divida.parcelas_restantes)
 
             return (
-              <div key={divida.id} className="card p-4 space-y-3">
+              <div key={divida.id} className={`card p-4 space-y-3 ${atrasadas > 0 ? 'border border-red-200' : ''}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-semibold text-gray-800 truncate">{divida.descricao}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-gray-800 truncate">{divida.descricao}</p>
+                      {atrasadas > 0 && (
+                        <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                          <AlertTriangle size={10} />
+                          {atrasadas} {atrasadas === 1 ? 'atrasada' : 'atrasadas'}
+                        </span>
+                      )}
+                    </div>
                     {divida.credor && (
                       <p className="text-xs text-gray-400 truncate">{divida.credor}</p>
                     )}
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Próx. vencimento: {formatDate(divida.data_prox_vencimento)}
+                    <p className={`text-xs mt-0.5 ${atrasadas > 0 ? 'text-red-500 font-medium' : 'text-gray-500'}`}>
+                      {atrasadas > 0
+                        ? `Venceu em: ${formatDate(divida.data_prox_vencimento)}`
+                        : `Próx. vencimento: ${formatDate(divida.data_prox_vencimento)}`}
                     </p>
                     <p className="text-xs text-gray-500">
                       {divida.parcelas_totais
