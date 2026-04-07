@@ -10,13 +10,17 @@ import { CurrencyInput } from '@/components/ui/CurrencyInput'
 
 interface Divida {
   id: string
-  credor: string
+  descricao: string
+  credor: string | null
+  tipo: string
   valor_total: number
-  valor_pago: number
-  taxa_juros: number
-  data_vencimento: string | null
+  valor_parcela: number
+  parcelas_restantes: number
+  taxa_juros_mensal: number | null
+  data_prox_vencimento: string
+  data_inicio_contrato: string | null
+  data_primeira_parcela: string | null
   quitada: boolean
-  parcelas_restantes: number | null
 }
 
 interface LimiteError {
@@ -24,11 +28,15 @@ interface LimiteError {
 }
 
 const schema = z.object({
-  credor: z.string().min(1, 'Nome do credor obrigatório'),
+  descricao: z.string().min(1, 'Descrição obrigatória'),
+  credor: z.string().optional(),
+  tipo: z.string().min(1, 'Tipo obrigatório'),
   valor_total: z.coerce.number().positive('Valor deve ser positivo'),
-  taxa_juros: z.coerce.number().min(0, 'Taxa não pode ser negativa'),
-  data_vencimento: z.string().optional(),
-  parcelas_restantes: z.coerce.number().int().min(1).optional().nullable(),
+  valor_parcela: z.coerce.number().positive('Valor da parcela deve ser positivo'),
+  parcelas_restantes: z.coerce.number().int().min(1, 'Mínimo 1 parcela'),
+  taxa_juros_mensal: z.coerce.number().min(0).optional().nullable(),
+  data_inicio_contrato: z.string().optional(),
+  data_primeira_parcela: z.string().min(1, 'Data da primeira parcela obrigatória'),
 })
 
 type FormData = z.infer<typeof schema>
@@ -40,7 +48,10 @@ function DividaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<FormData>({ resolver: zodResolver(schema), defaultValues: { taxa_juros: 0 } })
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: { tipo: 'emprestimo', taxa_juros_mensal: 0 },
+  })
 
   async function onSubmit(data: FormData) {
     setServerError(null)
@@ -52,7 +63,8 @@ function DividaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
       const e = err as LimiteError
       if (e.response?.status === 403) {
         setServerError(
-          'Você atingiu o limite de 3 dívidas no plano gratuito. Faça upgrade para adicionar mais.'
+          e.response.data?.detail ??
+            'Você atingiu o limite de dívidas do plano gratuito. Faça upgrade para adicionar mais.'
         )
       } else {
         setServerError('Erro ao salvar dívida.')
@@ -62,27 +74,58 @@ function DividaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
-        <div className="flex items-center justify-between p-4 border-b">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white rounded-t-2xl">
           <h2 className="font-semibold text-gray-800">Nova dívida</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X size={20} />
           </button>
         </div>
         <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4">
+          {/* Descrição */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Credor</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Descrição *</label>
             <input
               type="text"
-              className={`input-field ${errors.credor ? 'border-danger-500' : ''}`}
-              placeholder="Ex.: Banco, Cartão, Empréstimo..."
-              {...register('credor')}
+              className={`input-field ${errors.descricao ? 'border-danger-500' : ''}`}
+              placeholder="Ex.: Financiamento do carro"
+              {...register('descricao')}
             />
-            {errors.credor && <p className="mt-1 text-xs text-danger-500">{errors.credor.message}</p>}
+            {errors.descricao && (
+              <p className="mt-1 text-xs text-danger-500">{errors.descricao.message}</p>
+            )}
           </div>
+
+          {/* Tipo + Credor */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Valor total (R$)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>
+              <select
+                className={`input-field ${errors.tipo ? 'border-danger-500' : ''}`}
+                {...register('tipo')}
+              >
+                <option value="cartao_parcelado">Cartão parcelado</option>
+                <option value="emprestimo">Empréstimo</option>
+                <option value="financiamento">Financiamento</option>
+                <option value="cheque_pre">Cheque pré</option>
+                <option value="outro">Outro</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Credor</label>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="Ex.: Nubank"
+                {...register('credor')}
+              />
+            </div>
+          </div>
+
+          {/* Valor total + Valor parcela */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Valor total (R$) *</label>
               <Controller
                 name="valor_total"
                 control={control}
@@ -99,6 +142,40 @@ function DividaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
               )}
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Valor parcela (R$) *</label>
+              <Controller
+                name="valor_parcela"
+                control={control}
+                render={({ field }) => (
+                  <CurrencyInput
+                    {...field}
+                    className={`input-field ${errors.valor_parcela ? 'border-danger-500' : ''}`}
+                    placeholder="0,00"
+                  />
+                )}
+              />
+              {errors.valor_parcela && (
+                <p className="mt-1 text-xs text-danger-500">{errors.valor_parcela.message}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Parcelas restantes + Juros */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Parcelas restantes *</label>
+              <input
+                type="number"
+                min="1"
+                className={`input-field ${errors.parcelas_restantes ? 'border-danger-500' : ''}`}
+                placeholder="Ex.: 12"
+                {...register('parcelas_restantes')}
+              />
+              {errors.parcelas_restantes && (
+                <p className="mt-1 text-xs text-danger-500">{errors.parcelas_restantes.message}</p>
+              )}
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Juros % a.m.</label>
               <input
                 type="number"
@@ -106,26 +183,41 @@ function DividaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                 min="0"
                 className="input-field"
                 placeholder="0,00"
-                {...register('taxa_juros')}
+                {...register('taxa_juros_mensal')}
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Parcelas restantes</label>
-              <input
-                type="number"
-                min="1"
-                className="input-field"
-                placeholder="—"
-                {...register('parcelas_restantes')}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Vencimento</label>
-              <input type="date" className="input-field" {...register('data_vencimento')} />
+
+          {/* Datas */}
+          <div className="border-t pt-3">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+              Datas do contrato
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Início do contrato
+                </label>
+                <input type="date" className="input-field" {...register('data_inicio_contrato')} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  1ª parcela *
+                </label>
+                <input
+                  type="date"
+                  className={`input-field ${errors.data_primeira_parcela ? 'border-danger-500' : ''}`}
+                  {...register('data_primeira_parcela')}
+                />
+                {errors.data_primeira_parcela && (
+                  <p className="mt-1 text-xs text-danger-500">
+                    {errors.data_primeira_parcela.message}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
+
           {serverError && (
             <div className="rounded-lg bg-danger-100 border border-danger-200 px-3 py-2 text-sm text-danger-500">
               {serverError}
@@ -171,7 +263,10 @@ export default function DividasPage() {
   })
 
   const dividasAtivas = dividas.filter((d) => !d.quitada)
-  const totalDevido = dividasAtivas.reduce((acc, d) => acc + (d.valor_total - d.valor_pago), 0)
+  const totalDevido = dividasAtivas.reduce(
+    (acc, d) => acc + d.valor_parcela * d.parcelas_restantes,
+    0
+  )
   const atingiuLimite = dividasAtivas.length >= 3
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['dividas'] })
@@ -229,31 +324,34 @@ export default function DividasPage() {
       ) : (
         <div className="space-y-3">
           {dividasAtivas.map((divida) => {
+            const restante = divida.valor_parcela * divida.parcelas_restantes
             const progresso =
-              divida.valor_total > 0 ? (divida.valor_pago / divida.valor_total) * 100 : 0
+              divida.valor_total > 0
+                ? Math.min(100, ((divida.valor_total - restante) / divida.valor_total) * 100)
+                : 0
 
             return (
               <div key={divida.id} className="card p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-semibold text-gray-800 truncate">{divida.credor}</p>
-                    {divida.data_vencimento && (
-                      <p className="text-xs text-gray-500">
-                        Vence em {formatDate(divida.data_vencimento)}
-                      </p>
+                    <p className="font-semibold text-gray-800 truncate">{divida.descricao}</p>
+                    {divida.credor && (
+                      <p className="text-xs text-gray-400 truncate">{divida.credor}</p>
                     )}
-                    {divida.parcelas_restantes && (
-                      <p className="text-xs text-gray-500">
-                        {divida.parcelas_restantes} parcelas restantes
-                      </p>
-                    )}
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Próx. vencimento: {formatDate(divida.data_prox_vencimento)}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {divida.parcelas_restantes} parcela(s) restante(s) ·{' '}
+                      {formatCurrency(divida.valor_parcela)}/mês
+                    </p>
                   </div>
                   <div className="text-right shrink-0">
                     <p className="font-bold text-danger-500">
-                      {formatCurrency(divida.valor_total - divida.valor_pago)}
+                      {formatCurrency(restante)}
                     </p>
-                    {divida.taxa_juros > 0 && (
-                      <p className="text-xs text-gray-400">{divida.taxa_juros}% a.m.</p>
+                    {divida.taxa_juros_mensal && divida.taxa_juros_mensal > 0 && (
+                      <p className="text-xs text-gray-400">{divida.taxa_juros_mensal}% a.m.</p>
                     )}
                   </div>
                 </div>

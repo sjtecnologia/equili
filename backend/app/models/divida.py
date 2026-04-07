@@ -21,6 +21,8 @@ class Divida(Base):
     valor_parcela: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     parcelas_restantes: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     taxa_juros_mensal: Mapped[float | None] = mapped_column(Numeric(6, 4), nullable=True)
+    data_inicio_contrato: Mapped[date | None] = mapped_column(Date, nullable=True)
+    data_primeira_parcela: Mapped[date | None] = mapped_column(Date, nullable=True)
     data_prox_vencimento: Mapped[date] = mapped_column(Date, nullable=False)
     quitada: Mapped[bool] = mapped_column(Boolean, default=False)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
