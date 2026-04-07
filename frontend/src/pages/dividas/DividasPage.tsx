@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Trash2, Loader2, X, CheckCircle, Lock, Pencil, AlertTriangle } from 'lucide-react'
+import { Plus, Trash2, Loader2, X, CheckCircle, Lock, Pencil, AlertTriangle, History } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
@@ -21,6 +21,15 @@ interface Divida {
   data_inicio_contrato: string | null
   data_primeira_parcela: string | null
   quitada: boolean
+}
+
+interface DividaPagamento {
+  id: string
+  data_referencia: string
+  data_pagamento: string
+  valor_pago: number
+  valor_parcela_original: number
+  observacao: string | null
 }
 
 interface LimiteError {
@@ -289,6 +298,8 @@ function PagarParcelaModal({
   const mesAnoAtrasado = vencimento.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
 
   const [dataReferencia, setDataReferencia] = useState(divida.data_prox_vencimento)
+  const [valorPago, setValorPago] = useState(divida.valor_parcela.toFixed(2).replace('.', ','))
+  const [observacao, setObservacao] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -300,12 +311,16 @@ function PagarParcelaModal({
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
   })()
 
+  const valorPagoNum = parseFloat(valorPago.replace(',', '.')) || 0
+
   async function handleConfirmar() {
     setErro(null)
     setIsSubmitting(true)
     try {
       await api.post(`/dividas/${divida.id}/pagar-parcela`, {
         data_referencia: dataReferencia || null,
+        valor_pago: valorPagoNum > 0 ? valorPagoNum : null,
+        observacao: observacao.trim() || null,
       })
       onSuccess()
       onClose()
@@ -365,6 +380,40 @@ function PagarParcelaModal({
             )}
           </div>
 
+          {/* Valor pago */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Valor pago (R$)
+            </label>
+            <input
+              type="text"
+              inputMode="decimal"
+              className="input-field"
+              value={valorPago}
+              onChange={(e) => setValorPago(e.target.value)}
+            />
+            {valorPagoNum !== divida.valor_parcela && valorPagoNum > 0 && (
+              <p className="mt-1.5 text-xs text-amber-600">
+                Diferença de {formatCurrency(Math.abs(valorPagoNum - divida.valor_parcela))} em relação ao valor original da parcela.
+              </p>
+            )}
+          </div>
+
+          {/* Observação */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Observação (opcional)
+            </label>
+            <input
+              type="text"
+              className="input-field"
+              placeholder="Ex.: incluiu multa de atraso"
+              value={observacao}
+              onChange={(e) => setObservacao(e.target.value)}
+              maxLength={300}
+            />
+          </div>
+
           {erro && (
             <p className="text-sm text-danger-500">{erro}</p>
           )}
@@ -376,13 +425,88 @@ function PagarParcelaModal({
             <button
               type="button"
               onClick={handleConfirmar}
-              disabled={isSubmitting || !dataReferencia}
+              disabled={isSubmitting || !dataReferencia || valorPagoNum <= 0}
               className="btn-primary flex-1 flex items-center justify-center gap-2"
             >
               {isSubmitting && <Loader2 size={14} className="animate-spin" />}
               Confirmar
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function HistoricoPagamentosModal({
+  divida,
+  onClose,
+}: {
+  divida: Divida
+  onClose: () => void
+}) {
+  const { data: pagamentos = [], isLoading } = useQuery<DividaPagamento[]>({
+    queryKey: ['divida-pagamentos', divida.id],
+    queryFn: () => api.get(`/dividas/${divida.id}/pagamentos`).then((r) => r.data),
+  })
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b">
+          <div>
+            <h2 className="font-semibold text-gray-800">Histórico de pagamentos</h2>
+            <p className="text-xs text-gray-400 truncate">{divida.descricao}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-4">
+          {isLoading ? (
+            <div className="space-y-2">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          ) : pagamentos.length === 0 ? (
+            <div className="text-center py-8">
+              <History size={32} className="text-gray-300 mx-auto mb-2" />
+              <p className="text-sm text-gray-500">Nenhum pagamento registrado ainda.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {pagamentos.map((p) => {
+                const diferenca = p.valor_pago - p.valor_parcela_original
+                return (
+                  <div key={p.id} className="border border-gray-100 rounded-xl p-3 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">
+                          Parcela de {new Date(p.data_referencia + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          Pago em {formatDate(p.data_pagamento)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-gray-800">{formatCurrency(p.valor_pago)}</p>
+                        {diferenca !== 0 && (
+                          <p className={`text-xs ${diferenca > 0 ? 'text-danger-500' : 'text-success-600'}`}>
+                            {diferenca > 0 ? '+' : ''}{formatCurrency(diferenca)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    {p.observacao && (
+                      <p className="text-xs text-gray-500 italic">{p.observacao}</p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -453,6 +577,7 @@ export default function DividasPage() {
   const [showModal, setShowModal] = useState(false)
   const [editando, setEditando] = useState<Divida | null>(null)
   const [pagando, setPagando] = useState<Divida | null>(null)
+  const [historico, setHistorico] = useState<Divida | null>(null)
   const queryClient = useQueryClient()
 
   const { data: dividas = [], isLoading } = useQuery<Divida[]>({
@@ -582,6 +707,13 @@ export default function DividasPage() {
                     Registrar pagamento
                   </button>
                   <button
+                    onClick={() => setHistorico(divida)}
+                    className="text-gray-300 hover:text-primary-500 transition-colors p-1"
+                    aria-label="Histórico de pagamentos"
+                  >
+                    <History size={16} />
+                  </button>
+                  <button
                     onClick={() => setEditando(divida)}
                     className="text-gray-300 hover:text-primary-500 transition-colors p-1"
                     aria-label="Editar dívida"
@@ -619,6 +751,12 @@ export default function DividasPage() {
             invalidate()
             setPagando(null)
           }}
+        />
+      )}
+      {historico && (
+        <HistoricoPagamentosModal
+          divida={historico}
+          onClose={() => setHistorico(null)}
         />
       )}
     </div>

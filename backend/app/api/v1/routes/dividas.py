@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 from calendar import monthrange
 from uuid import UUID
 
@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 
 from app.core.config import settings
 from app.core.dependencies import CurrentUserID, DBSession
-from app.models.divida import Divida
+from app.models.divida import Divida, DividaPagamento
 from app.models.usuario import Usuario
 
 router = APIRouter()
@@ -70,6 +70,8 @@ class DividaCreate(BaseModel):
 
 class PagarParcelaRequest(BaseModel):
     data_referencia: date | None = None
+    valor_pago: float | None = None
+    observacao: str | None = None
 
 
 class DividaUpdate(BaseModel):
@@ -171,11 +173,24 @@ async def pagar_parcela(divida_id: UUID, data: PagarParcelaRequest, usuario_id: 
     if not divida or divida.usuario_id != usuario_id:
         raise HTTPException(status_code=404, detail="Dívida não encontrada.")
 
+    # Determina qual parcela foi paga (base para calcular próximo vencimento)
+    base = data.data_referencia or divida.data_prox_vencimento
+
+    # Registra o pagamento no histórico
+    pagamento = DividaPagamento(
+        divida_id=divida.id,
+        usuario_id=usuario_id,
+        data_referencia=base,
+        data_pagamento=datetime.now(timezone.utc).date(),
+        valor_pago=data.valor_pago if data.valor_pago is not None else float(divida.valor_parcela),
+        valor_parcela_original=float(divida.valor_parcela),
+        observacao=data.observacao,
+    )
+    db.add(pagamento)
+
     if divida.parcelas_restantes > 0:
         divida.parcelas_restantes -= 1
         if divida.parcelas_restantes > 0:
-            # Usa a data informada pelo usuário; caso contrário, a data atual de vencimento
-            base = data.data_referencia or divida.data_prox_vencimento
             divida.data_prox_vencimento = _avancar_mes(base)
 
     if divida.parcelas_restantes == 0:
@@ -184,3 +199,17 @@ async def pagar_parcela(divida_id: UUID, data: PagarParcelaRequest, usuario_id: 
     await db.commit()
     await db.refresh(divida)
     return {"quitada": divida.quitada, "parcelas_restantes": divida.parcelas_restantes}
+
+
+@router.get("/{divida_id}/pagamentos")
+async def listar_pagamentos(divida_id: UUID, usuario_id: CurrentUserID, db: DBSession):
+    divida = await db.get(Divida, divida_id)
+    if not divida or divida.usuario_id != usuario_id:
+        raise HTTPException(status_code=404, detail="Dívida não encontrada.")
+
+    result = await db.execute(
+        select(DividaPagamento)
+        .where(DividaPagamento.divida_id == divida_id)
+        .order_by(DividaPagamento.data_referencia.desc())
+    )
+    return result.scalars().all()
