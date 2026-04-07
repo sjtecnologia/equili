@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Trash2, Loader2, X, CheckCircle2, RefreshCw, Layers } from 'lucide-react'
+import { Plus, Trash2, Loader2, X, CheckCircle2, RefreshCw, Layers, Pencil } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
@@ -56,7 +56,160 @@ const schema = z
     { message: 'Informe ao menos 2 parcelas', path: ['numero_parcelas'] },
   )
 
-type FormData = z.infer<typeof schema>
+const editSchema = z.object({
+  descricao: z.string().min(1, 'Descrição obrigatória'),
+  origem: z.string().min(1),
+  valor: z.coerce.number().positive('Valor deve ser positivo'),
+  data_prevista: z.string().min(1, 'Data obrigatória'),
+  devedor: z.string().optional(),
+  observacao: z.string().optional(),
+})
+type ContaFormData = z.infer<typeof schema>
+type EditFormData = z.infer<typeof editSchema>
+
+function EditarContaReceberModal({
+  conta,
+  onClose,
+  onSuccess,
+}: {
+  conta: ContaAReceber
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<EditFormData>({
+    resolver: zodResolver(editSchema),
+    defaultValues: {
+      descricao: conta.descricao,
+      origem: conta.origem,
+      valor: conta.valor,
+      data_prevista: conta.data_prevista,
+      devedor: conta.devedor ?? '',
+      observacao: conta.observacao ?? '',
+    },
+  })
+
+  async function onSubmit(data: EditFormData) {
+    await api.patch(`/contas-receber/${conta.id}`, data)
+    onSuccess()
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h2 className="font-semibold text-gray-800">Editar conta</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+        </div>
+        <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+            <input type="text" className={`input-field ${errors.descricao ? 'border-danger-500' : ''}`}
+              {...register('descricao')} />
+            {errors.descricao && <p className="mt-1 text-xs text-danger-500">{errors.descricao.message}</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Valor (R$)</label>
+              <Controller name="valor" control={control}
+                render={({ field }) => (
+                  <CurrencyInput {...field} className={`input-field ${errors.valor ? 'border-danger-500' : ''}`} />
+                )} />
+              {errors.valor && <p className="mt-1 text-xs text-danger-500">{errors.valor.message}</p>}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Data prevista</label>
+              <input type="date" className={`input-field ${errors.data_prevista ? 'border-danger-500' : ''}`}
+                {...register('data_prevista')} />
+              {errors.data_prevista && <p className="mt-1 text-xs text-danger-500">{errors.data_prevista.message}</p>}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Origem</label>
+            <select className="input-field" {...register('origem')}>
+              {ORIGENS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Devedor (opcional)</label>
+            <input type="text" className="input-field" {...register('devedor')} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Observação</label>
+            <input type="text" className="input-field" {...register('observacao')} />
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose} className="btn-ghost flex-1">Cancelar</button>
+            <button type="submit" disabled={isSubmitting}
+              className="btn-primary flex-1 flex items-center justify-center gap-2">
+              {isSubmitting && <Loader2 size={14} className="animate-spin" />}
+              Salvar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function ReceberContaModal({
+  conta,
+  onClose,
+  onSuccess,
+}: {
+  conta: ContaAReceber
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [dataRecebimento, setDataRecebimento] = useState(new Date().toISOString().slice(0, 10))
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  async function handleConfirmar() {
+    setIsSubmitting(true)
+    try {
+      await api.patch(`/contas-receber/${conta.id}/receber`, { data_recebimento: dataRecebimento || null })
+      onSuccess()
+      onClose()
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h2 className="font-semibold text-gray-800">Confirmar recebimento</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+        </div>
+        <div className="p-4 space-y-4">
+          <div className="bg-gray-50 rounded-xl p-3">
+            <p className="font-semibold text-gray-800 truncate">{conta.descricao}</p>
+            <p className="text-sm font-bold text-success-500 mt-1">{formatCurrency(conta.valor)}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Data do recebimento</label>
+            <input type="date" className="input-field" value={dataRecebimento}
+              onChange={(e) => setDataRecebimento(e.target.value)} />
+          </div>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="btn-ghost flex-1">Cancelar</button>
+            <button onClick={handleConfirmar} disabled={isSubmitting || !dataRecebimento}
+              className="btn-primary flex-1 flex items-center justify-center gap-2">
+              {isSubmitting && <Loader2 size={14} className="animate-spin" />}
+              Confirmar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function ContaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (count: number) => void }) {
   const [serverError, setServerError] = useState<string | null>(null)
@@ -66,7 +219,7 @@ function ContaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (c
     control,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm<FormData>({
+  } = useForm<ContaFormData>({
     resolver: zodResolver(schema),
     defaultValues: { origem: 'outro', modalidade: 'avulsa' },
   })
@@ -83,7 +236,7 @@ function ContaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (c
     return `Serão criados ${n} lançamento(s) mensais até dezembro de ${ano}.`
   }
 
-  async function onSubmit(data: FormData) {
+  async function onSubmit(data: ContaFormData) {
     setServerError(null)
     try {
       const res = await api.post('/contas-receber', data)
@@ -257,6 +410,8 @@ function ContaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (c
 
 export default function ContasReceberPage() {
   const [showModal, setShowModal] = useState(false)
+  const [editando, setEditando] = useState<ContaAReceber | null>(null)
+  const [recebendo, setRecebendo] = useState<ContaAReceber | null>(null)
   const [filtroStatus, setFiltroStatus] = useState<string>('todos')
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const queryClient = useQueryClient()
@@ -268,14 +423,6 @@ export default function ContasReceberPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/contas-receber/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contas-receber'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-    },
-  })
-
-  const receberMutation = useMutation({
-    mutationFn: (id: string) => api.patch(`/contas-receber/${id}/receber`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contas-receber'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
@@ -410,18 +557,20 @@ export default function ContasReceberPage() {
                 <div className="flex gap-2">
                   {conta.status !== 'recebido' && (
                     <button
-                      onClick={() => receberMutation.mutate(conta.id)}
-                      disabled={receberMutation.isPending}
+                      onClick={() => setRecebendo(conta)}
                       className="btn-secondary text-xs flex-1 flex items-center justify-center gap-1"
                     >
-                      {receberMutation.isPending ? (
-                        <Loader2 size={12} className="animate-spin" />
-                      ) : (
-                        <CheckCircle2 size={12} />
-                      )}
+                      <CheckCircle2 size={12} />
                       Marcar como recebido
                     </button>
                   )}
+                  <button
+                    onClick={() => setEditando(conta)}
+                    className="text-gray-300 hover:text-primary-500 transition-colors p-1"
+                    aria-label="Editar conta"
+                  >
+                    <Pencil size={16} />
+                  </button>
                   <button
                     onClick={() => deleteMutation.mutate(conta.id)}
                     disabled={deleteMutation.isPending}
@@ -447,6 +596,20 @@ export default function ContasReceberPage() {
               setTimeout(() => setSuccessMsg(null), 4000)
             }
           }}
+        />
+      )}
+      {editando && (
+        <EditarContaReceberModal
+          conta={editando}
+          onClose={() => setEditando(null)}
+          onSuccess={invalidate}
+        />
+      )}
+      {recebendo && (
+        <ReceberContaModal
+          conta={recebendo}
+          onClose={() => setRecebendo(null)}
+          onSuccess={invalidate}
         />
       )}
 

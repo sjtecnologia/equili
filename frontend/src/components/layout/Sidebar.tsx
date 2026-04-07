@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Wallet, CreditCard, Sparkles, Settings, LogOut, ArrowDownCircle, ArrowUpCircle, BarChart2 } from 'lucide-react'
+import { LayoutDashboard, Wallet, CreditCard, Sparkles, Settings, LogOut, ArrowDownCircle, ArrowUpCircle, BarChart2, Receipt } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import api from '@/services/api'
 
@@ -7,6 +7,7 @@ const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/renda', icon: Wallet, label: 'Renda' },
   { to: '/dividas', icon: CreditCard, label: 'Dívidas' },
+  { to: '/dividas/baixas', icon: Receipt, label: 'Baixas de Dívidas' },
   { to: '/contas-pagar', icon: ArrowUpCircle, label: 'Contas a Pagar' },
   { to: '/contas-receber', icon: ArrowDownCircle, label: 'Contas a Receber' },
   { to: '/relatorios', icon: BarChart2, label: 'Relatórios' },

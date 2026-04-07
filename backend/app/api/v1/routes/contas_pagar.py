@@ -74,6 +74,10 @@ class ContaAPagarUpdate(BaseModel):
     observacao: str | None = None
 
 
+class PagarRequest(BaseModel):
+    data_pagamento: date | None = None
+
+
 @router.get("")
 async def listar_contas_pagar(
     usuario_id: CurrentUserID,
@@ -174,13 +178,18 @@ async def atualizar_conta_pagar(
 
 @router.patch("/{conta_id}/pagar", status_code=status.HTTP_200_OK)
 async def marcar_como_pago(
-    conta_id: UUID, usuario_id: CurrentUserID, db: DBSession
+    conta_id: UUID, usuario_id: CurrentUserID, db: DBSession,
+    data: PagarRequest | None = None,
 ):
     conta = await db.get(ContaAPagar, conta_id)
     if not conta or conta.usuario_id != usuario_id:
         raise HTTPException(status_code=404, detail="Conta não encontrada.")
     conta.status = "pago"
-    conta.pago_em = datetime.now(timezone.utc)
+    if data and data.data_pagamento:
+        from datetime import time
+        conta.pago_em = datetime.combine(data.data_pagamento, time.min).replace(tzinfo=timezone.utc)
+    else:
+        conta.pago_em = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(conta)
     return conta

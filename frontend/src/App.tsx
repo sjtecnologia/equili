@@ -9,6 +9,7 @@ import LoginPage from '@/pages/auth/LoginPage'
 import CadastroPage from '@/pages/auth/CadastroPage'
 import DashboardPage from '@/pages/dashboard/DashboardPage'
 import DividasPage from '@/pages/dividas/DividasPage'
+import BaixasPage from '@/pages/dividas/BaixasPage'
 import RendaPage from '@/pages/renda/RendaPage'
 import PlanoAcaoPage from '@/pages/plano-de-acao/PlanoAcaoPage'
 import OnboardingPage from '@/pages/onboarding/OnboardingPage'
@@ -64,6 +65,7 @@ export default function App() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="renda" element={<RendaPage />} />
           <Route path="dividas" element={<DividasPage />} />
+          <Route path="dividas/baixas" element={<BaixasPage />} />
           <Route path="contas-pagar" element={<ContasPagarPage />} />
           <Route path="contas-receber" element={<ContasReceberPage />} />
           <Route path="relatorios" element={<RelatoriosPage />} />
