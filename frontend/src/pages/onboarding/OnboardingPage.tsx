@@ -63,12 +63,14 @@ export default function OnboardingPage() {
   async function handleRendaSubmit(data: RendaForm) {
     await api.post('/rendas', data)
     queryClient.invalidateQueries({ queryKey: ['rendas'] })
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     setStep(1)
   }
 
   async function handleDividaSubmit(data: DividaForm) {
     await api.post('/dividas', data)
     queryClient.invalidateQueries({ queryKey: ['dividas'] })
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     setStep(2)
   }
 
@@ -78,6 +80,7 @@ export default function OnboardingPage() {
   }
 
   function handleFinish() {
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     navigate('/dashboard', { replace: true })
   }
 
