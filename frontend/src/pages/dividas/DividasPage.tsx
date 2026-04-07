@@ -17,6 +17,7 @@ interface Divida {
   valor_parcela: number
   parcelas_totais: number | null
   parcelas_restantes: number
+  parcelas_atrasadas: number
   taxa_juros_mensal: number | null
   data_prox_vencimento: string
   data_inicio_contrato: string | null
@@ -35,25 +36,6 @@ interface DividaPagamento {
 
 interface LimiteError {
   response?: { status: number; data?: { detail?: string } }
-}
-
-/** Conta quantas parcelas venceram sem pagamento (data_prox < hoje). */
-function calcParcelasAtrasadas(data_prox_vencimento: string, parcelas_restantes: number): number {
-  const hoje = new Date()
-  hoje.setHours(0, 0, 0, 0)
-  const base = new Date(data_prox_vencimento + 'T00:00:00')
-  if (base >= hoje) return 0
-  let count = 0
-  let cur = base
-  while (cur < hoje && count < parcelas_restantes) {
-    count++
-    const m = cur.getMonth() // 0-based
-    const y = m === 11 ? cur.getFullYear() + 1 : cur.getFullYear()
-    const newM = (m + 1) % 12
-    const maxDay = new Date(y, newM + 1, 0).getDate()
-    cur = new Date(y, newM, Math.min(cur.getDate(), maxDay))
-  }
-  return count
 }
 
 const schema = z.object({
@@ -747,16 +729,11 @@ export default function DividasPage() {
   )
   const atingiuLimite = dividasAtivas.length >= 3
 
-  // Parcelas em atraso (calculado client-side)
-  const dividasComAtraso = dividasAtivas.filter(
-    (d) => calcParcelasAtrasadas(d.data_prox_vencimento, d.parcelas_restantes) > 0
-  ).length
-  const parcelasAtrasadasTotal = dividasAtivas.reduce(
-    (acc, d) => acc + calcParcelasAtrasadas(d.data_prox_vencimento, d.parcelas_restantes),
-    0
-  )
+  // Parcelas em atraso — calculado pelo backend via histórico de pagamentos
+  const dividasComAtraso = dividasAtivas.filter((d) => d.parcelas_atrasadas > 0).length
+  const parcelasAtrasadasTotal = dividasAtivas.reduce((acc, d) => acc + d.parcelas_atrasadas, 0)
   const valorAtrasado = dividasAtivas.reduce(
-    (acc, d) => acc + calcParcelasAtrasadas(d.data_prox_vencimento, d.parcelas_restantes) * d.valor_parcela,
+    (acc, d) => acc + d.parcelas_atrasadas * d.valor_parcela,
     0
   )
 
@@ -838,7 +815,7 @@ export default function DividasPage() {
               divida.valor_total > 0
                 ? Math.min(100, ((divida.valor_total - restante) / divida.valor_total) * 100)
                 : 0
-            const atrasadas = calcParcelasAtrasadas(divida.data_prox_vencimento, divida.parcelas_restantes)
+            const atrasadas = divida.parcelas_atrasadas
 
             return (
               <div key={divida.id} className={`card p-4 space-y-3 ${atrasadas > 0 ? 'border border-red-200' : ''}`}>
