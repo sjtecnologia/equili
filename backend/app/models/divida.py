@@ -19,6 +19,7 @@ class Divida(Base):
     # cartao_parcelado | emprestimo | financiamento | cheque_pre | outro
     valor_total: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     valor_parcela: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    parcelas_totais: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     parcelas_restantes: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     taxa_juros_mensal: Mapped[float | None] = mapped_column(Numeric(6, 4), nullable=True)
     data_inicio_contrato: Mapped[date | None] = mapped_column(Date, nullable=True)

@@ -29,6 +29,7 @@ class DividaCreate(BaseModel):
     tipo: str
     valor_total: float
     valor_parcela: float
+    parcelas_totais: int | None = None
     parcelas_restantes: int
     taxa_juros_mensal: float | None = None
     data_inicio_contrato: date | None = None
@@ -74,12 +75,20 @@ class PagarParcelaRequest(BaseModel):
     observacao: str | None = None
 
 
+class PagamentoUpdate(BaseModel):
+    data_referencia: date | None = None
+    data_pagamento: date | None = None
+    valor_pago: float | None = None
+    observacao: str | None = None
+
+
 class DividaUpdate(BaseModel):
     descricao: str | None = None
     credor: str | None = None
     tipo: str | None = None
     valor_total: float | None = None
     valor_parcela: float | None = None
+    parcelas_totais: int | None = None
     parcelas_restantes: int | None = None
     taxa_juros_mensal: float | None = None
     data_inicio_contrato: date | None = None
@@ -213,3 +222,46 @@ async def listar_pagamentos(divida_id: UUID, usuario_id: CurrentUserID, db: DBSe
         .order_by(DividaPagamento.data_referencia.desc())
     )
     return result.scalars().all()
+
+
+@router.patch("/{divida_id}/pagamentos/{pagamento_id}")
+async def atualizar_pagamento(
+    divida_id: UUID,
+    pagamento_id: UUID,
+    data: PagamentoUpdate,
+    usuario_id: CurrentUserID,
+    db: DBSession,
+):
+    divida = await db.get(Divida, divida_id)
+    if not divida or divida.usuario_id != usuario_id:
+        raise HTTPException(status_code=404, detail="Dívida não encontrada.")
+
+    pagamento = await db.get(DividaPagamento, pagamento_id)
+    if not pagamento or pagamento.divida_id != divida_id:
+        raise HTTPException(status_code=404, detail="Pagamento não encontrado.")
+
+    for campo, valor in data.model_dump(exclude_none=True).items():
+        setattr(pagamento, campo, valor)
+
+    await db.commit()
+    await db.refresh(pagamento)
+    return pagamento
+
+
+@router.delete("/{divida_id}/pagamentos/{pagamento_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remover_pagamento(
+    divida_id: UUID,
+    pagamento_id: UUID,
+    usuario_id: CurrentUserID,
+    db: DBSession,
+):
+    divida = await db.get(Divida, divida_id)
+    if not divida or divida.usuario_id != usuario_id:
+        raise HTTPException(status_code=404, detail="Dívida não encontrada.")
+
+    pagamento = await db.get(DividaPagamento, pagamento_id)
+    if not pagamento or pagamento.divida_id != divida_id:
+        raise HTTPException(status_code=404, detail="Pagamento não encontrado.")
+
+    await db.delete(pagamento)
+    await db.commit()
