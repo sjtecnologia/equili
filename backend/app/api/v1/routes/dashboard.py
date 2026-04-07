@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 
 from app.core.dependencies import CurrentUserID, DBSession
 from app.models.conta_lancamento import ContaAPagar, ContaAReceber
-from app.models.divida import Divida
+from app.models.divida import Divida, DividaPagamento
 from app.models.plano_acao import PlanoAcao
 from app.models.renda import Renda
 
@@ -18,18 +18,6 @@ def _avancar_mes(d: date) -> date:
     ano_novo = d.year + (1 if d.month == 12 else 0)
     dia_novo = min(d.day, monthrange(ano_novo, mes_novo)[1])
     return date(ano_novo, mes_novo, dia_novo)
-
-
-def _parcelas_atrasadas(data_prox: date, parcelas_restantes: int, hoje: date) -> int:
-    """Conta quantas parcelas venceram sem pagamento (data_prox < hoje)."""
-    if data_prox >= hoje:
-        return 0
-    count = 0
-    base = data_prox
-    while base < hoje and count < parcelas_restantes:
-        count += 1
-        base = _avancar_mes(base)
-    return count
 
 
 @router.get("/resumo")
@@ -92,24 +80,48 @@ async def resumo_dashboard(usuario_id: CurrentUserID, db: DBSession):
         select(func.count()).where(PlanoAcao.usuario_id == usuario_id)
     ) or 0
 
-    # Parcelas de dívidas atrasadas (data_prox_vencimento antes de hoje)
-    result_dividas = await db.execute(
+    # Parcelas de dívidas atrasadas — usa histórico de pagamentos para detectar gaps
+    todas_dividas_result = await db.execute(
         select(Divida).where(
             Divida.usuario_id == usuario_id,
             Divida.quitada == False,  # noqa: E712
-            Divida.data_prox_vencimento < hoje,
         )
     )
-    dividas_atrasadas = result_dividas.scalars().all()
+    todas_dividas = todas_dividas_result.scalars().all()
+
     parcelas_atrasadas_total = 0
     valor_parcelas_atrasadas = 0.0
     dividas_com_atraso = 0
-    for d in dividas_atrasadas:
-        n = _parcelas_atrasadas(d.data_prox_vencimento, d.parcelas_restantes, hoje)
-        if n > 0:
-            parcelas_atrasadas_total += n
-            valor_parcelas_atrasadas += n * float(d.valor_parcela)
-            dividas_com_atraso += 1
+
+    if todas_dividas:
+        ids = [d.id for d in todas_dividas]
+        pags_result = await db.execute(
+            select(DividaPagamento.divida_id, DividaPagamento.data_referencia)
+            .where(DividaPagamento.divida_id.in_(ids))
+        )
+        pagas_por_divida: dict = {}
+        for divida_id, data_ref in pags_result:
+            pagas_por_divida.setdefault(divida_id, set()).add(data_ref)
+
+        for d in todas_dividas:
+            pagas = pagas_por_divida.get(d.id, set())
+            n_atraso = 0
+            if d.data_primeira_parcela:
+                cur = d.data_primeira_parcela
+                while cur < hoje:
+                    if cur not in pagas:
+                        n_atraso += 1
+                    cur = _avancar_mes(cur)
+            elif d.data_prox_vencimento < hoje:
+                cur = d.data_prox_vencimento
+                while cur < hoje and n_atraso < d.parcelas_restantes:
+                    n_atraso += 1
+                    cur = _avancar_mes(cur)
+
+            if n_atraso > 0:
+                parcelas_atrasadas_total += n_atraso
+                valor_parcelas_atrasadas += n_atraso * float(d.valor_parcela)
+                dividas_com_atraso += 1
 
     # Saldo projetado real: renda + a_receber - a_pagar
     saldo_projetado = (
