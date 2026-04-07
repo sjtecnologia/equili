@@ -17,6 +17,7 @@ type FormData = z.infer<typeof schema>
 export default function LoginPage() {
   const navigate = useNavigate()
   const setAccessToken = useAuthStore((s) => s.setAccessToken)
+  const setUser = useAuthStore((s) => s.setUser)
   const [showPassword, setShowPassword] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
 
@@ -31,6 +32,10 @@ export default function LoginPage() {
     try {
       const res = await api.post<{ access_token: string }>('/auth/login', data)
       setAccessToken(res.data.access_token)
+      const me = await api.get('/usuarios/me', {
+        headers: { Authorization: `Bearer ${res.data.access_token}` },
+      })
+      setUser(me.data)
       navigate('/dashboard', { replace: true })
     } catch {
       setServerError('E-mail ou senha incorretos. Tente novamente.')

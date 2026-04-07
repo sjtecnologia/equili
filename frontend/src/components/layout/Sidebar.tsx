@@ -1,5 +1,7 @@
-import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Wallet, CreditCard, Sparkles, Settings, ArrowDownCircle, ArrowUpCircle, BarChart2 } from 'lucide-react'
+import { NavLink, useNavigate } from 'react-router-dom'
+import { LayoutDashboard, Wallet, CreditCard, Sparkles, Settings, LogOut, ArrowDownCircle, ArrowUpCircle, BarChart2 } from 'lucide-react'
+import { useAuthStore } from '@/stores/authStore'
+import api from '@/services/api'
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -11,7 +13,26 @@ const navItems = [
   { to: '/plano-de-acao', icon: Sparkles, label: 'Plano de Ação' },
 ]
 
+function avatarLetters(nome: string) {
+  return nome
+    .split(' ')
+    .slice(0, 2)
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+}
+
 export default function Sidebar() {
+  const user = useAuthStore((s) => s.user)
+  const logout = useAuthStore((s) => s.logout)
+  const navigate = useNavigate()
+
+  async function handleLogout() {
+    await api.post('/auth/logout').catch(() => {})
+    logout()
+    navigate('/login', { replace: true })
+  }
+
   return (
     <div className="w-60 min-h-screen bg-white border-r border-gray-200 flex flex-col">
       {/* Logo */}
@@ -19,6 +40,19 @@ export default function Sidebar() {
         <span className="text-2xl font-bold text-primary-500">Equili</span>
         <p className="text-xs text-gray-500 mt-0.5">Controle financeiro familiar</p>
       </div>
+
+      {/* Usuário logado */}
+      {user && (
+        <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-primary-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
+            {avatarLetters(user.nome)}
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-800 truncate">{user.nome}</p>
+            <p className="text-xs text-gray-400 truncate">{user.email}</p>
+          </div>
+        </div>
+      )}
 
       {/* Nav */}
       <nav className="flex-1 p-4 space-y-1">
@@ -41,18 +75,33 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-gray-100">
+      <div className="p-4 border-t border-gray-100 space-y-1">
         <NavLink
           to="/configuracoes"
-          className="flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium text-gray-500 hover:bg-gray-100"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-colors duration-150 ${
+              isActive ? 'bg-primary-100 text-primary-500' : 'text-gray-500 hover:bg-gray-100'
+            }`
+          }
         >
           <Settings size={20} />
           Configurações
         </NavLink>
-        <div className="mt-3 mx-3 p-3 bg-primary-100 rounded text-xs">
-          <p className="font-semibold text-primary-500">Plano Gratuito</p>
-          <p className="text-gray-500 mt-0.5">Upgrade para recursos completos</p>
-        </div>
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-500 transition-colors duration-150"
+        >
+          <LogOut size={20} />
+          Sair
+        </button>
+        {user && (
+          <div className="mt-2 mx-1 p-3 bg-primary-100 rounded text-xs">
+            <p className="font-semibold text-primary-500 capitalize">Plano {user.plano}</p>
+            {user.plano === 'gratuito' && (
+              <p className="text-gray-500 mt-0.5">Upgrade para recursos completos</p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

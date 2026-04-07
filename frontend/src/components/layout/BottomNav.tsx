@@ -1,12 +1,12 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Wallet, Sparkles, ArrowDownCircle, ArrowUpCircle, BarChart2 } from 'lucide-react'
+import { LayoutDashboard, Sparkles, ArrowUpCircle, BarChart2, Settings } from 'lucide-react'
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Início' },
   { to: '/contas-pagar', icon: ArrowUpCircle, label: 'A Pagar' },
-  { to: '/contas-receber', icon: ArrowDownCircle, label: 'A Receber' },
   { to: '/relatorios', icon: BarChart2, label: 'Relatórios' },
   { to: '/plano-de-acao', icon: Sparkles, label: 'Plano IA' },
+  { to: '/configuracoes', icon: Settings, label: 'Config.' },
 ]
 
 export default function BottomNav() {
