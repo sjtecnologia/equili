@@ -29,3 +29,30 @@ class Divida(Base):
     atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     usuario: Mapped["Usuario"] = relationship(back_populates="dividas")  # noqa: F821
+    pagamentos: Mapped[list["DividaPagamento"]] = relationship(
+        back_populates="divida",
+        cascade="all, delete-orphan",
+        order_by="DividaPagamento.data_referencia.desc()",
+    )
+
+
+class DividaPagamento(Base):
+    __tablename__ = "divida_pagamentos"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    divida_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("dividas.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    usuario_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # data_referencia: o período da parcela que foi quitada (ex: 2026-03)
+    data_referencia: Mapped[date] = mapped_column(Date, nullable=False)
+    # data_pagamento: data real em que o pagamento foi efetuado
+    data_pagamento: Mapped[date] = mapped_column(Date, nullable=False)
+    valor_pago: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    valor_parcela_original: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    observacao: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    divida: Mapped["Divida"] = relationship(back_populates="pagamentos")
