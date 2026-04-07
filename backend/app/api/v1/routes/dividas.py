@@ -1,8 +1,9 @@
 from datetime import date
+from calendar import monthrange
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 from sqlalchemy import func, select
 
 from app.core.config import settings
@@ -15,6 +16,13 @@ router = APIRouter()
 TIPOS_VALIDOS = {"cartao_parcelado", "emprestimo", "financiamento", "cheque_pre", "outro"}
 
 
+def _avancar_mes(d: date) -> date:
+    mes_novo = d.month % 12 + 1
+    ano_novo = d.year + (1 if d.month == 12 else 0)
+    dia_novo = min(d.day, monthrange(ano_novo, mes_novo)[1])
+    return date(ano_novo, mes_novo, dia_novo)
+
+
 class DividaCreate(BaseModel):
     descricao: str
     credor: str | None = None
@@ -23,7 +31,9 @@ class DividaCreate(BaseModel):
     valor_parcela: float
     parcelas_restantes: int
     taxa_juros_mensal: float | None = None
-    data_prox_vencimento: date
+    data_inicio_contrato: date | None = None
+    data_primeira_parcela: date | None = None
+    data_prox_vencimento: date | None = None
 
     @field_validator("tipo")
     @classmethod
@@ -46,6 +56,17 @@ class DividaCreate(BaseModel):
             raise ValueError("Parcelas restantes não pode ser negativo.")
         return v
 
+    @model_validator(mode="after")
+    def computar_prox_vencimento(self) -> "DividaCreate":
+        if self.data_prox_vencimento is None:
+            if self.data_primeira_parcela is not None:
+                self.data_prox_vencimento = self.data_primeira_parcela
+            else:
+                raise ValueError(
+                    "Informe data_primeira_parcela ou data_prox_vencimento."
+                )
+        return self
+
 
 class DividaUpdate(BaseModel):
     descricao: str | None = None
@@ -53,6 +74,8 @@ class DividaUpdate(BaseModel):
     valor_parcela: float | None = None
     parcelas_restantes: int | None = None
     taxa_juros_mensal: float | None = None
+    data_inicio_contrato: date | None = None
+    data_primeira_parcela: date | None = None
     data_prox_vencimento: date | None = None
 
 
@@ -124,6 +147,8 @@ async def pagar_parcela(divida_id: UUID, usuario_id: CurrentUserID, db: DBSessio
 
     if divida.parcelas_restantes > 0:
         divida.parcelas_restantes -= 1
+        if divida.parcelas_restantes > 0:
+            divida.data_prox_vencimento = _avancar_mes(divida.data_prox_vencimento)
 
     if divida.parcelas_restantes == 0:
         divida.quitada = True
