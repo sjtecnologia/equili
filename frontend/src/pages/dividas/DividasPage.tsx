@@ -15,6 +15,7 @@ interface Divida {
   tipo: string
   valor_total: number
   valor_parcela: number
+  parcelas_totais: number | null
   parcelas_restantes: number
   taxa_juros_mensal: number | null
   data_prox_vencimento: string
@@ -42,6 +43,7 @@ const schema = z.object({
   tipo: z.string().min(1, 'Tipo obrigatório'),
   valor_total: z.coerce.number().positive('Valor deve ser positivo'),
   valor_parcela: z.coerce.number().positive('Valor da parcela deve ser positivo'),
+  parcelas_totais: z.coerce.number().int().min(1).optional().nullable(),
   parcelas_restantes: z.coerce.number().int().min(1, 'Mínimo 1 parcela'),
   taxa_juros_mensal: z.coerce.number().min(0).optional().nullable(),
   data_inicio_contrato: z.string().optional(),
@@ -156,10 +158,21 @@ function DividaForm({
         </div>
       </div>
 
-      {/* Parcelas restantes + Juros */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Parcelas */}
+      <div className="grid grid-cols-3 gap-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Parcelas restantes *</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Total de parcelas</label>
+          <input
+            type="number"
+            min="1"
+            className="input-field"
+            placeholder="Ex.: 24"
+            {...register('parcelas_totais')}
+          />
+          <p className="mt-1 text-xs text-gray-400">Qtd total do contrato</p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Restantes *</label>
           <input
             type="number"
             min="1"
@@ -445,14 +458,63 @@ function HistoricoPagamentosModal({
   divida: Divida
   onClose: () => void
 }) {
+  const queryClient = useQueryClient()
+  const queryKey = ['divida-pagamentos', divida.id]
+
   const { data: pagamentos = [], isLoading } = useQuery<DividaPagamento[]>({
-    queryKey: ['divida-pagamentos', divida.id],
+    queryKey,
     queryFn: () => api.get(`/dividas/${divida.id}/pagamentos`).then((r) => r.data),
   })
 
+  // Edição inline
+  const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({ data_referencia: '', data_pagamento: '', valor_pago: '', observacao: '' })
+  const [editErro, setEditErro] = useState<string | null>(null)
+  const [salvando, setSalvando] = useState(false)
+
+  // Exclusão
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      api.delete(`/dividas/${divida.id}/pagamentos/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+  })
+  const [confirmandoId, setConfirmandoId] = useState<string | null>(null)
+
+  function abrirEdicao(p: DividaPagamento) {
+    setEditandoId(p.id)
+    setEditErro(null)
+    setEditForm({
+      data_referencia: p.data_referencia,
+      data_pagamento: p.data_pagamento,
+      valor_pago: String(p.valor_pago).replace('.', ','),
+      observacao: p.observacao ?? '',
+    })
+  }
+
+  async function salvarEdicao(id: string) {
+    setEditErro(null)
+    setSalvando(true)
+    try {
+      const valorNum = parseFloat(editForm.valor_pago.replace(',', '.'))
+      if (!valorNum || valorNum <= 0) throw new Error('Valor inválido')
+      await api.patch(`/dividas/${divida.id}/pagamentos/${id}`, {
+        data_referencia: editForm.data_referencia || null,
+        data_pagamento: editForm.data_pagamento || null,
+        valor_pago: valorNum,
+        observacao: editForm.observacao.trim() || null,
+      })
+      await queryClient.invalidateQueries({ queryKey })
+      setEditandoId(null)
+    } catch {
+      setEditErro('Erro ao salvar. Verifique os dados.')
+    } finally {
+      setSalvando(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[80vh] flex flex-col">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between p-4 border-b">
           <div>
             <h2 className="font-semibold text-gray-800">Histórico de pagamentos</h2>
@@ -479,29 +541,97 @@ function HistoricoPagamentosModal({
             <div className="space-y-2">
               {pagamentos.map((p) => {
                 const diferenca = p.valor_pago - p.valor_parcela_original
+                const esteEditando = editandoId === p.id
+                const esteConfirmando = confirmandoId === p.id
+
+                if (esteEditando) {
+                  return (
+                    <div key={p.id} className="border border-primary-200 rounded-xl p-3 space-y-3 bg-primary-50/30">
+                      <p className="text-xs font-medium text-primary-600 uppercase tracking-wide">Editando baixa</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-0.5">Parcela (mês ref.)</label>
+                          <input type="date" className="input-field text-sm py-1.5" value={editForm.data_referencia}
+                            onChange={(e) => setEditForm((f) => ({ ...f, data_referencia: e.target.value }))} />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-0.5">Data do pagamento</label>
+                          <input type="date" className="input-field text-sm py-1.5" value={editForm.data_pagamento}
+                            onChange={(e) => setEditForm((f) => ({ ...f, data_pagamento: e.target.value }))} />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-0.5">Valor pago (R$)</label>
+                        <input type="text" inputMode="decimal" className="input-field text-sm py-1.5" value={editForm.valor_pago}
+                          onChange={(e) => setEditForm((f) => ({ ...f, valor_pago: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-0.5">Observação</label>
+                        <input type="text" className="input-field text-sm py-1.5" placeholder="Ex.: multa de atraso"
+                          value={editForm.observacao} maxLength={300}
+                          onChange={(e) => setEditForm((f) => ({ ...f, observacao: e.target.value }))} />
+                      </div>
+                      {editErro && <p className="text-xs text-danger-500">{editErro}</p>}
+                      <div className="flex gap-2">
+                        <button onClick={() => setEditandoId(null)} className="btn-ghost text-xs flex-1">Cancelar</button>
+                        <button onClick={() => salvarEdicao(p.id)} disabled={salvando}
+                          className="btn-primary text-xs flex-1 flex items-center justify-center gap-1">
+                          {salvando && <Loader2 size={12} className="animate-spin" />}
+                          Salvar
+                        </button>
+                      </div>
+                    </div>
+                  )
+                }
+
                 return (
                   <div key={p.id} className="border border-gray-100 rounded-xl p-3 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
                         <p className="text-sm font-medium text-gray-800">
                           Parcela de {new Date(p.data_referencia + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
                         </p>
                         <p className="text-xs text-gray-400">
                           Pago em {formatDate(p.data_pagamento)}
                         </p>
+                        {p.observacao && (
+                          <p className="text-xs text-gray-500 italic mt-0.5">{p.observacao}</p>
+                        )}
                       </div>
-                      <div className="text-right">
+                      <div className="text-right shrink-0">
                         <p className="font-semibold text-gray-800">{formatCurrency(p.valor_pago)}</p>
                         {diferenca !== 0 && (
                           <p className={`text-xs ${diferenca > 0 ? 'text-danger-500' : 'text-success-600'}`}>
                             {diferenca > 0 ? '+' : ''}{formatCurrency(diferenca)}
                           </p>
                         )}
+                        <div className="flex gap-1 justify-end mt-1.5">
+                          <button onClick={() => abrirEdicao(p)}
+                            className="text-gray-300 hover:text-primary-500 transition-colors"
+                            aria-label="Editar baixa">
+                            <Pencil size={13} />
+                          </button>
+                          {esteConfirmando ? (
+                            <>
+                              <button onClick={() => { deleteMutation.mutate(p.id); setConfirmandoId(null) }}
+                                className="text-xs text-danger-500 font-medium hover:underline">
+                                Confirmar
+                              </button>
+                              <button onClick={() => setConfirmandoId(null)}
+                                className="text-xs text-gray-400 hover:underline">
+                                Não
+                              </button>
+                            </>
+                          ) : (
+                            <button onClick={() => setConfirmandoId(p.id)}
+                              className="text-gray-300 hover:text-danger-500 transition-colors"
+                              aria-label="Excluir baixa">
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    {p.observacao && (
-                      <p className="text-xs text-gray-500 italic">{p.observacao}</p>
-                    )}
                   </div>
                 )
               })}
@@ -532,6 +662,7 @@ function EditarDividaModal({
     valor_total: divida.valor_total,
     valor_parcela: divida.valor_parcela,
     parcelas_restantes: divida.parcelas_restantes,
+    parcelas_totais: divida.parcelas_totais ?? undefined,
     taxa_juros_mensal: divida.taxa_juros_mensal ?? 0,
     data_inicio_contrato: divida.data_inicio_contrato ?? '',
     data_primeira_parcela: divida.data_primeira_parcela ?? divida.data_prox_vencimento,
@@ -670,8 +801,10 @@ export default function DividasPage() {
                       Próx. vencimento: {formatDate(divida.data_prox_vencimento)}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {divida.parcelas_restantes} parcela(s) restante(s) ·{' '}
-                      {formatCurrency(divida.valor_parcela)}/mês
+                      {divida.parcelas_totais
+                        ? `${divida.parcelas_restantes} de ${divida.parcelas_totais} parcelas restantes · ${formatCurrency(divida.valor_parcela)}/mês`
+                        : `${divida.parcelas_restantes} parcela(s) restante(s) · ${formatCurrency(divida.valor_parcela)}/mês`
+                      }
                     </p>
                   </div>
                   <div className="text-right shrink-0">
