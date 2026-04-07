@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Trash2, Loader2, X, CheckCircle, Lock } from 'lucide-react'
+import { Plus, Trash2, Loader2, X, CheckCircle, Lock, Pencil } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
@@ -41,20 +41,199 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
-function DividaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
-  const [serverError, setServerError] = useState<string | null>(null)
+// Formulário compartilhado entre criação e edição
+function DividaForm({
+  defaultValues,
+  onSubmit,
+  isSubmitting,
+  serverError,
+  onClose,
+  submitLabel,
+}: {
+  defaultValues?: Partial<FormData>
+  onSubmit: (data: FormData) => Promise<void>
+  isSubmitting: boolean
+  serverError: string | null
+  onClose: () => void
+  submitLabel: string
+}) {
   const {
     register,
     control,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { tipo: 'emprestimo', taxa_juros_mensal: 0 },
+    defaultValues: { tipo: 'emprestimo', taxa_juros_mensal: 0, ...defaultValues },
   })
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4">
+      {/* Descrição */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Descrição *</label>
+        <input
+          type="text"
+          className={`input-field ${errors.descricao ? 'border-danger-500' : ''}`}
+          placeholder="Ex.: Financiamento do carro"
+          {...register('descricao')}
+        />
+        {errors.descricao && (
+          <p className="mt-1 text-xs text-danger-500">{errors.descricao.message}</p>
+        )}
+      </div>
+
+      {/* Tipo + Credor */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>
+          <select
+            className={`input-field ${errors.tipo ? 'border-danger-500' : ''}`}
+            {...register('tipo')}
+          >
+            <option value="cartao_parcelado">Cartão parcelado</option>
+            <option value="emprestimo">Empréstimo</option>
+            <option value="financiamento">Financiamento</option>
+            <option value="cheque_pre">Cheque pré</option>
+            <option value="outro">Outro</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Credor</label>
+          <input
+            type="text"
+            className="input-field"
+            placeholder="Ex.: Nubank"
+            {...register('credor')}
+          />
+        </div>
+      </div>
+
+      {/* Valor total + Valor parcela */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Valor total (R$) *</label>
+          <Controller
+            name="valor_total"
+            control={control}
+            render={({ field }) => (
+              <CurrencyInput
+                {...field}
+                className={`input-field ${errors.valor_total ? 'border-danger-500' : ''}`}
+                placeholder="0,00"
+              />
+            )}
+          />
+          {errors.valor_total && (
+            <p className="mt-1 text-xs text-danger-500">{errors.valor_total.message}</p>
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Valor parcela (R$) *</label>
+          <Controller
+            name="valor_parcela"
+            control={control}
+            render={({ field }) => (
+              <CurrencyInput
+                {...field}
+                className={`input-field ${errors.valor_parcela ? 'border-danger-500' : ''}`}
+                placeholder="0,00"
+              />
+            )}
+          />
+          {errors.valor_parcela && (
+            <p className="mt-1 text-xs text-danger-500">{errors.valor_parcela.message}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Parcelas restantes + Juros */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Parcelas restantes *</label>
+          <input
+            type="number"
+            min="1"
+            className={`input-field ${errors.parcelas_restantes ? 'border-danger-500' : ''}`}
+            placeholder="Ex.: 12"
+            {...register('parcelas_restantes')}
+          />
+          {errors.parcelas_restantes && (
+            <p className="mt-1 text-xs text-danger-500">{errors.parcelas_restantes.message}</p>
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Juros % a.m.</label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            className="input-field"
+            placeholder="0,00"
+            {...register('taxa_juros_mensal')}
+          />
+        </div>
+      </div>
+
+      {/* Datas */}
+      <div className="border-t pt-3">
+        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+          Datas do contrato
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Início do contrato
+            </label>
+            <input type="date" className="input-field" {...register('data_inicio_contrato')} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              1ª parcela *
+            </label>
+            <input
+              type="date"
+              className={`input-field ${errors.data_primeira_parcela ? 'border-danger-500' : ''}`}
+              {...register('data_primeira_parcela')}
+            />
+            {errors.data_primeira_parcela && (
+              <p className="mt-1 text-xs text-danger-500">
+                {errors.data_primeira_parcela.message}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {serverError && (
+        <div className="rounded-lg bg-danger-100 border border-danger-200 px-3 py-2 text-sm text-danger-500">
+          {serverError}
+        </div>
+      )}
+      <div className="flex gap-3 pt-2">
+        <button type="button" onClick={onClose} className="btn-ghost flex-1">
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="btn-primary flex-1 flex items-center justify-center gap-2"
+        >
+          {isSubmitting && <Loader2 size={14} className="animate-spin" />}
+          {submitLabel}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+function DividaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [serverError, setServerError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   async function onSubmit(data: FormData) {
     setServerError(null)
+    setIsSubmitting(true)
     try {
       await api.post('/dividas', data)
       onSuccess()
@@ -69,6 +248,8 @@ function DividaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
       } else {
         setServerError('Erro ao salvar dívida.')
       }
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -81,162 +262,73 @@ function DividaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
             <X size={20} />
           </button>
         </div>
-        <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4">
-          {/* Descrição */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Descrição *</label>
-            <input
-              type="text"
-              className={`input-field ${errors.descricao ? 'border-danger-500' : ''}`}
-              placeholder="Ex.: Financiamento do carro"
-              {...register('descricao')}
-            />
-            {errors.descricao && (
-              <p className="mt-1 text-xs text-danger-500">{errors.descricao.message}</p>
-            )}
-          </div>
+        <DividaForm
+          onSubmit={onSubmit}
+          isSubmitting={isSubmitting}
+          serverError={serverError}
+          onClose={onClose}
+          submitLabel="Salvar"
+        />
+      </div>
+    </div>
+  )
+}
 
-          {/* Tipo + Credor */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>
-              <select
-                className={`input-field ${errors.tipo ? 'border-danger-500' : ''}`}
-                {...register('tipo')}
-              >
-                <option value="cartao_parcelado">Cartão parcelado</option>
-                <option value="emprestimo">Empréstimo</option>
-                <option value="financiamento">Financiamento</option>
-                <option value="cheque_pre">Cheque pré</option>
-                <option value="outro">Outro</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Credor</label>
-              <input
-                type="text"
-                className="input-field"
-                placeholder="Ex.: Nubank"
-                {...register('credor')}
-              />
-            </div>
-          </div>
+function EditarDividaModal({
+  divida,
+  onClose,
+  onSuccess,
+}: {
+  divida: Divida
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [serverError, setServerError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-          {/* Valor total + Valor parcela */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Valor total (R$) *</label>
-              <Controller
-                name="valor_total"
-                control={control}
-                render={({ field }) => (
-                  <CurrencyInput
-                    {...field}
-                    className={`input-field ${errors.valor_total ? 'border-danger-500' : ''}`}
-                    placeholder="0,00"
-                  />
-                )}
-              />
-              {errors.valor_total && (
-                <p className="mt-1 text-xs text-danger-500">{errors.valor_total.message}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Valor parcela (R$) *</label>
-              <Controller
-                name="valor_parcela"
-                control={control}
-                render={({ field }) => (
-                  <CurrencyInput
-                    {...field}
-                    className={`input-field ${errors.valor_parcela ? 'border-danger-500' : ''}`}
-                    placeholder="0,00"
-                  />
-                )}
-              />
-              {errors.valor_parcela && (
-                <p className="mt-1 text-xs text-danger-500">{errors.valor_parcela.message}</p>
-              )}
-            </div>
-          </div>
+  const defaultValues: Partial<FormData> = {
+    descricao: divida.descricao,
+    credor: divida.credor ?? '',
+    tipo: divida.tipo,
+    valor_total: divida.valor_total,
+    valor_parcela: divida.valor_parcela,
+    parcelas_restantes: divida.parcelas_restantes,
+    taxa_juros_mensal: divida.taxa_juros_mensal ?? 0,
+    data_inicio_contrato: divida.data_inicio_contrato ?? '',
+    data_primeira_parcela: divida.data_primeira_parcela ?? divida.data_prox_vencimento,
+  }
 
-          {/* Parcelas restantes + Juros */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Parcelas restantes *</label>
-              <input
-                type="number"
-                min="1"
-                className={`input-field ${errors.parcelas_restantes ? 'border-danger-500' : ''}`}
-                placeholder="Ex.: 12"
-                {...register('parcelas_restantes')}
-              />
-              {errors.parcelas_restantes && (
-                <p className="mt-1 text-xs text-danger-500">{errors.parcelas_restantes.message}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Juros % a.m.</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                className="input-field"
-                placeholder="0,00"
-                {...register('taxa_juros_mensal')}
-              />
-            </div>
-          </div>
+  async function onSubmit(data: FormData) {
+    setServerError(null)
+    setIsSubmitting(true)
+    try {
+      await api.patch(`/dividas/${divida.id}`, data)
+      onSuccess()
+      onClose()
+    } catch {
+      setServerError('Erro ao atualizar dívida.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
-          {/* Datas */}
-          <div className="border-t pt-3">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
-              Datas do contrato
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Início do contrato
-                </label>
-                <input type="date" className="input-field" {...register('data_inicio_contrato')} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  1ª parcela *
-                </label>
-                <input
-                  type="date"
-                  className={`input-field ${errors.data_primeira_parcela ? 'border-danger-500' : ''}`}
-                  {...register('data_primeira_parcela')}
-                />
-                {errors.data_primeira_parcela && (
-                  <p className="mt-1 text-xs text-danger-500">
-                    {errors.data_primeira_parcela.message}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {serverError && (
-            <div className="rounded-lg bg-danger-100 border border-danger-200 px-3 py-2 text-sm text-danger-500">
-              {serverError}
-            </div>
-          )}
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-ghost flex-1">
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="btn-primary flex-1 flex items-center justify-center gap-2"
-            >
-              {isSubmitting && <Loader2 size={14} className="animate-spin" />}
-              Salvar
-            </button>
-          </div>
-        </form>
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white rounded-t-2xl">
+          <h2 className="font-semibold text-gray-800">Editar dívida</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X size={20} />
+          </button>
+        </div>
+        <DividaForm
+          defaultValues={defaultValues}
+          onSubmit={onSubmit}
+          isSubmitting={isSubmitting}
+          serverError={serverError}
+          onClose={onClose}
+          submitLabel="Atualizar"
+        />
       </div>
     </div>
   )
@@ -244,6 +336,7 @@ function DividaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 
 export default function DividasPage() {
   const [showModal, setShowModal] = useState(false)
+  const [editando, setEditando] = useState<Divida | null>(null)
   const queryClient = useQueryClient()
 
   const { data: dividas = [], isLoading } = useQuery<Divida[]>({
@@ -373,13 +466,18 @@ export default function DividasPage() {
                 {/* Ações */}
                 <div className="flex gap-2">
                   <button
-                    onClick={() =>
-                      pagarParcelaMutation.mutate({ id: divida.id, valor: 0 })
-                    }
+                    onClick={() => pagarParcelaMutation.mutate({ id: divida.id, valor: 0 })}
                     disabled={pagarParcelaMutation.isPending}
                     className="btn-secondary text-xs flex-1"
                   >
                     Registrar pagamento
+                  </button>
+                  <button
+                    onClick={() => setEditando(divida)}
+                    className="text-gray-300 hover:text-primary-500 transition-colors p-1"
+                    aria-label="Editar dívida"
+                  >
+                    <Pencil size={16} />
                   </button>
                   <button
                     onClick={() => deleteMutation.mutate(divida.id)}
@@ -397,6 +495,13 @@ export default function DividasPage() {
       )}
 
       {showModal && <DividaModal onClose={() => setShowModal(false)} onSuccess={invalidate} />}
+      {editando && (
+        <EditarDividaModal
+          divida={editando}
+          onClose={() => setEditando(null)}
+          onSuccess={invalidate}
+        />
+      )}
     </div>
   )
 }

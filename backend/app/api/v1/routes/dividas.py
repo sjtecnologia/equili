@@ -71,12 +71,28 @@ class DividaCreate(BaseModel):
 class DividaUpdate(BaseModel):
     descricao: str | None = None
     credor: str | None = None
+    tipo: str | None = None
+    valor_total: float | None = None
     valor_parcela: float | None = None
     parcelas_restantes: int | None = None
     taxa_juros_mensal: float | None = None
     data_inicio_contrato: date | None = None
     data_primeira_parcela: date | None = None
     data_prox_vencimento: date | None = None
+
+    @field_validator("tipo")
+    @classmethod
+    def tipo_valido_update(cls, v: str | None) -> str | None:
+        if v is not None and v not in TIPOS_VALIDOS:
+            raise ValueError(f"Tipo inválido. Use: {', '.join(TIPOS_VALIDOS)}")
+        return v
+
+    @field_validator("valor_total", "valor_parcela")
+    @classmethod
+    def valor_positivo_update(cls, v: float | None) -> float | None:
+        if v is not None and v <= 0:
+            raise ValueError("O valor deve ser maior que zero.")
+        return v
 
 
 async def _verificar_limite_dividas(usuario_id: UUID, db) -> None:
@@ -122,7 +138,13 @@ async def atualizar_divida(divida_id: UUID, data: DividaUpdate, usuario_id: Curr
     if not divida or divida.usuario_id != usuario_id:
         raise HTTPException(status_code=404, detail="Dívida não encontrada.")
 
-    for campo, valor in data.model_dump(exclude_none=True).items():
+    update = data.model_dump(exclude_none=True)
+
+    # Se mudou data_primeira_parcela e não informou explicitamente data_prox_vencimento, sincroniza
+    if "data_primeira_parcela" in update and "data_prox_vencimento" not in update:
+        update["data_prox_vencimento"] = update["data_primeira_parcela"]
+
+    for campo, valor in update.items():
         setattr(divida, campo, valor)
 
     await db.commit()
