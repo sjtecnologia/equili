@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, Wallet, CreditCard, Sparkles, Settings, LogOut, ArrowDownCircle, ArrowUpCircle, BarChart2, Receipt } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import api from '@/services/api'
+import logo from '@/assets/logo.png'
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -38,8 +39,7 @@ export default function Sidebar() {
     <div className="w-60 min-h-screen bg-white border-r border-gray-200 flex flex-col">
       {/* Logo */}
       <div className="p-6 border-b border-gray-100">
-        <span className="text-2xl font-bold text-primary-500">Equili</span>
-        <p className="text-xs text-gray-500 mt-0.5">Controle financeiro familiar</p>
+        <img src={logo} alt="Equili" className="h-14 w-auto" />
       </div>
 
       {/* Usuário logado */}

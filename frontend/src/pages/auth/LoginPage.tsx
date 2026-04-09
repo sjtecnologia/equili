@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { Loader2, Eye, EyeOff } from 'lucide-react'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'
+import logo from '@/assets/logo.png'
 
 const schema = z.object({
   email: z.string().email('E-mail inválido'),
@@ -46,7 +47,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-primary-500">Equili</h1>
+          <img src={logo} alt="Equili" className="h-24 w-auto mx-auto" />
           <p className="text-gray-500 mt-1 text-sm">Equilíbrio financeiro para sua família</p>
         </div>
 

@@ -3,6 +3,7 @@ import { Settings } from 'lucide-react'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
 import { useAuthStore } from '@/stores/authStore'
+import logo from '@/assets/logo.png'
 
 function avatarLetters(nome: string) {
   return nome.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()
@@ -26,7 +27,7 @@ export default function AppLayout() {
       <main className="flex-1 overflow-auto pb-20 lg:pb-0">
         {/* Header mobile */}
         <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100 sticky top-0 z-10">
-          <span className="text-xl font-bold text-primary-500">Equili</span>
+          <img src={logo} alt="Equili" className="h-8 w-auto" />
           <div className="flex items-center gap-3">
             {user && (
               <span className="text-sm text-gray-600 font-medium hidden sm:block truncate max-w-[140px]">
