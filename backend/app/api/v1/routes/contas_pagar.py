@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, field_validator, model_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.core.dependencies import CurrentUserID, DBSession
 from app.models.conta_lancamento import ContaAPagar
@@ -76,6 +76,42 @@ class ContaAPagarUpdate(BaseModel):
 
 class PagarRequest(BaseModel):
     data_pagamento: date | None = None
+
+
+@router.get("/fixas-atrasadas")
+async def contas_fixas_atrasadas(usuario_id: CurrentUserID, db: DBSession):
+    """Retorna contas recorrentes (tipo=fixa) vencidas e não pagas, agrupadas por descrição."""
+    hoje = date.today()
+    result = await db.execute(
+        select(
+            ContaAPagar.descricao,
+            ContaAPagar.categoria,
+            func.count(ContaAPagar.id).label("meses_atrasados"),
+            func.sum(ContaAPagar.valor).label("total"),
+            func.min(ContaAPagar.data_vencimento).label("primeira_data"),
+            func.max(ContaAPagar.data_vencimento).label("ultima_data"),
+        )
+        .where(
+            ContaAPagar.usuario_id == usuario_id,
+            ContaAPagar.tipo == "fixa",
+            ContaAPagar.status == "pendente",
+            ContaAPagar.data_vencimento < hoje,
+        )
+        .group_by(ContaAPagar.descricao, ContaAPagar.categoria)
+        .order_by(func.min(ContaAPagar.data_vencimento))
+    )
+    rows = result.all()
+    return [
+        {
+            "descricao": r.descricao,
+            "categoria": r.categoria,
+            "meses_atrasados": r.meses_atrasados,
+            "total": float(r.total),
+            "primeira_data": r.primeira_data.isoformat(),
+            "ultima_data": r.ultima_data.isoformat(),
+        }
+        for r in rows
+    ]
 
 
 @router.get("")

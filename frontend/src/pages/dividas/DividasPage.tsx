@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Trash2, Loader2, X, CheckCircle, Lock, Pencil, AlertTriangle, History } from 'lucide-react'
+import { Plus, Trash2, Loader2, X, CheckCircle, Lock, Pencil, AlertTriangle, History, CalendarClock } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
@@ -33,6 +33,15 @@ interface DividaPagamento {
   valor_pago: number
   valor_parcela_original: number
   observacao: string | null
+}
+
+interface ContaFixaAtrasada {
+  descricao: string
+  categoria: string
+  meses_atrasados: number
+  total: number
+  primeira_data: string
+  ultima_data: string
 }
 
 interface LimiteError {
@@ -733,6 +742,11 @@ export default function DividasPage() {
     queryFn: () => api.get('/dividas').then((r) => r.data),
   })
 
+  const { data: contasFixasAtrasadas = [] } = useQuery<ContaFixaAtrasada[]>({
+    queryKey: ['contas-fixas-atrasadas'],
+    queryFn: () => api.get('/contas-pagar/fixas-atrasadas').then((r) => r.data),
+  })
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/dividas/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['dividas'] }),
@@ -807,6 +821,34 @@ export default function DividasPage() {
               Total em aberto: <strong>{formatCurrency(valorAtrasado)}</strong> — registre os pagamentos e informe a data correta de cada parcela.
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Contas Fixas em Atraso */}
+      {contasFixasAtrasadas.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <CalendarClock size={16} className="text-amber-500" />
+            <h2 className="text-sm font-semibold text-gray-700">Contas Fixas em Atraso</h2>
+            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+              {contasFixasAtrasadas.length} conta{contasFixasAtrasadas.length > 1 ? 's' : ''}
+            </span>
+          </div>
+          {contasFixasAtrasadas.map((conta) => (
+            <div key={conta.descricao} className="card p-4 border border-amber-200 bg-amber-50/30 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-semibold text-gray-800 truncate">{conta.descricao}</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  {conta.meses_atrasados} {conta.meses_atrasados === 1 ? 'mês em atraso' : 'meses em atraso'}
+                  {' · '} desde {formatDate(conta.primeira_data)}
+                </p>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="font-bold text-amber-600">{formatCurrency(conta.total)}</p>
+                <a href="/contas-pagar" className="text-xs text-primary-500 hover:underline">Ver contas</a>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
