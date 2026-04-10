@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Outlet, Link, useNavigate } from 'react-router-dom'
-import { Settings } from 'lucide-react'
+import { Settings, Menu } from 'lucide-react'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
+import DrawerNav from './DrawerNav'
 import { useAuthStore } from '@/stores/authStore'
 import logo from '@/assets/logo.png'
 
@@ -12,6 +14,7 @@ function avatarLetters(nome: string) {
 export default function AppLayout() {
   const user = useAuthStore((s) => s.user)
   const navigate = useNavigate()
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   // Não usado diretamente, mas mantém o navigate disponível para futuros usos
   void navigate
@@ -19,6 +22,7 @@ export default function AppLayout() {
   return (
     // 100dvh = dynamic viewport height, certo em iOS WebView
     <div className="overflow-hidden bg-gray-100 flex" style={{ height: '100dvh' }}>
+      <DrawerNav open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       {/* Sidebar — apenas desktop */}
       <aside className="hidden lg:flex">
         <Sidebar />
@@ -29,7 +33,16 @@ export default function AppLayout() {
         {/* Header mobile */}
         <header className="lg:hidden flex-shrink-0 flex items-center justify-between px-4 bg-white border-b border-gray-100 z-10"
           style={{ paddingTop: 'max(12px, env(safe-area-inset-top))', paddingBottom: '12px' }}>
-          <img src={logo} alt="Equili" className="h-8 w-auto" />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setDrawerOpen(true)}
+              className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+              aria-label="Abrir menu"
+            >
+              <Menu size={22} />
+            </button>
+            <img src={logo} alt="Equili" className="h-8 w-auto" />
+          </div>
           <div className="flex items-center gap-3">
             {user && (
               <span className="text-sm text-gray-600 font-medium hidden sm:block truncate max-w-[140px]">
