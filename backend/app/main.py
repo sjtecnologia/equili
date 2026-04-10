@@ -1,8 +1,10 @@
 import logging
+import subprocess
+import sys
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
 
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -12,9 +14,27 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+def _run_migrations() -> None:
+    """Executa 'alembic upgrade head' no startup para garantir que o schema está atualizado."""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if result.returncode == 0:
+            logger.info("[migrations] alembic upgrade head — OK")
+        else:
+            logger.error(f"[migrations] Falha: {result.stderr}")
+    except Exception as exc:
+        logger.error(f"[migrations] Erro ao rodar migrations: {exc}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    _run_migrations()
     scheduler = start_scheduler()
     yield
     # Shutdown
