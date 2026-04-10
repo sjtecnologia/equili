@@ -7,14 +7,12 @@ import tempfile
 import os
 from datetime import datetime, date, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select, delete
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.dependencies import get_current_user, get_db
-from app.models.usuario import Usuario
+from app.core.dependencies import CurrentUserID, DBSession
 from app.models.push_subscription import PushSubscription
 
 router = APIRouter(prefix="/notificacoes", tags=["notificacoes"])
@@ -86,8 +84,8 @@ async def get_vapid_public_key():
 @router.post("/subscribe", status_code=status.HTTP_204_NO_CONTENT)
 async def subscribe(
     body: SubscribeRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user),
+    db: DBSession,
+    user_id: CurrentUserID,
 ):
     """Salva a subscrição push do dispositivo do usuário."""
     sub = body.subscription
@@ -108,10 +106,10 @@ async def subscribe(
     if existing:
         existing.p256dh = p256dh
         existing.auth = auth
-        existing.usuario_id = current_user.id
+        existing.usuario_id = user_id
     else:
         db.add(PushSubscription(
-            usuario_id=current_user.id,
+            usuario_id=user_id,
             endpoint=endpoint,
             p256dh=p256dh,
             auth=auth,
@@ -123,14 +121,14 @@ async def subscribe(
 @router.post("/unsubscribe", status_code=status.HTTP_204_NO_CONTENT)
 async def unsubscribe(
     body: UnsubscribeRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user),
+    db: DBSession,
+    user_id: CurrentUserID,
 ):
     """Remove a subscrição push do dispositivo."""
     await db.execute(
         delete(PushSubscription).where(
             PushSubscription.endpoint == body.endpoint,
-            PushSubscription.usuario_id == current_user.id,
+            PushSubscription.usuario_id == user_id,
         )
     )
     await db.commit()
@@ -138,12 +136,12 @@ async def unsubscribe(
 
 @router.post("/teste", status_code=status.HTTP_204_NO_CONTENT)
 async def testar_notificacao(
-    db: AsyncSession = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user),
+    db: DBSession,
+    user_id: CurrentUserID,
 ):
     """Envia uma notificação de teste para todos os dispositivos do usuário."""
     result = await db.execute(
-        select(PushSubscription).where(PushSubscription.usuario_id == current_user.id)
+        select(PushSubscription).where(PushSubscription.usuario_id == user_id)
     )
     subs = result.scalars().all()
     payload = {
