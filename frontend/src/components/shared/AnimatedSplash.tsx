@@ -10,6 +10,9 @@ export default function AnimatedSplash({ ready }: Props) {
   const [hiding, setHiding] = useState(false)
   const [unmounted, setUnmounted] = useState(false)
   const hiddenRef = useRef(false)
+  // Garante visível por no mínimo 2.5s para as animações serem vistas
+  const MIN_DISPLAY_MS = 2500
+  const mountedAt = useRef(Date.now())
 
   // Esconde o splash nativo o mais rápido possível — iOS pode demorar, então tentamos várias vezes
   useEffect(() => {
@@ -26,13 +29,16 @@ export default function AnimatedSplash({ ready }: Props) {
     return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [])
 
-  // Quando o app está pronto, dispara fade-out e desmonta
+  // Quando o app está pronto, espera o tempo mínimo antes de fechar
   useEffect(() => {
-    if (ready) {
+    if (!ready) return
+    const elapsed = Date.now() - mountedAt.current
+    const remaining = Math.max(0, MIN_DISPLAY_MS - elapsed)
+    const t = setTimeout(() => {
       setHiding(true)
-      const t = setTimeout(() => setUnmounted(true), 700)
-      return () => clearTimeout(t)
-    }
+      setTimeout(() => setUnmounted(true), 700)
+    }, remaining)
+    return () => clearTimeout(t)
   }, [ready])
 
   if (unmounted) return null
