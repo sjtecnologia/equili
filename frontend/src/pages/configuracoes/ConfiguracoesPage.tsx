@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Loader2, User, Lock, LogOut, CheckCircle, Bell } from 'lucide-react'
+import { Loader2, User, Lock, LogOut, CheckCircle, Bell, MessageCircle } from 'lucide-react'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'
 import PushNotificationToggle from '@/components/pwa/PushNotificationToggle'
@@ -222,6 +222,74 @@ function SecaoSenha() {
   )
 }
 
+// ─── Seção: WhatsApp Bot ──────────────────────────────────────────────────────
+function SecaoWhatsApp() {
+  const [telefone, setTelefone] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function salvar() {
+    setLoading(true)
+    setSuccess(false)
+    setError(null)
+    try {
+      await api.put('/usuarios/me/telefone', { telefone: telefone || null })
+      setSuccess(true)
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } }
+      setError(e.response?.data?.detail ?? 'Erro ao salvar. Tente novamente.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <section className="card p-6 space-y-4">
+      <div className="flex items-center gap-2 mb-1">
+        <MessageCircle size={18} className="text-green-500" />
+        <h2 className="text-base font-semibold text-gray-800">Bot WhatsApp</h2>
+      </div>
+      <p className="text-sm text-gray-500">
+        Vincule seu número para consultar suas finanças direto pelo WhatsApp.
+        Envie uma mensagem para o número do Equili e o assistente vai te responder.
+      </p>
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-700">
+          Seu número de WhatsApp
+        </label>
+        <input
+          type="tel"
+          className="input-field"
+          placeholder="55 11 91234-5678 (com código do país)"
+          value={telefone}
+          onChange={(e) => setTelefone(e.target.value)}
+        />
+        <p className="text-xs text-gray-400">Inclua o código do país (55 para Brasil) sem espaços ou símbolos.</p>
+      </div>
+      {error && (
+        <div className="rounded-lg bg-danger-100 border border-danger-200 px-3 py-2 text-sm text-danger-500">
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-sm text-green-600">
+          <CheckCircle size={15} />
+          Número vinculado! Envie "oi" para o WhatsApp do Equili para começar.
+        </div>
+      )}
+      <button
+        onClick={salvar}
+        disabled={loading}
+        className="btn-primary flex items-center gap-2"
+      >
+        {loading && <Loader2 size={14} className="animate-spin" />}
+        Vincular número
+      </button>
+    </section>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ConfiguracoesPage() {
   const user = useAuthStore((s) => s.user)
@@ -263,6 +331,7 @@ export default function ConfiguracoesPage() {
 
       <SecaoPerfil />
       <SecaoSenha />
+      <SecaoWhatsApp />
 
       {/* Notificações push */}
       <section className="card p-6 space-y-3">

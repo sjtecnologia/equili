@@ -13,6 +13,7 @@ from app.api.v1.routes import (
     notificacoes,
     chat,
     investimentos,
+    whatsapp,
 )
 
 api_router = APIRouter()
@@ -28,4 +29,5 @@ api_router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboar
 api_router.include_router(relatorio.router, prefix="/relatorio", tags=["Relatórios"])
 api_router.include_router(notificacoes.router, tags=["Notificações Push"])
 api_router.include_router(chat.router, tags=["Chat IA"])
+api_router.include_router(whatsapp.router, tags=["WhatsApp Bot"])
 api_router.include_router(investimentos.router)
