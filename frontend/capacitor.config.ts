@@ -26,11 +26,11 @@ const config: CapacitorConfig = {
   },
   android: {
     allowMixedContent: false,
-    backgroundColor: '#2E7D5E',
+    backgroundColor: '#ffffff',
   },
   ios: {
     contentInset: 'automatic',
-    backgroundColor: '#2E7D5E',
+    backgroundColor: '#ffffff',
   },
 };
 
