@@ -266,7 +266,7 @@ export default function InvestimentosPage() {
   const rentPos = (resumo?.rentabilidade_pct ?? 0) >= 0
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="p-4 space-y-6 max-w-2xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-800">Investimentos</h1>

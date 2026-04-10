@@ -307,7 +307,7 @@ export default function ConfiguracoesPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-lg">
+    <div className="p-4 space-y-6 max-w-lg mx-auto">
       <div>
         <h1 className="text-xl font-bold text-gray-800">Configurações</h1>
         <p className="text-sm text-gray-500">Gerencie seu perfil e preferências</p>

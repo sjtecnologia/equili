@@ -99,7 +99,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)] md:h-[calc(100vh-4rem)] max-w-2xl">
+    <div className="flex flex-col px-3 pt-2 pb-2 max-w-2xl" style={{ height: 'calc(100vh - 120px)' }}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
