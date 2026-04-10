@@ -1,0 +1,6 @@
+
+# Capacitor — pastas nativas (geradas localmente via "npx cap add android/ios")
+# android/
+# ios/
+# Descomente as linhas acima se não quiser versionar o código nativo
+# Manter versionado facilita o CI/CD nas lojas
