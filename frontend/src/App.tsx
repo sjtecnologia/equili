@@ -19,6 +19,7 @@ import RelatoriosPage from '@/pages/relatorios/RelatoriosPage'
 import ConfiguracoesPage from '@/pages/configuracoes/ConfiguracoesPage'
 import AppLayout from '@/components/layout/AppLayout'
 import InstallBanner from '@/components/pwa/InstallBanner'
+import ChatPage from '@/pages/chat/ChatPage'
 
 function PrivateRoute({ children, ready }: { children: React.ReactNode; ready: boolean }) {
   const token = useAuthStore((s) => s.accessToken)
@@ -71,6 +72,7 @@ export default function App() {
           <Route path="contas-receber" element={<ContasReceberPage />} />
           <Route path="relatorios" element={<RelatoriosPage />} />
           <Route path="plano-de-acao" element={<PlanoAcaoPage />} />
+          <Route path="chat" element={<ChatPage />} />
           <Route path="configuracoes" element={<ConfiguracoesPage />} />
         </Route>
 

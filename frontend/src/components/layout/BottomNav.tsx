@@ -1,10 +1,10 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Sparkles, ArrowUpCircle, BarChart2, Settings } from 'lucide-react'
+import { LayoutDashboard, Sparkles, ArrowUpCircle, MessageSquare, Settings } from 'lucide-react'
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Início' },
   { to: '/contas-pagar', icon: ArrowUpCircle, label: 'A Pagar' },
-  { to: '/relatorios', icon: BarChart2, label: 'Relatórios' },
+  { to: '/chat', icon: MessageSquare, label: 'Chat IA' },
   { to: '/plano-de-acao', icon: Sparkles, label: 'Plano IA' },
   { to: '/configuracoes', icon: Settings, label: 'Config.' },
 ]
