@@ -39,14 +39,14 @@ function MetricCard({
   to?: string
 }) {
   const content = (
-    <div className={`card ${bgClass} flex items-center gap-4 p-4 ${to ? 'hover:bg-gray-50 transition-colors' : ''}`}>
-      <div className={`p-2 rounded-lg bg-gray-100 ${colorClass}`}>
-        <Icon size={20} />
+    <div className={`card ${bgClass} flex items-center gap-3 p-3 ${to ? 'hover:bg-gray-50 transition-colors' : ''}`}>
+      <div className={`p-1.5 rounded-lg bg-gray-100 ${colorClass}`}>
+        <Icon size={16} />
       </div>
       <div className="min-w-0">
         <p className="text-xs text-gray-500 truncate">{title}</p>
-        <p className={`text-lg font-bold ${colorClass}`}>{value}</p>
-        {subtitle && <p className="text-xs text-gray-400 truncate mt-0.5">{subtitle}</p>}
+        <p className={`text-base font-bold ${colorClass}`}>{value}</p>
+        {subtitle && <p className="text-xs text-gray-400 truncate">{subtitle}</p>}
       </div>
     </div>
   )
@@ -74,28 +74,28 @@ export default function DashboardPage() {
   const saldoProjetadoPositivo = (data?.saldo_projetado_30d ?? 0) >= 0
 
   return (
-    <div className="p-4 space-y-4 max-w-2xl mx-auto">
+    <div className="px-3 py-2 space-y-2 max-w-2xl mx-auto">
       <div>
-        <h1 className="text-xl font-bold text-gray-800">Visão geral</h1>
-        <p className="text-sm text-gray-500">Seu resumo financeiro de hoje</p>
+        <h1 className="text-lg font-bold text-gray-800">Visão geral</h1>
+        <p className="text-xs text-gray-500">Seu resumo financeiro de hoje</p>
       </div>
 
       {/* Alertas */}
       {(data?.parcelas_atrasadas_total ?? 0) > 0 && (
         <Link
           to="/dividas"
-          className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-3 hover:bg-red-100 transition-colors"
+          className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-2.5 hover:bg-red-100 transition-colors"
         >
-          <AlertTriangle size={16} className="text-red-500 shrink-0 mt-0.5" />
+          <AlertTriangle size={14} className="text-red-500 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-red-700">
+            <p className="text-xs font-semibold text-red-700">
               {data!.parcelas_atrasadas_total === 1
                 ? '1 parcela em atraso'
                 : `${data!.parcelas_atrasadas_total} parcelas em atraso`}
               {data!.dividas_com_atraso > 1 ? ` em ${data!.dividas_com_atraso} dívidas` : ''}
             </p>
-            <p className="text-xs text-red-600 mt-0.5">
-              Total em aberto: <strong>{formatCurrency(data!.valor_parcelas_atrasadas)}</strong> — toque para ver detalhes
+            <p className="text-xs text-red-600">
+              Total: <strong>{formatCurrency(data!.valor_parcelas_atrasadas)}</strong>
             </p>
           </div>
         </Link>
@@ -105,11 +105,11 @@ export default function DashboardPage() {
       {data?.proxima_conta_vencimento && (
         <Link
           to="/contas-pagar"
-          className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3 hover:bg-amber-100 transition-colors"
+          className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl p-2.5 hover:bg-amber-100 transition-colors"
         >
-          <Calendar size={16} className="text-amber-500 shrink-0" />
+          <Calendar size={14} className="text-amber-500 shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-amber-700">
+            <p className="text-xs font-semibold text-amber-700">
               Próxima conta vence em {data.dias_proxima_conta === 0
                 ? 'hoje'
                 : data.dias_proxima_conta === 1
@@ -117,12 +117,13 @@ export default function DashboardPage() {
                 : `${data.dias_proxima_conta} dias`}
             </p>
             <p className="text-xs text-amber-600">{formatDate(data.proxima_conta_vencimento)}</p>
+
           </div>
         </Link>
       )}
 
       {/* Métricas principais */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2">
         <MetricCard
           title="Renda mensal"
           value={formatCurrency(data?.renda_total ?? 0)}
@@ -153,18 +154,15 @@ export default function DashboardPage() {
       </div>
 
       {/* Projeção 30 dias */}
-      <div className={`card p-4 border ${saldoProjetadoPositivo ? 'border-green-200 bg-green-50/40' : 'border-red-200 bg-red-50/40'}`}>
-        <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-lg ${saldoProjetadoPositivo ? 'bg-green-100' : 'bg-red-100'}`}>
-            <Clock size={18} className={saldoProjetadoPositivo ? 'text-success-500' : 'text-danger-500'} />
+      <div className={`card p-3 border ${saldoProjetadoPositivo ? 'border-green-200 bg-green-50/40' : 'border-red-200 bg-red-50/40'}`}>
+        <div className="flex items-center gap-2">
+          <div className={`p-1.5 rounded-lg ${saldoProjetadoPositivo ? 'bg-green-100' : 'bg-red-100'}`}>
+            <Clock size={16} className={saldoProjetadoPositivo ? 'text-success-500' : 'text-danger-500'} />
           </div>
           <div className="flex-1">
-            <p className="text-xs text-gray-500">Saldo projetado nos próximos 30 dias</p>
-            <p className={`text-xl font-bold ${saldoProjetadoPositivo ? 'text-success-500' : 'text-danger-500'}`}>
+            <p className="text-xs text-gray-500">Saldo projetado 30 dias</p>
+            <p className={`text-lg font-bold ${saldoProjetadoPositivo ? 'text-success-500' : 'text-danger-500'}`}>
               {formatCurrency(data?.saldo_projetado_30d ?? 0)}
-            </p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Renda + a receber − a pagar
             </p>
           </div>
         </div>
@@ -181,15 +179,15 @@ export default function DashboardPage() {
       />
 
       {/* Banner de Plano IA */}
-      <div className="card border-2 border-dashed border-primary-200 p-4 flex items-start gap-3">
-        <div className="p-2 rounded-full bg-primary-100 text-primary-500 shrink-0">
-          <Sparkles size={18} />
+      <div className="card border-2 border-dashed border-primary-200 p-3 flex items-center gap-3">
+        <div className="p-1.5 rounded-full bg-primary-100 text-primary-500 shrink-0">
+          <Sparkles size={16} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-gray-800 text-sm">
+          <p className="font-semibold text-gray-800 text-xs">
             {data?.plano_gerado ? 'Plano de ação ativo' : 'Gere seu plano de ação com IA'}
           </p>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-gray-500">
             {data?.plano_gerado
               ? 'Continue seguindo as recomendações para alcançar seu objetivo.'
               : 'Nossa IA analisa sua situação e cria um plano personalizado para quitar suas dívidas.'}
