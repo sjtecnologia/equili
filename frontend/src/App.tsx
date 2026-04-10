@@ -18,6 +18,7 @@ import ContasReceberPage from '@/pages/contas-receber/ContasReceberPage'
 import RelatoriosPage from '@/pages/relatorios/RelatoriosPage'
 import ConfiguracoesPage from '@/pages/configuracoes/ConfiguracoesPage'
 import AppLayout from '@/components/layout/AppLayout'
+import InstallBanner from '@/components/pwa/InstallBanner'
 
 function PrivateRoute({ children, ready }: { children: React.ReactNode; ready: boolean }) {
   const token = useAuthStore((s) => s.accessToken)
@@ -75,6 +76,7 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
+      <InstallBanner />
     </BrowserRouter>
   )
 }

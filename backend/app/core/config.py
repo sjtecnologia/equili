@@ -34,5 +34,10 @@ class Settings(BaseSettings):
     PLANO_GRATIS_MAX_DIVIDAS: int = 3
     PLANO_GRATIS_MAX_PLANOS_IA_MES: int = 3
 
+    # Web Push / VAPID
+    VAPID_PUBLIC_KEY: str = ""
+    VAPID_PRIVATE_KEY_B64: str = ""
+    VAPID_SUBJECT: str = "mailto:suporte@equili.app"
+
 
 settings = Settings()
