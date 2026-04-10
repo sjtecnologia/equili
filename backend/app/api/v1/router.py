@@ -11,6 +11,7 @@ from app.api.v1.routes import (
     contas_receber,
     relatorio,
     notificacoes,
+    chat,
 )
 
 api_router = APIRouter()
@@ -25,3 +26,4 @@ api_router.include_router(plano_acao.router, prefix="/plano-acao", tags=["Plano 
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 api_router.include_router(relatorio.router, prefix="/relatorio", tags=["Relatórios"])
 api_router.include_router(notificacoes.router, tags=["Notificações Push"])
+api_router.include_router(chat.router, tags=["Chat IA"])

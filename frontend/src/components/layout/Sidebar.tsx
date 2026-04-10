@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Wallet, CreditCard, Sparkles, Settings, LogOut, ArrowDownCircle, ArrowUpCircle, BarChart2, Receipt } from 'lucide-react'
+import { LayoutDashboard, Wallet, CreditCard, Sparkles, Settings, LogOut, ArrowDownCircle, ArrowUpCircle, BarChart2, Receipt, MessageSquare } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import api from '@/services/api'
 import logo from '@/assets/logo.png'
@@ -13,6 +13,7 @@ const navItems = [
   { to: '/contas-receber', icon: ArrowDownCircle, label: 'Contas a Receber' },
   { to: '/relatorios', icon: BarChart2, label: 'Relatórios' },
   { to: '/plano-de-acao', icon: Sparkles, label: 'Plano de Ação' },
+  { to: '/chat', icon: MessageSquare, label: 'Assistente IA' },
 ]
 
 function avatarLetters(nome: string) {
