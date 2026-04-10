@@ -7,7 +7,7 @@ export default function BottomNav() {
   const items = ALL_NAV_ITEMS.filter((item) => shortcuts.includes(item.to))
 
   return (
-    <nav className="bg-white border-t border-gray-200">
+    <nav className="bg-primary-500">
       <div className="flex justify-around px-1 py-1.5">
         {items.map(({ to, icon: Icon, label }) => (
           <NavLink
@@ -15,7 +15,7 @@ export default function BottomNav() {
             to={to}
             className={({ isActive }) =>
               `flex flex-col items-center gap-0.5 py-1 rounded text-xs font-medium transition-colors duration-150 flex-1 min-w-0 ${
-                isActive ? 'text-primary-500' : 'text-gray-400'
+                isActive ? 'text-white' : 'text-primary-100/70'
               }`
             }
           >
