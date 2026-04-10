@@ -18,6 +18,8 @@
   }
   #root {
     height: 100%;
+    height: 100dvh; /* dynamic viewport height: correto em iOS WebView */
+    overflow: hidden;
   }
 }
 

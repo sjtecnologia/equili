@@ -1,4 +1,3 @@
-import React from 'react'
 import { Outlet, Link, useNavigate } from 'react-router-dom'
 import { Settings } from 'lucide-react'
 import Sidebar from './Sidebar'
@@ -18,17 +17,18 @@ export default function AppLayout() {
   void navigate
 
   return (
-    // h-dvh garante altura correta em iOS WebView; overflow-hidden trava scroll do documento
-    <div className="h-screen overflow-hidden bg-gray-100 flex">
+    // 100dvh = dynamic viewport height, certo em iOS WebView
+    <div className="overflow-hidden bg-gray-100 flex" style={{ height: '100dvh' }}>
       {/* Sidebar — apenas desktop */}
       <aside className="hidden lg:flex">
         <Sidebar />
       </aside>
 
-      {/* Coluna principal: sem overflow-hidden aqui (causa bug iOS flexbox) */}
-      <div className="flex flex-col flex-1 min-h-0">
-        {/* Header mobile — padding-top para caber o status bar no iOS */}
-        <header className="lg:hidden flex-shrink-0 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100 z-10" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
+      {/* Coluna principal: h-full para herdar a altura do pai */}
+      <div className="flex flex-col flex-1 h-full">
+        {/* Header mobile */}
+        <header className="lg:hidden flex-shrink-0 flex items-center justify-between px-4 bg-white border-b border-gray-100 z-10"
+          style={{ paddingTop: 'max(12px, env(safe-area-inset-top))', paddingBottom: '12px' }}>
           <img src={logo} alt="Equili" className="h-8 w-auto" />
           <div className="flex items-center gap-3">
             {user && (
@@ -48,15 +48,16 @@ export default function AppLayout() {
           </div>
         </header>
 
-        {/* Área de conteúdo: ocupa o espaço restante e rola internamente */}
-        <main className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+        {/* min-h-0 aqui é essencial: permite que o flex-1 encolha no iOS WebKit */}
+        <main className="flex-1 min-h-0 overflow-y-auto">
           <div className="lg:max-w-5xl lg:mx-auto lg:p-8">
             <Outlet />
           </div>
         </main>
 
-        {/* Bottom Nav — padding-bottom para o home indicator do iOS */}
-        <div className="lg:hidden flex-shrink-0 bg-white" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        {/* Bottom Nav — padding-bottom para o home indicator do iPhone */}
+        <div className="lg:hidden flex-shrink-0 bg-white"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <BottomNav />
         </div>
       </div>
