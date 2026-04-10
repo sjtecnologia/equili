@@ -5,8 +5,8 @@
 @layer base {
   html {
     height: 100%;
-    /* fundo branco garante que safe-area top/bottom não mostrem cor estranha */
-    background-color: #ffffff;
+    /* verde do app nas safe-areas iOS/Android (top e bottom) */
+    background-color: #2E7D5E;
   }
   body {
     height: 100%;
