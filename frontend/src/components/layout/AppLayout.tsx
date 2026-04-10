@@ -17,16 +17,17 @@ export default function AppLayout() {
   void navigate
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
+    // h-screen + overflow-hidden = sem scroll externo; o scroll fica só dentro do <main>
+    <div className="h-screen overflow-hidden bg-gray-100 flex">
       {/* Sidebar — apenas desktop */}
       <aside className="hidden lg:flex">
         <Sidebar />
       </aside>
 
-      {/* Conteúdo principal */}
-      <main className="flex-1 overflow-auto pb-20 lg:pb-0">
-        {/* Header mobile */}
-        <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100 sticky top-0 z-10">
+      {/* Coluna principal: header + conteúdo + bottom nav empilhados */}
+      <div className="flex flex-col flex-1 overflow-hidden min-h-0">
+        {/* Header mobile — não precisa de sticky, já fica no topo do flex */}
+        <header className="lg:hidden flex-shrink-0 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100 z-10">
           <img src={logo} alt="Equili" className="h-8 w-auto" />
           <div className="flex items-center gap-3">
             {user && (
@@ -46,14 +47,17 @@ export default function AppLayout() {
           </div>
         </header>
 
-        <div className="max-w-5xl mx-auto p-4 lg:p-8">
-          <Outlet />
-        </div>
-      </main>
+        {/* Área de conteúdo: ocupa o espaço restante e rola internamente */}
+        <main className="flex-1 overflow-y-auto min-h-0">
+          <div className="lg:max-w-5xl lg:mx-auto lg:p-8">
+            <Outlet />
+          </div>
+        </main>
 
-      {/* Bottom Nav — apenas mobile */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0">
-        <BottomNav />
+        {/* Bottom Nav — apenas mobile, dentro do fluxo (não fixed) */}
+        <div className="lg:hidden flex-shrink-0">
+          <BottomNav />
+        </div>
       </div>
     </div>
   )
