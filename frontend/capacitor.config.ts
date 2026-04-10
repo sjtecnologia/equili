@@ -11,25 +11,26 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 2000,
+      // Ocultado imediatamente — o splash animado em React cuida da transição
+      launchShowDuration: 0,
       launchAutoHide: true,
-      backgroundColor: '#1e1b4b',
+      backgroundColor: '#2E7D5E',
       androidSplashResourceName: 'splash',
       androidScaleType: 'CENTER_CROP',
       showSpinner: false,
     },
     StatusBar: {
       style: 'DARK',
-      backgroundColor: '#1e1b4b',
+      backgroundColor: '#2E7D5E',
     },
   },
   android: {
     allowMixedContent: false,
-    backgroundColor: '#1e1b4b',
+    backgroundColor: '#2E7D5E',
   },
   ios: {
     contentInset: 'automatic',
-    backgroundColor: '#1e1b4b',
+    backgroundColor: '#2E7D5E',
   },
 };
 
