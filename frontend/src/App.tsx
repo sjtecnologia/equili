@@ -21,6 +21,7 @@ import AppLayout from '@/components/layout/AppLayout'
 import InstallBanner from '@/components/pwa/InstallBanner'
 import ChatPage from '@/pages/chat/ChatPage'
 import InvestimentosPage from '@/pages/investimentos/InvestimentosPage'
+import AnimatedSplash from '@/components/shared/AnimatedSplash'
 
 function PrivateRoute({ children, ready }: { children: React.ReactNode; ready: boolean }) {
   const token = useAuthStore((s) => s.accessToken)
@@ -48,6 +49,8 @@ export default function App() {
   }, [])
 
   return (
+    <>
+    <AnimatedSplash ready={ready} />
     <BrowserRouter>
       <Routes>
         {/* Rotas públicas */}
@@ -82,5 +85,6 @@ export default function App() {
       </Routes>
       <InstallBanner />
     </BrowserRouter>
+    </>
   )
 }
