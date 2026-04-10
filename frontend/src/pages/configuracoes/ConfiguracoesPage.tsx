@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Loader2, User, Lock, LogOut, CheckCircle } from 'lucide-react'
+import { Loader2, User, Lock, LogOut, CheckCircle, Bell } from 'lucide-react'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'
+import PushNotificationToggle from '@/components/pwa/PushNotificationToggle'
 
 // ─── Schema: editar perfil ────────────────────────────────────────────────────
 const perfilSchema = z.object({
@@ -262,6 +263,16 @@ export default function ConfiguracoesPage() {
 
       <SecaoPerfil />
       <SecaoSenha />
+
+      {/* Notificações push */}
+      <section className="card p-6 space-y-3">
+        <div className="flex items-center gap-2 mb-1">
+          <Bell size={18} className="text-primary-500" />
+          <h2 className="text-base font-semibold text-gray-800">Notificações</h2>
+        </div>
+        <p className="text-sm text-gray-500">Receba alertas de vencimento diretamente no seu dispositivo, mesmo sem abrir o app.</p>
+        <PushNotificationToggle />
+      </section>
 
       {/* Zona de perigo */}
       <section className="card p-6 border border-red-100">

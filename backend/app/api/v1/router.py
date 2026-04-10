@@ -10,6 +10,7 @@ from app.api.v1.routes import (
     contas_pagar,
     contas_receber,
     relatorio,
+    notificacoes,
 )
 
 api_router = APIRouter()
@@ -23,3 +24,4 @@ api_router.include_router(contas_receber.router, prefix="/contas-receber", tags=
 api_router.include_router(plano_acao.router, prefix="/plano-acao", tags=["Plano de Ação IA"])
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 api_router.include_router(relatorio.router, prefix="/relatorio", tags=["Relatórios"])
+api_router.include_router(notificacoes.router, tags=["Notificações Push"])
