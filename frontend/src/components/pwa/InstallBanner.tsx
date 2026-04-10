@@ -12,6 +12,10 @@ export default function InstallBanner() {
   const [isIOS, setIsIOS] = useState(false)
 
   useEffect(() => {
+    // Nunca mostrar dentro do app nativo Capacitor
+    const isNativeApp = (window as any).Capacitor?.isNativePlatform?.() === true
+    if (isNativeApp) return
+
     // Detecta iOS (Safari não dispara beforeinstallprompt)
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window.navigator as any).standalone
     setIsIOS(ios)
