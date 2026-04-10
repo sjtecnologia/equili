@@ -1,3 +1,4 @@
+import React from 'react'
 import { Outlet, Link, useNavigate } from 'react-router-dom'
 import { Settings } from 'lucide-react'
 import Sidebar from './Sidebar'
@@ -17,17 +18,17 @@ export default function AppLayout() {
   void navigate
 
   return (
-    // h-screen + overflow-hidden = sem scroll externo; o scroll fica só dentro do <main>
+    // h-dvh garante altura correta em iOS WebView; overflow-hidden trava scroll do documento
     <div className="h-screen overflow-hidden bg-gray-100 flex">
       {/* Sidebar — apenas desktop */}
       <aside className="hidden lg:flex">
         <Sidebar />
       </aside>
 
-      {/* Coluna principal: header + conteúdo + bottom nav empilhados */}
-      <div className="flex flex-col flex-1 overflow-hidden min-h-0">
-        {/* Header mobile — não precisa de sticky, já fica no topo do flex */}
-        <header className="lg:hidden flex-shrink-0 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100 z-10">
+      {/* Coluna principal: sem overflow-hidden aqui (causa bug iOS flexbox) */}
+      <div className="flex flex-col flex-1 min-h-0">
+        {/* Header mobile — padding-top para caber o status bar no iOS */}
+        <header className="lg:hidden flex-shrink-0 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100 z-10" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
           <img src={logo} alt="Equili" className="h-8 w-auto" />
           <div className="flex items-center gap-3">
             {user && (
@@ -48,14 +49,14 @@ export default function AppLayout() {
         </header>
 
         {/* Área de conteúdo: ocupa o espaço restante e rola internamente */}
-        <main className="flex-1 overflow-y-auto min-h-0">
+        <main className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
           <div className="lg:max-w-5xl lg:mx-auto lg:p-8">
             <Outlet />
           </div>
         </main>
 
-        {/* Bottom Nav — apenas mobile, dentro do fluxo (não fixed) */}
-        <div className="lg:hidden flex-shrink-0">
+        {/* Bottom Nav — padding-bottom para o home indicator do iOS */}
+        <div className="lg:hidden flex-shrink-0 bg-white" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <BottomNav />
         </div>
       </div>

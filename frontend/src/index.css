@@ -3,17 +3,21 @@
 @tailwind utilities;
 
 @layer base {
-  html, body {
+  html {
     height: 100%;
-    overflow: hidden; /* sem scroll no nível do documento — cada tela controla o próprio scroll */
-    overscroll-behavior: none;
-    -webkit-overflow-scrolling: touch;
   }
   body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
     @apply bg-neutral-100 text-neutral-900 font-sans;
     background-color: #F3F4F6;
     color: #1A1A2E;
     line-height: 1.6;
+  }
+  #root {
+    height: 100%;
   }
 }
 
