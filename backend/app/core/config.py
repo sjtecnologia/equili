@@ -39,11 +39,8 @@ class Settings(BaseSettings):
     VAPID_PRIVATE_KEY_B64: str = ""
     VAPID_SUBJECT: str = "mailto:suporte@equili.app"
 
-    # Evolution API (WhatsApp)
-    EVOLUTION_API_URL: str = ""        # ex: https://evo.equili.com.br
-    EVOLUTION_API_KEY: str = ""        # API key global da Evolution API
-    EVOLUTION_INSTANCE: str = "equili" # nome da instância criada na Evolution API
-    WHATSAPP_WEBHOOK_SECRET: str = ""  # token para validar chamadas do webhook
+    # Social Auth
+    GOOGLE_CLIENT_ID: str = ""  # ex: 123456789-xxx.apps.googleusercontent.com
 
 
 settings = Settings()

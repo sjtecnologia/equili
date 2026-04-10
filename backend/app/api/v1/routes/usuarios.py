@@ -68,31 +68,3 @@ async def update_me(data: UpdatePerfilRequest, usuario_id: CurrentUserID, db: DB
         "email_verificado": usuario.email_verificado,
         "criado_em": usuario.criado_em,
     }
-
-
-class UpdateTelefoneRequest(BaseModel):
-    telefone: Optional[str] = None  # None para remover
-
-
-@router.put("/me/telefone")
-async def update_telefone(data: UpdateTelefoneRequest, usuario_id: CurrentUserID, db: DBSession):
-    """Salva ou remove o número de telefone para uso no bot WhatsApp."""
-    from sqlalchemy import select
-
-    usuario = await db.get(Usuario, usuario_id)
-    if not usuario:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
-
-    if data.telefone:
-        tel = data.telefone.strip().replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
-        existing = await db.scalar(
-            select(Usuario).where(Usuario.telefone == tel, Usuario.id != usuario_id)
-        )
-        if existing:
-            raise HTTPException(status_code=409, detail="Este número já está vinculado a outra conta.")
-        usuario.telefone = tel
-    else:
-        usuario.telefone = None
-
-    await db.commit()
-    return {"telefone": usuario.telefone}
