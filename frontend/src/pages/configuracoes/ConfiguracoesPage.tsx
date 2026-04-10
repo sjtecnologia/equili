@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Loader2, User, Lock, LogOut, CheckCircle, Bell, MessageCircle } from 'lucide-react'
+import { Loader2, User, Lock, LogOut, CheckCircle, Bell, MessageCircle, Smartphone, Check } from 'lucide-react'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'
+import { useNavStore } from '@/stores/navStore'
+import { ALL_NAV_ITEMS } from '@/config/navItems'
 import PushNotificationToggle from '@/components/pwa/PushNotificationToggle'
 
 // ─── Schema: editar perfil ────────────────────────────────────────────────────
@@ -222,6 +224,59 @@ function SecaoSenha() {
   )
 }
 
+// ─── Seção: Menu do rodé configurável ────────────────────────────────────────────
+function SecaoNavRodape() {
+  const { shortcuts, setShortcuts } = useNavStore()
+
+  const toggle = (to: string) => {
+    if (shortcuts.includes(to)) {
+      if (shortcuts.length <= 1) return // mínimo 1
+      setShortcuts(shortcuts.filter((s) => s !== to))
+    } else {
+      if (shortcuts.length >= 5) return // máximo 5
+      setShortcuts([...shortcuts, to])
+    }
+  }
+
+  return (
+    <section className="card p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <Smartphone size={18} className="text-primary-500" />
+        <h2 className="text-base font-semibold text-gray-800">Menu do rodé</h2>
+      </div>
+      <p className="text-xs text-gray-500">
+        Escolha até 5 atalhos que aparecerão na barra inferior.
+        Toque para selecionar ou remover.
+        <span className="font-medium text-primary-500"> {shortcuts.length}/5 selecionados</span>
+      </p>
+      <div className="space-y-2">
+        {ALL_NAV_ITEMS.map(({ to, label, icon: Icon }) => {
+          const selected = shortcuts.includes(to)
+          const disabled = !selected && shortcuts.length >= 5
+          return (
+            <button
+              key={to}
+              onClick={() => toggle(to)}
+              disabled={disabled}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-colors text-left ${
+                selected
+                  ? 'border-primary-400 bg-primary-50'
+                  : disabled
+                  ? 'border-gray-200 opacity-40 cursor-not-allowed'
+                  : 'border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              <Icon size={18} className={selected ? 'text-primary-500' : 'text-gray-400'} />
+              <span className="flex-1 text-sm font-medium text-gray-700">{label}</span>
+              {selected && <Check size={16} className="text-primary-500 shrink-0" />}
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 // ─── Seção: WhatsApp Bot ──────────────────────────────────────────────────────
 function SecaoWhatsApp() {
   const [telefone, setTelefone] = useState('')
@@ -332,6 +387,7 @@ export default function ConfiguracoesPage() {
       <SecaoPerfil />
       <SecaoSenha />
       <SecaoWhatsApp />
+      <SecaoNavRodape />
 
       {/* Notificações push */}
       <section className="card p-6 space-y-3">
