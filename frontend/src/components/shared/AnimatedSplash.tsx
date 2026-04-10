@@ -10,8 +10,8 @@ export default function AnimatedSplash({ ready }: Props) {
   const [hiding, setHiding] = useState(false)
   const [unmounted, setUnmounted] = useState(false)
   const hiddenRef = useRef(false)
-  // Garante visível por no mínimo 2.5s para as animações serem vistas
-  const MIN_DISPLAY_MS = 2500
+  // Garante visível por no mínimo 4.5s para as animações serem vistas
+  const MIN_DISPLAY_MS = 4500
   const mountedAt = useRef(Date.now())
 
   // Esconde o splash nativo o mais rápido possível — iOS pode demorar, então tentamos várias vezes

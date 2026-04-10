@@ -16,7 +16,7 @@ const navItems = [
 
 export default function BottomNav() {
   return (
-    <nav className="bg-white border-t border-gray-200 safe-pb">
+    <nav className="bg-white border-t border-gray-200">
       <div className="flex overflow-x-auto scrollbar-none px-1 py-1.5">
         {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
