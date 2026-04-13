@@ -29,7 +29,7 @@ Para criar uma conta a receber:
 {{"acao": "criar_conta_receber", "dados": {{"descricao": "...", "valor": 0.00, "data_vencimento": "YYYY-MM-DD"}}, "mensagem": "Resumo amigável do que será feito"}}
 
 Para registrar uma renda:
-{{"acao": "criar_renda", "dados": {{"descricao": "...", "valor": 0.00, "tipo": "fixo"}}, "mensagem": "Resumo amigável do que será feito"}}
+{{"acao": "criar_renda", "dados": {{"descricao": "...", "valor": 0.00, "tipo": "salario", "frequencia": "mensal"}}, "mensagem": "Resumo amigável do que será feito"}}
 
 Se não entender ou a ação não se encaixar nessas categorias:
 {{"acao": "nao_entendido", "dados": {{}}, "mensagem": "Não entendi. Tente: 'Paguei 50 reais no mercado' ou 'Recebi 200 reais de freelance'"}}
@@ -38,7 +38,8 @@ Regras:
 - data_vencimento: se não mencionada, use amanhã ({(date.today() + timedelta(days=1)).isoformat()})
 - valor: sempre número decimal, sem R$
 - categoria para contas a pagar: alimentacao | transporte | saude | educacao | lazer | moradia | outros
-- tipo para renda: fixo | variavel | extra
+- tipo para renda: salario | freela | aluguel | outro
+- frequencia para renda: mensal | quinzenal | semanal (padrão: mensal)
 """
 
 
