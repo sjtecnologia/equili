@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import { Mic, MicOff, X, Check, Loader2 } from 'lucide-react'
 import api from '@/services/api'
 
-type Estado = 'idle' | 'ouvindo' | 'processando' | 'confirmando' | 'pedindo_data' | 'erro'
+type Estado = 'idle' | 'ouvindo' | 'processando' | 'confirmando' | 'pedindo_data' | 'ouvindo_data' | 'erro'
 
 interface Acao {
   acao: string
@@ -78,6 +78,7 @@ export default function VoiceButton() {
     setTranscricaoState(t)
   }
   const [acao, setAcao] = useState<Acao | null>(null)
+  const [ouvinDataTranscricao, setOuvinDataTranscricao] = useState('')
   const [erro, setErro] = useState('')
   const reconhecimentoRef = useRef<unknown>(null)
   const navigate = useNavigate()
@@ -136,6 +137,41 @@ export default function VoiceButton() {
       })
     }
 
+    rec.start()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Ouve a data por voz e interpreta com o backend
+  const ouvirDataPorVoz = useCallback(() => {
+    const SR = (window as AnyWindow).SpeechRecognition || (window as AnyWindow).webkitSpeechRecognition
+    if (!SR) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rec = new SR() as any
+    rec.lang = 'pt-BR'
+    rec.continuous = false
+    rec.interimResults = true
+    rec.maxAlternatives = 1
+    setOuvinDataTranscricao('')
+    setEstado('ouvindo_data')
+    const textoRef = { current: '' }
+    rec.onresult = (event: any) => {
+      const t = Array.from(event.results as ArrayLike<{ 0: { transcript: string } }>)
+        .map((r) => r[0].transcript).join('')
+      textoRef.current = t
+      setOuvinDataTranscricao(t)
+    }
+    rec.onerror = () => setEstado('pedindo_data')
+    rec.onend = async () => {
+      const texto = textoRef.current.trim()
+      if (!texto) { setEstado('pedindo_data'); return }
+      // Manda para o backend interpretar a data
+      try {
+        const res = await api.post<{ data_iso: string }>('/voz/interpretar-data', { texto })
+        if (res.data.data_iso) {
+          setDataSelecionada(res.data.data_iso)
+        }
+      } catch { /* ignora, usuário pode digitar */ }
+      setEstado('pedindo_data')
+    }
     rec.start()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -208,6 +244,7 @@ export default function VoiceButton() {
     setAcao(null)
     setErro('')
     setDataSelecionada('')
+    setOuvinDataTranscricao('')
   }
 
   if (!isSupportedBrowser) return null
@@ -286,33 +323,62 @@ export default function VoiceButton() {
             )}
 
             {/* Pedindo data de vencimento */}
-            {estado === 'pedindo_data' && acao && (
+            {(estado === 'pedindo_data' || estado === 'ouvindo_data') && acao && (
               <div className="space-y-4">
                 <p className="text-sm font-medium text-gray-800">{acao.mensagem}</p>
                 <p className="text-xs text-gray-500">
-                  <span className="font-medium">{acao.dados.descricao as string}</span>
+                  <span className="font-medium">{String(acao.dados.descricao)}</span>
                   {' · '}R$ {Number(acao.dados.valor).toFixed(2)}
                   {acao.dados.modalidade && (
-                    <span className="ml-1 text-primary-600">· {LABELS_MODALIDADE[acao.dados.modalidade as string] || String(acao.dados.modalidade)}</span>
+                    <span className="ml-1 text-primary-600">· {LABELS_MODALIDADE[String(acao.dados.modalidade)] || String(acao.dados.modalidade)}</span>
                   )}
                 </p>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Data de vencimento</label>
-                  <input
-                    type="date"
-                    value={dataSelecionada}
-                    onChange={(e) => setDataSelecionada(e.target.value)}
-                    className="input-field text-sm"
-                    min={new Date().toISOString().split('T')[0]}
-                  />
-                </div>
+
+                {/* Ouvindo data por voz */}
+                {estado === 'ouvindo_data' ? (
+                  <div className="bg-primary-50 rounded-xl p-3 text-center space-y-2">
+                    <div className="w-10 h-10 rounded-full bg-primary-500 flex items-center justify-center animate-pulse mx-auto">
+                      <Mic size={18} className="text-white" />
+                    </div>
+                    <p className="text-xs text-gray-500">Ouvindo data...</p>
+                    {ouvinDataTranscricao && (
+                      <p className="text-sm text-primary-700 italic">"{ouvinDataTranscricao}"</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-gray-600">Data de vencimento</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        value={dataSelecionada}
+                        onChange={(e) => setDataSelecionada(e.target.value)}
+                        className="input-field text-sm flex-1"
+                        min={new Date().toISOString().split('T')[0]}
+                      />
+                      <button
+                        onClick={ouvirDataPorVoz}
+                        className="w-10 h-10 rounded-xl bg-primary-500 flex items-center justify-center flex-shrink-0 hover:bg-primary-400 transition-colors"
+                        title="Falar a data"
+                      >
+                        <Mic size={16} className="text-white" />
+                      </button>
+                    </div>
+                    {dataSelecionada && (
+                      <p className="text-xs text-primary-600 font-medium">
+                        ✓ {new Date(dataSelecionada + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex gap-2">
                   <button onClick={resetar} className="btn-ghost flex-1 flex items-center justify-center gap-1">
                     <X size={14} /> Cancelar
                   </button>
                   <button
                     onClick={confirmarComData}
-                    disabled={!dataSelecionada}
+                    disabled={!dataSelecionada || estado === 'ouvindo_data'}
                     className="btn-primary flex-1 flex items-center justify-center gap-1 disabled:opacity-50"
                   >
                     <Check size={14} /> Confirmar

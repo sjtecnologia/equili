@@ -63,6 +63,48 @@ class VozComandoResponse(BaseModel):
     mensagem: str
 
 
+class InterpretarDataRequest(BaseModel):
+    texto: str
+
+
+class InterpretarDataResponse(BaseModel):
+    data_iso: str | None = None
+
+
+@router.post("/interpretar-data", response_model=InterpretarDataResponse)
+async def interpretar_data(
+    data: InterpretarDataRequest,
+    usuario_id: CurrentUserID,
+):
+    """Interpreta uma expressão de data falada (ex: 'dia 10', 'quinze de maio') e retorna YYYY-MM-DD."""
+    if not data.texto.strip():
+        return InterpretarDataResponse(data_iso=None)
+
+    if not settings.GITHUB_TOKEN:
+        return InterpretarDataResponse(data_iso=None)
+
+    hoje = date.today().isoformat()
+    prompt = f"""Hoje é {hoje}. O usuário falou: "{data.texto.strip()}"
+Interprete como uma data e retorne APENAS um JSON: {{"data_iso": "YYYY-MM-DD"}}
+Se não conseguir interpretar, retorne: {{"data_iso": null}}
+Sem explicações, apenas o JSON."""
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                f"{settings.GITHUB_MODELS_ENDPOINT}/chat/completions",
+                headers={"Authorization": f"Bearer {settings.GITHUB_TOKEN}", "Content-Type": "application/json"},
+                json={"model": settings.GITHUB_MODELS_MODEL, "messages": [{"role": "user", "content": prompt}], "temperature": 0, "max_tokens": 30},
+            )
+        resp.raise_for_status()
+        import json
+        content = resp.json()["choices"][0]["message"]["content"].strip()
+        result = json.loads(content)
+        return InterpretarDataResponse(data_iso=result.get("data_iso"))
+    except Exception:
+        return InterpretarDataResponse(data_iso=None)
+
+
 @router.post("/comando", response_model=VozComandoResponse)
 async def interpretar_comando(
     data: VozComandoRequest,
