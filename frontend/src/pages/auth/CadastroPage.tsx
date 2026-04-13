@@ -75,28 +75,7 @@ export default function CadastroPage() {
   }
 
   async function cadastroApple() {
-    setSocialLoading('apple')
-    setServerError(null)
-    try {
-      const { SignInWithApple } = await import('@capacitor-community/apple-sign-in')
-      const result = await SignInWithApple.authorize({
-        clientId: 'br.com.equili.app',
-        redirectURI: 'https://equili.com.br',
-        scopes: 'email name',
-      })
-      const fullName = [result.response.givenName, result.response.familyName]
-        .filter(Boolean).join(' ') || undefined
-      const res = await api.post<{ access_token: string }>('/auth/apple', {
-        identity_token: result.response.identityToken,
-        full_name: fullName,
-      })
-      await finalizarLogin(res.data.access_token)
-    } catch (e: unknown) {
-      const err = e as { message?: string }
-      if (!err.message?.toLowerCase().includes('cancel')) {
-        setServerError('Erro ao entrar com Apple. Tente novamente.')
-      }
-    } finally { setSocialLoading(null) }
+    setServerError('Cadastro com Apple temporariamente indisponível. Use e-mail ou Google.')
   }
 
   const {

@@ -123,32 +123,7 @@ export default function LoginPage() {
   }
 
   async function loginApple() {
-    setSocialLoading('apple')
-    setServerError(null)
-    try {
-      const { SignInWithApple } = await import('@capacitor-community/apple-sign-in')
-      const result = await SignInWithApple.authorize({
-        clientId: 'br.com.equili.app',
-        redirectURI: 'https://equili.com.br',
-        scopes: 'email name',
-      })
-      const identityToken = result.response.identityToken
-      const fullName = [result.response.givenName, result.response.familyName]
-        .filter(Boolean)
-        .join(' ') || undefined
-      const res = await api.post<{ access_token: string }>('/auth/apple', {
-        identity_token: identityToken,
-        full_name: fullName,
-      })
-      await finalizarLogin(res.data.access_token)
-    } catch (e: unknown) {
-      const err = e as { message?: string }
-      if (!err.message?.toLowerCase().includes('cancel')) {
-        setServerError('Erro ao entrar com Apple. Tente novamente.')
-      }
-    } finally {
-      setSocialLoading(null)
-    }
+    setServerError('Login com Apple temporariamente indisponível. Use e-mail ou Google.')
   }
 
   const isIOS = isNative && Capacitor.getPlatform() === 'ios'
