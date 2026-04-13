@@ -71,7 +71,7 @@ export default function AppLayout() {
 
         {/* Bottom Nav — padding-bottom para o home indicator do iPhone */}
         <div className="lg:hidden flex-shrink-0"
-          style={{ backgroundColor: '#ffffff', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          style={{ backgroundColor: '#ffffff', paddingBottom: 'env(safe-area-inset-bottom)', borderTop: 'none' }}>
           <BottomNav />
         </div>
       </div>
