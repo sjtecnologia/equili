@@ -518,20 +518,20 @@ export default function ContasPagarPage() {
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusInfo.classes}`}>
                         {statusInfo.label}
                       </span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5 flex flex-wrap items-center gap-x-1">
-                      <span>{CATEGORIAS.find((c) => c.value === conta.categoria)?.label ?? conta.categoria}</span>
                       {conta.tipo === 'fixa' && (
-                        <span className="inline-flex items-center gap-0.5 text-blue-600">
+                        <span className="inline-flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700">
                           <RefreshCw size={10} /> Recorrente
                         </span>
                       )}
                       {conta.tipo === 'variavel' && (
-                        <span className="inline-flex items-center gap-0.5 text-purple-600">
+                        <span className="inline-flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-700">
                           <Layers size={10} /> Parcelada
                         </span>
                       )}
-                      <span>· Venc. {formatDate(conta.data_vencimento)}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {CATEGORIAS.find((c) => c.value === conta.categoria)?.label ?? conta.categoria}
+                      {' · Venc. '}{formatDate(conta.data_vencimento)}
                     </p>
                     {isVencido && (
                       <div className="flex items-center gap-1 mt-1 text-xs text-red-600">
