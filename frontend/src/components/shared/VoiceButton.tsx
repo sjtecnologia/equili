@@ -45,7 +45,8 @@ function prepararDados(acao: string, dados: Record<string, unknown>) {
     return {
       descricao: dados.descricao,
       valor: dados.valor,
-      tipo: dados.tipo || 'fixo',
+      tipo: dados.tipo || 'salario',
+      frequencia: dados.frequencia || 'mensal',
     }
   }
   return dados
@@ -63,7 +64,13 @@ type AnyWindow = Window & typeof globalThis & Record<string, any>
 
 export default function VoiceButton() {
   const [estado, setEstado] = useState<Estado>('idle')
-  const [transcricao, setTranscricao] = useState('')
+  const transcricaoRef = useRef('')
+  const [transcricao, setTranscricaoState] = useState('')
+
+  function setTranscricao(t: string) {
+    transcricaoRef.current = t
+    setTranscricaoState(t)
+  }
   const [acao, setAcao] = useState<Acao | null>(null)
   const [erro, setErro] = useState('')
   const reconhecimentoRef = useRef<unknown>(null)
@@ -110,18 +117,14 @@ export default function VoiceButton() {
     }
 
     rec.onend = () => {
-      // Se ainda estava "ouvindo" ao terminar → envia para IA
+      // Usa a ref (não o state) para evitar closure stale
       setEstado((s) => {
         if (s === 'ouvindo') {
-          // Usar ref para capturar transcricao atual
-          setTranscricao((t) => {
-            if (t.trim()) {
-              setTimeout(() => processarTranscricao(), 0)
-            } else {
-              setEstado('idle')
-            }
-            return t
-          })
+          if (transcricaoRef.current.trim()) {
+            setTimeout(() => processarTranscricao(), 0)
+          } else {
+            return 'idle'
+          }
         }
         return s
       })
@@ -137,7 +140,7 @@ export default function VoiceButton() {
   }, [])
 
   async function processarTranscricao() {
-    const texto = transcricao || ''
+    const texto = transcricaoRef.current || ''
     if (!texto.trim()) {
       setEstado('idle')
       return
@@ -175,6 +178,7 @@ export default function VoiceButton() {
   function resetar() {
     setEstado('idle')
     setTranscricao('')
+    transcricaoRef.current = ''
     setAcao(null)
     setErro('')
   }
