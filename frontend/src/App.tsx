@@ -36,6 +36,30 @@ export default function App() {
   const setAccessToken = useAuthStore((s) => s.setAccessToken)
   const setUser = useAuthStore((s) => s.setUser)
 
+  // Força limpeza de cache do SW antigo na primeira abertura de cada versão
+  useEffect(() => {
+    const APP_VERSION = '4'
+    const stored = localStorage.getItem('app_cache_version')
+    if (stored !== APP_VERSION) {
+      localStorage.setItem('app_cache_version', APP_VERSION)
+      // Desregistra todos os service workers e limpa todos os caches
+      const cleanup = async () => {
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations()
+          await Promise.all(regs.map((r) => r.unregister()))
+        }
+        if ('caches' in window) {
+          const names = await caches.keys()
+          await Promise.all(names.map((n) => caches.delete(n)))
+        }
+        // Recarrega sem cache após limpeza
+        window.location.reload()
+      }
+      cleanup().catch(() => {})
+      return
+    }
+  }, [])
+
   // Configura StatusBar e NavigationBar nativas (Android/iOS)
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return
