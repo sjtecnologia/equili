@@ -7,11 +7,11 @@ import { useNavigate } from 'react-router-dom'
 import { Mic, MicOff, X, Check, Loader2 } from 'lucide-react'
 import api from '@/services/api'
 
-type Estado = 'idle' | 'ouvindo' | 'processando' | 'confirmando' | 'erro'
+type Estado = 'idle' | 'ouvindo' | 'processando' | 'confirmando' | 'pedindo_data' | 'erro'
 
 interface Acao {
   acao: string
-  dados: Record<string, unknown>
+  dados: Record<string, string | number | boolean | null | undefined>
   mensagem: string
 }
 
@@ -22,23 +22,28 @@ const ROTAS: Record<string, string> = {
   criar_renda: '/rendas',
 }
 
+const LABELS_MODALIDADE: Record<string, string> = {
+  avulsa: 'Avulsa',
+  recorrente: 'Recorrente (todo mês)',
+  parcelada: 'Parcelada / Financiamento',
+}
+
 // Mapa de ação → campos que o endpoint espera
-function prepararDados(acao: string, dados: Record<string, unknown>) {
+function prepararDados(acao: string, dados: Record<string, unknown>, dataExtra?: string) {
   if (acao === 'criar_conta_pagar') {
     return {
       descricao: dados.descricao,
       valor: dados.valor,
-      data_vencimento: dados.data_vencimento,
-      categoria: dados.categoria || 'outros',
-      pago: false,
+      data_vencimento: dataExtra || dados.data_vencimento,
+      categoria: dados.categoria || 'outro',
+      modalidade: dados.modalidade || 'avulsa',
     }
   }
   if (acao === 'criar_conta_receber') {
     return {
       descricao: dados.descricao,
       valor: dados.valor,
-      data_vencimento: dados.data_vencimento,
-      recebido: false,
+      data_vencimento: dataExtra || dados.data_vencimento,
     }
   }
   if (acao === 'criar_renda') {
@@ -66,6 +71,7 @@ export default function VoiceButton() {
   const [estado, setEstado] = useState<Estado>('idle')
   const transcricaoRef = useRef('')
   const [transcricao, setTranscricaoState] = useState('')
+  const [dataSelecionada, setDataSelecionada] = useState('')
 
   function setTranscricao(t: string) {
     transcricaoRef.current = t
@@ -149,12 +155,32 @@ export default function VoiceButton() {
     try {
       const res = await api.post<Acao>('/voz/comando', { transcricao: texto })
       setAcao(res.data)
-      setEstado(res.data.acao === 'nao_entendido' ? 'erro' : 'confirmando')
       if (res.data.acao === 'nao_entendido') {
         setErro(res.data.mensagem)
+        setEstado('erro')
+      } else if (res.data.acao === 'pedir_data_vencimento') {
+        setEstado('pedindo_data')
+      } else {
+        setEstado('confirmando')
       }
     } catch {
       setErro('Erro ao processar. Tente novamente.')
+      setEstado('erro')
+    }
+  }
+
+  async function confirmarComData() {
+    if (!acao || !dataSelecionada) return
+    const tipoConta = acao.dados._tipo_conta as string
+    const acaoReal = tipoConta === 'receber' ? 'criar_conta_receber' : 'criar_conta_pagar'
+    const rota = ROTAS[acaoReal]
+    setEstado('processando')
+    try {
+      await api.post(rota, prepararDados(acaoReal, acao.dados, dataSelecionada))
+      resetar()
+      navigate(NAVEGACAO[acaoReal] || '/dashboard')
+    } catch {
+      setErro('Erro ao salvar. Tente novamente.')
       setEstado('erro')
     }
   }
@@ -181,6 +207,7 @@ export default function VoiceButton() {
     transcricaoRef.current = ''
     setAcao(null)
     setErro('')
+    setDataSelecionada('')
   }
 
   if (!isSupportedBrowser) return null
@@ -231,6 +258,11 @@ export default function VoiceButton() {
             {estado === 'confirmando' && acao && (
               <div className="space-y-4">
                 <p className="text-sm font-medium text-gray-800">{acao.mensagem}</p>
+                {acao.dados.modalidade && (
+                  <p className="text-xs text-primary-600 font-medium">
+                    📋 {LABELS_MODALIDADE[acao.dados.modalidade as string] || String(acao.dados.modalidade)}
+                  </p>
+                )}
                 {transcricao && (
                   <p className="text-xs text-gray-400 border-l-2 border-primary-200 pl-2 italic">
                     "{transcricao}"
@@ -246,6 +278,42 @@ export default function VoiceButton() {
                   <button
                     onClick={confirmar}
                     className="btn-primary flex-1 flex items-center justify-center gap-1"
+                  >
+                    <Check size={14} /> Confirmar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Pedindo data de vencimento */}
+            {estado === 'pedindo_data' && acao && (
+              <div className="space-y-4">
+                <p className="text-sm font-medium text-gray-800">{acao.mensagem}</p>
+                <p className="text-xs text-gray-500">
+                  <span className="font-medium">{acao.dados.descricao as string}</span>
+                  {' · '}R$ {Number(acao.dados.valor).toFixed(2)}
+                  {acao.dados.modalidade && (
+                    <span className="ml-1 text-primary-600">· {LABELS_MODALIDADE[acao.dados.modalidade as string] || String(acao.dados.modalidade)}</span>
+                  )}
+                </p>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Data de vencimento</label>
+                  <input
+                    type="date"
+                    value={dataSelecionada}
+                    onChange={(e) => setDataSelecionada(e.target.value)}
+                    className="input-field text-sm"
+                    min={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={resetar} className="btn-ghost flex-1 flex items-center justify-center gap-1">
+                    <X size={14} /> Cancelar
+                  </button>
+                  <button
+                    onClick={confirmarComData}
+                    disabled={!dataSelecionada}
+                    className="btn-primary flex-1 flex items-center justify-center gap-1 disabled:opacity-50"
                   >
                     <Check size={14} /> Confirmar
                   </button>

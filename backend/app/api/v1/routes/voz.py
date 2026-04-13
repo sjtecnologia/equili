@@ -3,7 +3,7 @@ Assistente de voz — interpreta transcrição em linguagem natural e retorna
 a ação estruturada a executar (criar conta a pagar, renda, etc.).
 """
 import logging
-from datetime import date, timedelta
+from datetime import date
 
 import httpx
 from fastapi import APIRouter, HTTPException, status
@@ -22,22 +22,32 @@ Data de hoje: {date.today().isoformat()}
 
 Retorne APENAS um JSON válido com a estrutura abaixo, sem markdown, sem explicação:
 
-Para criar uma conta a pagar:
-{{"acao": "criar_conta_pagar", "dados": {{"descricao": "...", "valor": 0.00, "data_vencimento": "YYYY-MM-DD", "categoria": "outros"}}, "mensagem": "Resumo amigável do que será feito"}}
+Para criar uma conta a pagar (quando o usuário mencionar data de vencimento):
+{{"acao": "criar_conta_pagar", "dados": {{"descricao": "...", "valor": 0.00, "data_vencimento": "YYYY-MM-DD", "categoria": "outro", "modalidade": "avulsa"}}, "mensagem": "Resumo amigável do que será feito"}}
 
-Para criar uma conta a receber:
+Para criar uma conta a pagar SEM data mencionada (perguntar antes):
+{{"acao": "pedir_data_vencimento", "dados": {{"descricao": "...", "valor": 0.00, "categoria": "outro", "modalidade": "avulsa", "_tipo_conta": "pagar"}}, "mensagem": "Qual a data de vencimento desta conta?"}}
+
+Para criar uma conta a receber (quando o usuário mencionar data):
 {{"acao": "criar_conta_receber", "dados": {{"descricao": "...", "valor": 0.00, "data_vencimento": "YYYY-MM-DD"}}, "mensagem": "Resumo amigável do que será feito"}}
+
+Para criar uma conta a receber SEM data mencionada (perguntar antes):
+{{"acao": "pedir_data_vencimento", "dados": {{"descricao": "...", "valor": 0.00, "_tipo_conta": "receber"}}, "mensagem": "Qual a data prevista para receber?"}}
 
 Para registrar uma renda:
 {{"acao": "criar_renda", "dados": {{"descricao": "...", "valor": 0.00, "tipo": "salario", "frequencia": "mensal"}}, "mensagem": "Resumo amigável do que será feito"}}
 
 Se não entender ou a ação não se encaixar nessas categorias:
-{{"acao": "nao_entendido", "dados": {{}}, "mensagem": "Não entendi. Tente: 'Paguei 50 reais no mercado' ou 'Recebi 200 reais de freelance'"}}
+{{"acao": "nao_entendido", "dados": {{}}, "mensagem": "Não entendi. Tente: 'Conta recorrente do condomínio 500 reais vence dia 10' ou 'Recebi 2000 reais de salário'"}}
 
-Regras:
-- data_vencimento: se não mencionada, use amanhã ({(date.today() + timedelta(days=1)).isoformat()})
+Regras importantes:
+- modalidade: "avulsa" = conta única; "recorrente" = mensal todo mês; "parcelada" = financiamento/parcelado
+  - Se o usuário disser "recorrente", "todo mês", "mensalmente" → modalidade = "recorrente"
+  - Se o usuário disser "parcelado", "financiamento", "em X vezes" → modalidade = "parcelada"
+  - Caso contrário → modalidade = "avulsa"
+- data_vencimento: se mencionada (ex.: "dia 10", "todo dia 5", "vence amanhã") → extraia a data. Se NÃO mencionada → use ação "pedir_data_vencimento"
 - valor: sempre número decimal, sem R$
-- categoria para contas a pagar: alimentacao | transporte | saude | educacao | lazer | moradia | outros
+- categoria para contas a pagar: alimentacao | transporte | saude | educacao | lazer | moradia | outro
 - tipo para renda: salario | freela | aluguel | outro
 - frequencia para renda: mensal | quinzenal | semanal (padrão: mensal)
 """
