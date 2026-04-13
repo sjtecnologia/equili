@@ -105,19 +105,26 @@ export default function DashboardPage() {
       {data?.proxima_conta_vencimento && (
         <Link
           to="/contas-pagar"
-          className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl p-2.5 hover:bg-amber-100 transition-colors"
+          className={`flex items-center gap-2 rounded-xl p-2.5 transition-colors ${
+            (data.dias_proxima_conta ?? 0) < 0
+              ? 'bg-red-50 border border-red-200 hover:bg-red-100'
+              : 'bg-amber-50 border border-amber-200 hover:bg-amber-100'
+          }`}
         >
-          <Calendar size={14} className="text-amber-500 shrink-0" />
+          <Calendar size={14} className={`shrink-0 ${(data.dias_proxima_conta ?? 0) < 0 ? 'text-red-500' : 'text-amber-500'}`} />
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-amber-700">
-              Próxima conta vence em {data.dias_proxima_conta === 0
-                ? 'hoje'
+            <p className={`text-xs font-semibold ${(data.dias_proxima_conta ?? 0) < 0 ? 'text-red-700' : 'text-amber-700'}`}>
+              {(data.dias_proxima_conta ?? 0) < 0
+                ? `Conta vencida há ${Math.abs(data.dias_proxima_conta!)} dia(s)`
+                : data.dias_proxima_conta === 0
+                ? 'Conta vence hoje'
                 : data.dias_proxima_conta === 1
-                ? '1 dia'
-                : `${data.dias_proxima_conta} dias`}
+                ? 'Próxima conta vence em 1 dia'
+                : `Próxima conta vence em ${data.dias_proxima_conta} dias`}
             </p>
-            <p className="text-xs text-amber-600">{formatDate(data.proxima_conta_vencimento)}</p>
-
+            <p className={`text-xs ${(data.dias_proxima_conta ?? 0) < 0 ? 'text-red-600' : 'text-amber-600'}`}>
+              {formatDate(data.proxima_conta_vencimento)}
+            </p>
           </div>
         </Link>
       )}
@@ -138,7 +145,7 @@ export default function DashboardPage() {
           colorClass={saldoPositivo ? 'text-success-500' : 'text-danger-500'}
         />
         <MetricCard
-          title="A pagar (30 dias)"
+          title="A pagar (pendente)"
           value={formatCurrency(data?.total_a_pagar_30d ?? 0)}
           icon={TrendingDown}
           colorClass="text-danger-500"

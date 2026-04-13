@@ -4,6 +4,7 @@
  */
 import { useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { Mic, MicOff, X, Check, Loader2 } from 'lucide-react'
 import api from '@/services/api'
 
@@ -72,6 +73,7 @@ export default function VoiceButton() {
   const transcricaoRef = useRef('')
   const [transcricao, setTranscricaoState] = useState('')
   const [dataSelecionada, setDataSelecionada] = useState('')
+  const queryClient = useQueryClient()
 
   function setTranscricao(t: string) {
     transcricaoRef.current = t
@@ -213,6 +215,9 @@ export default function VoiceButton() {
     setEstado('processando')
     try {
       await api.post(rota, prepararDados(acaoReal, acao.dados, dataSelecionada))
+      queryClient.invalidateQueries({ queryKey: ['contas-pagar'] })
+      queryClient.invalidateQueries({ queryKey: ['contas-receber'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       resetar()
       navigate(NAVEGACAO[acaoReal] || '/dashboard')
     } catch {
@@ -229,6 +234,10 @@ export default function VoiceButton() {
     setEstado('processando')
     try {
       await api.post(rota, prepararDados(acao.acao, acao.dados))
+      queryClient.invalidateQueries({ queryKey: ['contas-pagar'] })
+      queryClient.invalidateQueries({ queryKey: ['contas-receber'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['rendas'] })
       resetar()
       navigate(NAVEGACAO[acao.acao] || '/dashboard')
     } catch {
