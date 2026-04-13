@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import axios from 'axios'
+import { Capacitor } from '@capacitor/core'
+import { StatusBar, Style } from '@capacitor/status-bar'
 import { useAuthStore } from '@/stores/authStore'
 import api from '@/services/api'
 
@@ -33,6 +35,19 @@ export default function App() {
   const [ready, setReady] = useState(false)
   const setAccessToken = useAuthStore((s) => s.setAccessToken)
   const setUser = useAuthStore((s) => s.setUser)
+
+  // Configura StatusBar e NavigationBar nativas (Android/iOS)
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+    StatusBar.setStyle({ style: Style.Light }).catch(() => {})
+    StatusBar.setBackgroundColor({ color: '#2E7D5E' }).catch(() => {})
+    // Barra de navegação inferior branca (Android)
+    if (Capacitor.getPlatform() === 'android') {
+      ;(StatusBar as unknown as { setNavigationBarColor?: (o: { color: string }) => Promise<void> })
+        .setNavigationBarColor?.({ color: '#ffffff' })
+        ?.catch(() => {})
+    }
+  }, [])
 
   useEffect(() => {
     axios
