@@ -66,12 +66,23 @@ class ContaAPagarCreate(BaseModel):
         return self
 
 
+TIPOS_VALIDOS = {"avulsa", "fixa", "variavel"}
+
+
 class ContaAPagarUpdate(BaseModel):
     descricao: str | None = None
     categoria: str | None = None
     valor: float | None = None
     data_vencimento: date | None = None
+    tipo: str | None = None  # avulsa | fixa | variavel
     observacao: str | None = None
+
+    @field_validator("tipo")
+    @classmethod
+    def tipo_valido(cls, v: str | None) -> str | None:
+        if v is not None and v not in TIPOS_VALIDOS:
+            raise ValueError("Tipo inválido. Use: avulsa, fixa ou variavel.")
+        return v
 
 
 class PagarRequest(BaseModel):

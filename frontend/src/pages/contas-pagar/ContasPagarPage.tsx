@@ -63,6 +63,7 @@ const editSchema = z.object({
   categoria: z.string().min(1),
   valor: z.coerce.number().positive('Valor deve ser positivo'),
   data_vencimento: z.string().min(1, 'Data obrigatória'),
+  tipo: z.enum(['avulsa', 'fixa', 'variavel']),
   observacao: z.string().optional(),
 })
 type EditFormData = z.infer<typeof editSchema>
@@ -88,6 +89,7 @@ function EditarContaModal({
       categoria: conta.categoria,
       valor: conta.valor,
       data_vencimento: conta.data_vencimento,
+      tipo: (conta.tipo as 'avulsa' | 'fixa' | 'variavel') || 'avulsa',
       observacao: conta.observacao ?? '',
     },
   })
@@ -132,6 +134,14 @@ function EditarContaModal({
             <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
             <select className="input-field" {...register('categoria')}>
               {CATEGORIAS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de lançamento</label>
+            <select className="input-field" {...register('tipo')}>
+              <option value="avulsa">📄 Avulsa (único)</option>
+              <option value="fixa">🔄 Recorrente (todo mês)</option>
+              <option value="variavel">📋 Parcelada / Financiamento</option>
             </select>
           </div>
           <div>

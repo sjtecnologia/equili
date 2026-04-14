@@ -64,13 +64,24 @@ class ContaAReceberCreate(BaseModel):
         return self
 
 
+TIPOS_VALIDOS = {"avulsa", "recorrente", "parcelada"}
+
+
 class ContaAReceberUpdate(BaseModel):
     descricao: str | None = None
     origem: str | None = None
     valor: float | None = None
     data_prevista: date | None = None
+    tipo: str | None = None  # avulsa | recorrente | parcelada
     devedor: str | None = None
     observacao: str | None = None
+
+    @field_validator("tipo")
+    @classmethod
+    def tipo_valido(cls, v: str | None) -> str | None:
+        if v is not None and v not in TIPOS_VALIDOS:
+            raise ValueError("Tipo inválido. Use: avulsa, recorrente ou parcelada.")
+        return v
 
 
 class ReceberRequest(BaseModel):
