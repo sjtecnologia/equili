@@ -318,6 +318,8 @@ export default function VoiceButton() {
       setEstado('erro')
     }
   }
+
+  function resetar() {
     setEstado('idle')
     setTranscricao('')
     transcricaoRef.current = ''
