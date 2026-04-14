@@ -21,6 +21,7 @@ const ROTAS: Record<string, string> = {
   criar_conta_pagar: '/contas-pagar',
   criar_conta_receber: '/contas-receber',
   criar_renda: '/rendas',
+  atualizar_renda: '/rendas',
 }
 
 const LABELS_MODALIDADE: Record<string, string> = {
@@ -63,6 +64,7 @@ const NAVEGACAO: Record<string, string> = {
   criar_conta_pagar: '/contas-pagar',
   criar_conta_receber: '/contas-receber',
   criar_renda: '/renda',
+  atualizar_renda: '/renda',
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -233,7 +235,18 @@ export default function VoiceButton() {
 
     setEstado('processando')
     try {
-      await api.post(rota, prepararDados(acao.acao, acao.dados))
+      if (acao.acao === 'atualizar_renda') {
+        // Busca a primeira renda ativa e faz PATCH
+        const { data: rendas } = await api.get<{ id: string }[]>('/rendas')
+        if (!rendas || rendas.length === 0) {
+          setErro('Nenhuma renda cadastrada para atualizar. Crie uma primeiro.')
+          setEstado('erro')
+          return
+        }
+        await api.patch(`/rendas/${rendas[0].id}`, { valor: acao.dados.valor })
+      } else {
+        await api.post(rota, prepararDados(acao.acao, acao.dados))
+      }
       queryClient.invalidateQueries({ queryKey: ['contas-pagar'] })
       queryClient.invalidateQueries({ queryKey: ['contas-receber'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
