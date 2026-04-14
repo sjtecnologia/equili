@@ -90,9 +90,18 @@ export default function CadastroPage() {
       const res = await api.post<{ access_token: string }>('/auth/register', data)
       await finalizarLogin(res.data.access_token)
     } catch (err: unknown) {
-      const e = err as { response?: { status?: number } }
-      if (e.response?.status === 409) {
+      const e = err as { response?: { status?: number; data?: { detail?: string | { msg: string }[] } } }
+      const status = e.response?.status
+      const detail = e.response?.data?.detail
+      if (status === 409) {
         setServerError('Este e-mail já está cadastrado. Tente fazer login.')
+      } else if (status === 422 && Array.isArray(detail)) {
+        // Erro de validação Pydantic — mostrar primeiro erro
+        setServerError(detail[0]?.msg || 'Dados inválidos. Verifique os campos.')
+      } else if (typeof detail === 'string') {
+        setServerError(detail)
+      } else if (!status) {
+        setServerError('Servidor indisponível. Tente novamente em instantes.')
       } else {
         setServerError('Erro ao criar conta. Tente novamente.')
       }
