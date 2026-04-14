@@ -2,7 +2,7 @@ import axios from 'axios'
 import { useAuthStore } from '@/stores/authStore'
 
 const api = axios.create({
-  baseURL: '/backend/v1',
+  baseURL: '/api/v1',
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true, // necessário para enviar o httpOnly cookie do refresh
 })
@@ -25,7 +25,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !original._retry && !isAuthEndpoint) {
       original._retry = true
       try {
-        const { data } = await axios.post('/backend/v1/auth/refresh', {}, { withCredentials: true })
+        const { data } = await axios.post('/api/v1/auth/refresh', {}, { withCredentials: true })
         useAuthStore.getState().setAccessToken(data.access_token)
         original.headers.Authorization = `Bearer ${data.access_token}`
         return api(original)
