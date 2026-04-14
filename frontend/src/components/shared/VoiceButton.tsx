@@ -22,6 +22,9 @@ const ROTAS: Record<string, string> = {
   criar_conta_receber: '/contas-receber',
   criar_renda: '/rendas',
   atualizar_renda: '/rendas',
+  excluir_conta_pagar: '/contas-pagar',
+  excluir_conta_receber: '/contas-receber',
+  excluir_renda: '/rendas',
 }
 
 const LABELS_MODALIDADE: Record<string, string> = {
@@ -59,12 +62,15 @@ function prepararDados(acao: string, dados: Record<string, unknown>, dataExtra?:
   return dados
 }
 
-// Rota para navegar após criação
+// Rota para navegar após ação
 const NAVEGACAO: Record<string, string> = {
   criar_conta_pagar: '/contas-pagar',
   criar_conta_receber: '/contas-receber',
   criar_renda: '/renda',
   atualizar_renda: '/renda',
+  excluir_conta_pagar: '/contas-pagar',
+  excluir_conta_receber: '/contas-receber',
+  excluir_renda: '/renda',
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -236,7 +242,6 @@ export default function VoiceButton() {
     setEstado('processando')
     try {
       if (acao.acao === 'atualizar_renda') {
-        // Busca a primeira renda ativa e faz PATCH
         const { data: rendas } = await api.get<{ id: string }[]>('/rendas')
         if (!rendas || rendas.length === 0) {
           setErro('Nenhuma renda cadastrada para atualizar. Crie uma primeiro.')
@@ -244,9 +249,48 @@ export default function VoiceButton() {
           return
         }
         await api.patch(`/rendas/${rendas[0].id}`, { valor: acao.dados.valor })
+
+      } else if (acao.acao === 'excluir_renda') {
+        const { data: rendas } = await api.get<{ id: string; descricao: string; valor: number }[]>('/rendas')
+        if (!rendas || rendas.length === 0) {
+          setErro('Nenhuma renda encontrada para excluir.')
+          setEstado('erro')
+          return
+        }
+        const busca = (acao.dados.descricao_busca as string || '').toLowerCase()
+        const alvo = busca
+          ? rendas.find((r) => r.descricao.toLowerCase().includes(busca)) ?? rendas[0]
+          : rendas[0]
+        await api.delete(`/rendas/${alvo.id}`)
+
+      } else if (acao.acao === 'excluir_conta_pagar') {
+        const { data: contas } = await api.get<{ id: string; descricao: string; status: string }[]>('/contas-pagar')
+        const busca = (acao.dados.descricao_busca as string || '').toLowerCase()
+        const alvo = contas.find((c) =>
+          c.status !== 'pago' && c.descricao.toLowerCase().includes(busca)
+        ) ?? contas.find((c) => c.descricao.toLowerCase().includes(busca))
+        if (!alvo) {
+          setErro(`Não encontrei conta com “${acao.dados.descricao_busca}” para excluir.`)
+          setEstado('erro')
+          return
+        }
+        await api.delete(`/contas-pagar/${alvo.id}`)
+
+      } else if (acao.acao === 'excluir_conta_receber') {
+        const { data: contas } = await api.get<{ id: string; descricao: string }[]>('/contas-receber')
+        const busca = (acao.dados.descricao_busca as string || '').toLowerCase()
+        const alvo = contas.find((c) => c.descricao.toLowerCase().includes(busca))
+        if (!alvo) {
+          setErro(`Não encontrei conta a receber com “${acao.dados.descricao_busca}” para excluir.`)
+          setEstado('erro')
+          return
+        }
+        await api.delete(`/contas-receber/${alvo.id}`)
+
       } else {
         await api.post(rota, prepararDados(acao.acao, acao.dados))
       }
+
       queryClient.invalidateQueries({ queryKey: ['contas-pagar'] })
       queryClient.invalidateQueries({ queryKey: ['contas-receber'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
