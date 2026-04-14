@@ -8,6 +8,16 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Mic, MicOff, X, Check, Loader2 } from 'lucide-react'
 import api from '@/services/api'
 
+// Helper para requisições com timeout de 12s no assistente de voz
+function withTimeout<T>(promise: Promise<T>, ms = 12000): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout: servidor demorou demais.')), ms)
+    ),
+  ])
+}
+
 type Estado = 'idle' | 'ouvindo' | 'processando' | 'confirmando' | 'pedindo_data' | 'ouvindo_data' | 'erro'
 
 interface Acao {
@@ -199,7 +209,7 @@ export default function VoiceButton() {
     }
     setEstado('processando')
     try {
-      const res = await api.post<Acao>('/voz/comando', { transcricao: texto })
+      const res = await withTimeout(api.post<Acao>('/voz/comando', { transcricao: texto }))
       setAcao(res.data)
       if (res.data.acao === 'nao_entendido') {
         setErro(res.data.mensagem)
@@ -209,8 +219,11 @@ export default function VoiceButton() {
       } else {
         setEstado('confirmando')
       }
-    } catch {
-      setErro('Erro ao processar. Tente novamente.')
+    } catch (e) {
+      const msg = e instanceof Error && e.message.startsWith('Timeout')
+        ? 'Servidor demorou demais. Verifique sua conexão e tente novamente.'
+        : 'Erro ao processar. Tente novamente.'
+      setErro(msg)
       setEstado('erro')
     }
   }
@@ -222,7 +235,7 @@ export default function VoiceButton() {
     const rota = ROTAS[acaoReal]
     setEstado('processando')
     try {
-      await api.post(rota, prepararDados(acaoReal, acao.dados, dataSelecionada))
+      await withTimeout(api.post(rota, prepararDados(acaoReal, acao.dados, dataSelecionada)))
       queryClient.invalidateQueries({ queryKey: ['contas-pagar'] })
       queryClient.invalidateQueries({ queryKey: ['contas-receber'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
@@ -242,16 +255,16 @@ export default function VoiceButton() {
     setEstado('processando')
     try {
       if (acao.acao === 'atualizar_renda') {
-        const { data: rendas } = await api.get<{ id: string }[]>('/rendas')
+        const { data: rendas } = await withTimeout(api.get<{ id: string }[]>('/rendas'))
         if (!rendas || rendas.length === 0) {
           setErro('Nenhuma renda cadastrada para atualizar. Crie uma primeiro.')
           setEstado('erro')
           return
         }
-        await api.patch(`/rendas/${rendas[0].id}`, { valor: acao.dados.valor })
+        await withTimeout(api.patch(`/rendas/${rendas[0].id}`, { valor: acao.dados.valor }))
 
       } else if (acao.acao === 'excluir_renda') {
-        const { data: rendas } = await api.get<{ id: string; descricao: string; valor: number }[]>('/rendas')
+        const { data: rendas } = await withTimeout(api.get<{ id: string; descricao: string; valor: number }[]>('/rendas'))
         if (!rendas || rendas.length === 0) {
           setErro('Nenhuma renda encontrada para excluir.')
           setEstado('erro')
@@ -261,10 +274,10 @@ export default function VoiceButton() {
         const alvo = busca
           ? rendas.find((r) => r.descricao.toLowerCase().includes(busca)) ?? rendas[0]
           : rendas[0]
-        await api.delete(`/rendas/${alvo.id}`)
+        await withTimeout(api.delete(`/rendas/${alvo.id}`))
 
       } else if (acao.acao === 'excluir_conta_pagar') {
-        const { data: contas } = await api.get<{ id: string; descricao: string; status: string }[]>('/contas-pagar')
+        const { data: contas } = await withTimeout(api.get<{ id: string; descricao: string; status: string }[]>('/contas-pagar'))
         const busca = (acao.dados.descricao_busca as string || '').toLowerCase()
         const alvo = contas.find((c) =>
           c.status !== 'pago' && c.descricao.toLowerCase().includes(busca)
@@ -274,10 +287,10 @@ export default function VoiceButton() {
           setEstado('erro')
           return
         }
-        await api.delete(`/contas-pagar/${alvo.id}`)
+        await withTimeout(api.delete(`/contas-pagar/${alvo.id}`))
 
       } else if (acao.acao === 'excluir_conta_receber') {
-        const { data: contas } = await api.get<{ id: string; descricao: string }[]>('/contas-receber')
+        const { data: contas } = await withTimeout(api.get<{ id: string; descricao: string }[]>('/contas-receber'))
         const busca = (acao.dados.descricao_busca as string || '').toLowerCase()
         const alvo = contas.find((c) => c.descricao.toLowerCase().includes(busca))
         if (!alvo) {
@@ -285,10 +298,10 @@ export default function VoiceButton() {
           setEstado('erro')
           return
         }
-        await api.delete(`/contas-receber/${alvo.id}`)
+        await withTimeout(api.delete(`/contas-receber/${alvo.id}`))
 
       } else {
-        await api.post(rota, prepararDados(acao.acao, acao.dados))
+        await withTimeout(api.post(rota, prepararDados(acao.acao, acao.dados)))
       }
 
       queryClient.invalidateQueries({ queryKey: ['contas-pagar'] })
@@ -297,13 +310,14 @@ export default function VoiceButton() {
       queryClient.invalidateQueries({ queryKey: ['rendas'] })
       resetar()
       navigate(NAVEGACAO[acao.acao] || '/dashboard')
-    } catch {
-      setErro('Erro ao salvar. Tente novamente.')
+    } catch (e) {
+      const msg = e instanceof Error && e.message.startsWith('Timeout') 
+        ? 'Servidor demorou demais. Verifique sua conexão e tente novamente.'
+        : 'Erro ao executar. Tente novamente.'
+      setErro(msg)
       setEstado('erro')
     }
   }
-
-  function resetar() {
     setEstado('idle')
     setTranscricao('')
     transcricaoRef.current = ''
