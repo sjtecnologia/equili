@@ -78,8 +78,15 @@ export default function LoginPage() {
       }
 
       await finalizarLogin(res.data.access_token)
-    } catch {
-      setServerError('E-mail ou senha incorretos. Tente novamente.')
+    } catch (e: unknown) {
+      const status = (e as { response?: { status?: number } })?.response?.status
+      if (status === 401 || status === 403) {
+        setServerError('E-mail ou senha incorretos. Tente novamente.')
+      } else if (!status) {
+        setServerError('Servidor indisponível. Tente novamente em instantes.')
+      } else {
+        setServerError('Erro ao entrar. Tente novamente.')
+      }
     }
   }
 
