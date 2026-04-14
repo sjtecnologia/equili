@@ -37,6 +37,9 @@ Para criar uma conta a receber SEM data mencionada (perguntar antes):
 Para registrar uma renda:
 {{"acao": "criar_renda", "dados": {{"descricao": "...", "valor": 0.00, "tipo": "salario", "frequencia": "mensal"}}, "mensagem": "Resumo amigável do que será feito"}}
 
+Para atualizar/mudar o valor de uma renda existente (quando o usuário diz "mudar", "atualizar", "corrigir" renda/salário):
+{{"acao": "atualizar_renda", "dados": {{"valor": 0.00}}, "mensagem": "Resumo amigável do que será feito"}}
+
 Se não entender ou a ação não se encaixar nessas categorias:
 {{"acao": "nao_entendido", "dados": {{}}, "mensagem": "Não entendi. Tente: 'Conta recorrente do condomínio 500 reais vence dia 10' ou 'Recebi 2000 reais de salário'"}}
 
