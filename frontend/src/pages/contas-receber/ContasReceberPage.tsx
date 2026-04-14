@@ -61,6 +61,7 @@ const editSchema = z.object({
   origem: z.string().min(1),
   valor: z.coerce.number().positive('Valor deve ser positivo'),
   data_prevista: z.string().min(1, 'Data obrigatória'),
+  tipo: z.enum(['avulsa', 'recorrente', 'parcelada']),
   devedor: z.string().optional(),
   observacao: z.string().optional(),
 })
@@ -88,6 +89,7 @@ function EditarContaReceberModal({
       origem: conta.origem,
       valor: conta.valor,
       data_prevista: conta.data_prevista,
+      tipo: (conta.tipo as 'avulsa' | 'recorrente' | 'parcelada') || 'avulsa',
       devedor: conta.devedor ?? '',
       observacao: conta.observacao ?? '',
     },
@@ -133,6 +135,14 @@ function EditarContaReceberModal({
             <label className="block text-sm font-medium text-gray-700 mb-1">Origem</label>
             <select className="input-field" {...register('origem')}>
               {ORIGENS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de lançamento</label>
+            <select className="input-field" {...register('tipo')}>
+              <option value="avulsa">📄 Avulsa (único)</option>
+              <option value="recorrente">🔄 Recorrente (todo mês)</option>
+              <option value="parcelada">📋 Parcelada / Financiamento</option>
             </select>
           </div>
           <div>
@@ -528,21 +538,21 @@ export default function ContasReceberPage() {
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusInfo.classes}`}>
                         {statusInfo.label}
                       </span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5 flex flex-wrap items-center gap-x-1">
-                      <span>{ORIGENS.find((o) => o.value === conta.origem)?.label ?? conta.origem}</span>
                       {conta.tipo === 'recorrente' && (
-                        <span className="inline-flex items-center gap-0.5 text-blue-600">
+                        <span className="inline-flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700">
                           <RefreshCw size={10} /> Recorrente
                         </span>
                       )}
                       {conta.tipo === 'parcelada' && (
-                        <span className="inline-flex items-center gap-0.5 text-purple-600">
+                        <span className="inline-flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-700">
                           <Layers size={10} /> Parcelada
                         </span>
                       )}
-                      {conta.devedor && <span>· {conta.devedor}</span>}
-                      <span>· Previsto em {formatDate(conta.data_prevista)}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {ORIGENS.find((o) => o.value === conta.origem)?.label ?? conta.origem}
+                      {conta.devedor ? ` · ${conta.devedor}` : ''}
+                      {' · Previsto em '}{formatDate(conta.data_prevista)}
                     </p>
                   </div>
                   <p className="font-bold text-success-500 whitespace-nowrap shrink-0">
