@@ -139,10 +139,11 @@ function EditarContaModal({
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de lançamento</label>
             <select className="input-field" {...register('tipo')}>
-              <option value="avulsa">📄 Avulsa (único)</option>
-              <option value="fixa">🔄 Recorrente (todo mês)</option>
+              <option value="avulsa">📄 Avulsa (lançamento único)</option>
+              <option value="fixa">🔄 Recorrente (condomínio, água, luz…)</option>
               <option value="variavel">📋 Parcelada / Financiamento</option>
             </select>
+            <p className="mt-1 text-xs text-gray-400">Altera apenas este lançamento.</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Observação</label>
