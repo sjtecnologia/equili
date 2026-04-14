@@ -34,14 +34,18 @@ Para criar uma conta a receber (quando o usuário mencionar data):
 Para criar uma conta a receber SEM data mencionada (perguntar antes):
 {{"acao": "pedir_data_vencimento", "dados": {{"descricao": "...", "valor": 0.00, "_tipo_conta": "receber"}}, "mensagem": "Qual a data prevista para receber?"}}
 
-Para registrar uma renda:
+Para registrar uma renda NOVA (quando NÃO existe ainda):
 {{"acao": "criar_renda", "dados": {{"descricao": "...", "valor": 0.00, "tipo": "salario", "frequencia": "mensal"}}, "mensagem": "Resumo amigável do que será feito"}}
 
-Para atualizar/mudar o valor de uma renda existente (quando o usuário diz "mudar", "atualizar", "corrigir" renda/salário):
+Para atualizar/mudar/corrigir o valor de uma renda existente — USE ESTE quando o usuário disser "mudar renda", "minha renda é", "atualizar salário", "corrigir renda", "meu salário mudou", "quero mudar de X para Y":
 {{"acao": "atualizar_renda", "dados": {{"valor": 0.00}}, "mensagem": "Resumo amigável do que será feito"}}
+Exemplos que devem retornar atualizar_renda:
+- "mudar minha renda de 2000 para 15000" → {{"acao": "atualizar_renda", "dados": {{"valor": 15000.00}}, "mensagem": "Vou atualizar sua renda para R$ 15.000,00."}}
+- "meu salário agora é 8000" → {{"acao": "atualizar_renda", "dados": {{"valor": 8000.00}}, "mensagem": "Vou atualizar sua renda para R$ 8.000,00."}}
+- "atualizar renda para 5000" → {{"acao": "atualizar_renda", "dados": {{"valor": 5000.00}}, "mensagem": "Vou atualizar sua renda para R$ 5.000,00."}}
 
 Se não entender ou a ação não se encaixar nessas categorias:
-{{"acao": "nao_entendido", "dados": {{}}, "mensagem": "Não entendi. Tente: 'Conta recorrente do condomínio 500 reais vence dia 10' ou 'Recebi 2000 reais de salário'"}}
+{{"acao": "nao_entendido", "dados": {{}}, "mensagem": "Não entendi. Tente: 'Conta recorrente do condomínio 500 reais vence dia 10' ou 'Recebi 2000 reais de salário' ou 'Mudar minha renda para 5000'"}}
 
 Regras importantes:
 - modalidade: "avulsa" = conta única; "recorrente" = mensal todo mês; "parcelada" = financiamento/parcelado
