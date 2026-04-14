@@ -38,7 +38,7 @@ export default function App() {
 
   // Força limpeza de cache do SW antigo na primeira abertura de cada versão
   useEffect(() => {
-    const APP_VERSION = '5'
+    const APP_VERSION = '6'
     const stored = localStorage.getItem('app_cache_version')
     if (stored !== APP_VERSION) {
       localStorage.setItem('app_cache_version', APP_VERSION)
