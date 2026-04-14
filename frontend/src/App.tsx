@@ -75,7 +75,7 @@ export default function App() {
 
   useEffect(() => {
     axios
-      .post('/backend/v1/auth/refresh', {}, { withCredentials: true })
+      .post('/api/v1/auth/refresh', {}, { withCredentials: true })
       .then(async (res) => {
         setAccessToken(res.data.access_token)
         const me = await api.get('/usuarios/me', {
