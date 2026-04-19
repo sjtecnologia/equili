@@ -17,6 +17,7 @@ import PlanoAcaoPage from '@/pages/plano-de-acao/PlanoAcaoPage'
 import OnboardingPage from '@/pages/onboarding/OnboardingPage'
 import ContasPagarPage from '@/pages/contas-pagar/ContasPagarPage'
 import ContasReceberPage from '@/pages/contas-receber/ContasReceberPage'
+import ContasBancariasPage from '@/pages/contas-bancarias/ContasBancariasPage'
 import RelatoriosPage from '@/pages/relatorios/RelatoriosPage'
 import ConfiguracoesPage from '@/pages/configuracoes/ConfiguracoesPage'
 import AppLayout from '@/components/layout/AppLayout'
@@ -113,6 +114,7 @@ export default function App() {
           <Route path="dividas/baixas" element={<BaixasPage />} />
           <Route path="contas-pagar" element={<ContasPagarPage />} />
           <Route path="contas-receber" element={<ContasReceberPage />} />
+          <Route path="contas-bancarias" element={<ContasBancariasPage />} />
           <Route path="relatorios" element={<RelatoriosPage />} />
           <Route path="plano-de-acao" element={<PlanoAcaoPage />} />
           <Route path="chat" element={<ChatPage />} />

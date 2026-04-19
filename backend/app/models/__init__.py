@@ -8,3 +8,4 @@ from app.models.conta import ContaFixa, Alerta  # noqa: F401
 from app.models.conta_lancamento import ContaAPagar, ContaAReceber  # noqa: F401
 from app.models.push_subscription import PushSubscription  # noqa: F401
 from app.models.investimento import Investimento  # noqa: F401
+from app.models.conta_bancaria import ContaBancaria, CartaoCredito  # noqa: F401

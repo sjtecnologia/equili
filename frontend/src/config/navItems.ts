@@ -10,6 +10,7 @@ import {
   Sparkles,
   BarChart2,
   Settings,
+  Landmark,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -25,8 +26,9 @@ export const ALL_NAV_ITEMS: NavItem[] = [
   { to: '/dividas/baixas',  label: 'Baixas',        icon: Receipt },
   { to: '/contas-pagar',    label: 'A Pagar',       icon: ArrowUpCircle },
   { to: '/contas-receber',  label: 'A Receber',     icon: ArrowDownCircle },
-  { to: '/investimentos',   label: 'Investimentos', icon: TrendingUp },
-  { to: '/chat',            label: 'Assistente IA', icon: MessageSquare },
+  { to: '/investimentos',        label: 'Investimentos', icon: TrendingUp },
+  { to: '/contas-bancarias',     label: 'Contas e Cartões', icon: Landmark },
+  { to: '/chat',                 label: 'Assistente IA', icon: MessageSquare },
   { to: '/plano-de-acao',   label: 'Plano IA',      icon: Sparkles },
   { to: '/relatorios',      label: 'Relatórios',    icon: BarChart2 },
   { to: '/configuracoes',   label: 'Config.',       icon: Settings },
