@@ -14,6 +14,8 @@ from app.api.v1.routes import (
     chat,
     investimentos,
     voz,
+    contas_bancarias,
+    cartoes_credito,
 )
 
 api_router = APIRouter()
@@ -31,3 +33,5 @@ api_router.include_router(notificacoes.router, tags=["Notificações Push"])
 api_router.include_router(chat.router, tags=["Chat IA"])
 api_router.include_router(voz.router, tags=["Assistente de Voz"])
 api_router.include_router(investimentos.router)
+api_router.include_router(contas_bancarias.router, prefix="/contas-bancarias", tags=["Contas Bancárias"])
+api_router.include_router(cartoes_credito.router, prefix="/cartoes-credito", tags=["Cartões de Crédito"])
