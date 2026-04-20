@@ -1,7 +1,7 @@
 """add_contas_bancarias_cartoes_e_lancamentos
 
 Revision ID: c5d6e7f8a9b0
-Revises: e6f7a8b9c0d1
+Revises: a1b2c3d4e5f6
 Create Date: 2026-04-20 12:00:00.000000
 
 """
@@ -10,7 +10,7 @@ from typing import Sequence, Union
 from alembic import op
 
 revision: str = 'c5d6e7f8a9b0'
-down_revision: Union[str, None] = 'e6f7a8b9c0d1'
+down_revision: Union[str, None] = 'a1b2c3d4e5f6'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
