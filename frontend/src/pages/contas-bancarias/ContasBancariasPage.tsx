@@ -4,10 +4,11 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
-  Plus, Trash2, Loader2, X, Pencil, Landmark, CreditCard,
+  Plus, Trash2, Loader2, X, Pencil, Landmark, CreditCard, ArrowRight,
 } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency } from '@/utils/format'
+import { Link } from 'react-router-dom'
 
 /* ─────────────── TIPOS ─────────────── */
 
@@ -373,7 +374,14 @@ function ContaBancariaCard({
         <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
           {TIPO_CONTA_LABELS[conta.tipo] ?? conta.tipo}
         </span>
-        <div className="flex gap-2">
+        <div className="flex gap-1 items-center">
+          <Link
+            to={`/contas-bancarias/${conta.id}/lancamentos`}
+            className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+            title="Ver lançamentos"
+          >
+            <ArrowRight size={15} />
+          </Link>
           <button
             onClick={onEdit}
             className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
@@ -426,7 +434,14 @@ function CartaoCreditoCard({
           <span>Fecha dia <strong className="text-gray-700">{cartao.dia_fechamento}</strong></span>
           <span>Vence dia <strong className="text-gray-700">{cartao.dia_vencimento}</strong></span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1 items-center">
+          <Link
+            to={`/cartoes-credito/${cartao.id}/lancamentos`}
+            className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+            title="Ver lançamentos"
+          >
+            <ArrowRight size={15} />
+          </Link>
           <button
             onClick={onEdit}
             className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
