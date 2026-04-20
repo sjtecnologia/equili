@@ -24,6 +24,7 @@ class ContaBancaria(Base):
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     usuario: Mapped["Usuario"] = relationship(back_populates="contas_bancarias")  # noqa: F821
+    lancamentos: Mapped[list["LancamentoConta"]] = relationship(back_populates="conta", cascade="all, delete-orphan")  # noqa: F821
 
 
 class CartaoCredito(Base):
@@ -43,3 +44,4 @@ class CartaoCredito(Base):
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     usuario: Mapped["Usuario"] = relationship(back_populates="cartoes_credito")  # noqa: F821
+    lancamentos: Mapped[list["LancamentoCartao"]] = relationship(back_populates="cartao", cascade="all, delete-orphan")  # noqa: F821

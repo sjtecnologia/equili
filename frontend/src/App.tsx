@@ -18,6 +18,8 @@ import OnboardingPage from '@/pages/onboarding/OnboardingPage'
 import ContasPagarPage from '@/pages/contas-pagar/ContasPagarPage'
 import ContasReceberPage from '@/pages/contas-receber/ContasReceberPage'
 import ContasBancariasPage from '@/pages/contas-bancarias/ContasBancariasPage'
+import ContaLancamentosPage from '@/pages/contas-bancarias/ContaLancamentosPage'
+import CartaoLancamentosPage from '@/pages/contas-bancarias/CartaoLancamentosPage'
 import RelatoriosPage from '@/pages/relatorios/RelatoriosPage'
 import ConfiguracoesPage from '@/pages/configuracoes/ConfiguracoesPage'
 import AppLayout from '@/components/layout/AppLayout'
@@ -39,7 +41,7 @@ export default function App() {
 
   // Força limpeza de cache do SW antigo na primeira abertura de cada versão
   useEffect(() => {
-    const APP_VERSION = '7'
+    const APP_VERSION = '8'
     const stored = localStorage.getItem('app_cache_version')
     if (stored !== APP_VERSION) {
       localStorage.setItem('app_cache_version', APP_VERSION)
@@ -115,6 +117,8 @@ export default function App() {
           <Route path="contas-pagar" element={<ContasPagarPage />} />
           <Route path="contas-receber" element={<ContasReceberPage />} />
           <Route path="contas-bancarias" element={<ContasBancariasPage />} />
+          <Route path="contas-bancarias/:contaId/lancamentos" element={<ContaLancamentosPage />} />
+          <Route path="cartoes-credito/:cartaoId/lancamentos" element={<CartaoLancamentosPage />} />
           <Route path="relatorios" element={<RelatoriosPage />} />
           <Route path="plano-de-acao" element={<PlanoAcaoPage />} />
           <Route path="chat" element={<ChatPage />} />

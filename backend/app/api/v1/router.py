@@ -16,6 +16,8 @@ from app.api.v1.routes import (
     voz,
     contas_bancarias,
     cartoes_credito,
+    lancamentos_conta,
+    lancamentos_cartao,
 )
 
 api_router = APIRouter()
@@ -35,3 +37,5 @@ api_router.include_router(voz.router, tags=["Assistente de Voz"])
 api_router.include_router(investimentos.router)
 api_router.include_router(contas_bancarias.router, prefix="/contas-bancarias", tags=["Contas Bancárias"])
 api_router.include_router(cartoes_credito.router, prefix="/cartoes-credito", tags=["Cartões de Crédito"])
+api_router.include_router(lancamentos_conta.router, prefix="/contas-bancarias", tags=["Lançamentos Conta"])
+api_router.include_router(lancamentos_cartao.router, prefix="/cartoes-credito", tags=["Lançamentos Cartão"])

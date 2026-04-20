@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { TrendingUp, TrendingDown, CreditCard, Sparkles, AlertTriangle, Clock, Wallet, Calendar } from 'lucide-react'
+import { TrendingUp, TrendingDown, CreditCard, Sparkles, AlertTriangle, Clock, Wallet, Calendar, Landmark } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
@@ -19,6 +19,24 @@ interface DashboardResumo {
   parcelas_atrasadas_total: number
   valor_parcelas_atrasadas: number
   dividas_com_atraso: number
+}
+
+interface ContaBancaria {
+  id: string
+  nome: string
+  banco: string
+  tipo: string
+  saldo_inicial: number
+  cor: string
+}
+
+interface CartaoCredito {
+  id: string
+  nome: string
+  bandeira: string
+  limite: number
+  limite_disponivel?: number
+  cor: string
 }
 
 function MetricCard({
@@ -58,6 +76,16 @@ export default function DashboardPage() {
     queryKey: ['dashboard'],
     queryFn: () => api.get('/dashboard/resumo').then((r) => r.data),
     staleTime: 0,
+  })
+
+  const { data: contas = [] } = useQuery<ContaBancaria[]>({
+    queryKey: ['contas-bancarias'],
+    queryFn: () => api.get('/contas-bancarias').then((r) => r.data),
+  })
+
+  const { data: cartoes = [] } = useQuery<CartaoCredito[]>({
+    queryKey: ['cartoes-credito'],
+    queryFn: () => api.get('/cartoes-credito').then((r) => r.data),
   })
 
   if (isLoading) {
@@ -184,6 +212,61 @@ export default function DashboardPage() {
         colorClass="text-gray-700"
         to="/dividas"
       />
+
+      {/* Contas bancárias */}
+      {contas.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-1">
+              <Landmark size={12} /> Contas bancárias
+            </p>
+            <Link to="/contas-bancarias" className="text-xs text-primary-600 hover:underline">Ver todas</Link>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {contas.slice(0, 4).map((conta) => (
+              <Link
+                key={conta.id}
+                to={`/contas-bancarias/${conta.id}/lancamentos`}
+                className="rounded-xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+              >
+                <div className="p-2.5 text-white" style={{ backgroundColor: conta.cor }}>
+                  <p className="text-xs opacity-80 truncate">{conta.banco}</p>
+                  <p className="text-sm font-semibold truncate">{conta.nome}</p>
+                  <p className="text-base font-bold mt-1">{formatCurrency(conta.saldo_inicial)}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Cartões de crédito */}
+      {cartoes.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-1">
+              <CreditCard size={12} /> Cartões de crédito
+            </p>
+            <Link to="/contas-bancarias" className="text-xs text-primary-600 hover:underline">Ver todos</Link>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {cartoes.slice(0, 4).map((cartao) => (
+              <Link
+                key={cartao.id}
+                to={`/cartoes-credito/${cartao.id}/lancamentos`}
+                className="rounded-xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+              >
+                <div className="p-2.5 text-white" style={{ backgroundColor: cartao.cor }}>
+                  <p className="text-xs opacity-80 truncate capitalize">{cartao.bandeira}</p>
+                  <p className="text-sm font-semibold truncate">{cartao.nome}</p>
+                  <p className="text-base font-bold mt-1">{formatCurrency(cartao.limite)}</p>
+                  <p className="text-xs opacity-70">Limite total</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Banner de Plano IA */}
       <div className="card border-2 border-dashed border-primary-200 p-3 flex items-center gap-3">
