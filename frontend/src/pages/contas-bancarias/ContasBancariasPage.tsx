@@ -94,6 +94,7 @@ function ContaBancariaModal({
   onSuccess: () => void
 }) {
   const isEdit = !!conta
+  const [erro, setErro] = useState('')
   const {
     register,
     handleSubmit,
@@ -110,13 +111,19 @@ function ContaBancariaModal({
   const corAtual = watch('cor')
 
   async function onSubmit(data: ContaFormData) {
-    if (isEdit) {
-      await api.patch(`/contas-bancarias/${conta!.id}`, data)
-    } else {
-      await api.post('/contas-bancarias', data)
+    try {
+      setErro('')
+      if (isEdit) {
+        await api.patch(`/contas-bancarias/${conta!.id}`, data)
+      } else {
+        await api.post('/contas-bancarias', data)
+      }
+      onSuccess()
+      onClose()
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setErro(msg ?? 'Erro ao salvar. Tente novamente.')
     }
-    onSuccess()
-    onClose()
   }
 
   return (
@@ -187,6 +194,7 @@ function ContaBancariaModal({
               ))}
             </div>
           </div>
+          {erro && <p className="text-sm text-danger-600 bg-danger-50 rounded-lg px-3 py-2">{erro}</p>}
           <button
             type="submit"
             disabled={isSubmitting}
