@@ -230,10 +230,11 @@ export default function ContaLancamentosPage() {
   const [showOFX, setShowOFX] = useState(false)
 
   const queryKey = ['conta-lancamentos', contaId]
-  const { data, isLoading } = useQuery<ContaLancamentosData>({
+  const { data, isLoading, isError } = useQuery<ContaLancamentosData>({
     queryKey,
     queryFn: () => api.get(`/contas-bancarias/${contaId}/lancamentos`).then((r) => r.data),
     enabled: !!contaId,
+    retry: 1,
   })
 
   const deletar = useMutation({
@@ -341,8 +342,20 @@ export default function ContaLancamentosPage() {
 
       {/* Lista */}
       {isLoading ? (
-        <div className="flex justify-center py-12">
+        <div className="flex flex-col items-center justify-center py-12 gap-2">
           <Loader2 className="animate-spin text-primary-500" size={28} />
+          <p className="text-sm text-gray-400">Carregando lançamentos...</p>
+        </div>
+      ) : isError ? (
+        <div className="text-center py-16 text-red-400">
+          <p className="font-medium">Erro ao carregar lançamentos</p>
+          <p className="text-sm mt-1">Verifique sua conexão e tente novamente</p>
+          <button
+            onClick={() => queryClient.invalidateQueries({ queryKey })}
+            className="mt-3 text-sm text-primary-600 underline"
+          >
+            Tentar novamente
+          </button>
         </div>
       ) : lancamentos.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
