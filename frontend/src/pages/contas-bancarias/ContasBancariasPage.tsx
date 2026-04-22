@@ -354,9 +354,10 @@ function ContaBancariaCard({
 }) {
   return (
     <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100">
-      {/* Topo colorido */}
-      <div
-        className="p-4 text-white"
+      {/* Topo colorido — clicável para lançamentos */}
+      <Link
+        to={`/contas-bancarias/${conta.id}/lancamentos`}
+        className="block p-4 text-white active:opacity-80 transition-opacity"
         style={{ backgroundColor: conta.cor }}
       >
         <div className="flex items-start justify-between">
@@ -367,21 +368,19 @@ function ContaBancariaCard({
           <Landmark size={28} className="opacity-70" />
         </div>
         <p className="mt-3 text-2xl font-bold">{formatCurrency(conta.saldo_inicial)}</p>
-        <p className="text-xs opacity-70 mt-0.5">Saldo inicial</p>
-      </div>
+        <div className="flex items-center justify-between mt-0.5">
+          <p className="text-xs opacity-70">Saldo inicial</p>
+          <span className="text-xs opacity-70 flex items-center gap-1">
+            Ver lançamentos <ArrowRight size={12} />
+          </span>
+        </div>
+      </Link>
       {/* Rodapé */}
       <div className="bg-white px-4 py-2 flex items-center justify-between">
         <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
           {TIPO_CONTA_LABELS[conta.tipo] ?? conta.tipo}
         </span>
         <div className="flex gap-1 items-center">
-          <Link
-            to={`/contas-bancarias/${conta.id}/lancamentos`}
-            className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-            title="Ver lançamentos"
-          >
-            <ArrowRight size={15} />
-          </Link>
           <button
             onClick={onEdit}
             className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
@@ -413,9 +412,10 @@ function CartaoCreditoCard({
 }) {
   return (
     <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100">
-      {/* Topo colorido */}
-      <div
-        className="p-4 text-white relative"
+      {/* Topo colorido — clicável para lançamentos */}
+      <Link
+        to={`/cartoes-credito/${cartao.id}/lancamentos`}
+        className="block p-4 text-white active:opacity-80 transition-opacity"
         style={{ backgroundColor: cartao.cor }}
       >
         <div className="flex items-start justify-between">
@@ -426,8 +426,13 @@ function CartaoCreditoCard({
           <CreditCard size={28} className="opacity-70" />
         </div>
         <p className="mt-3 text-2xl font-bold">{formatCurrency(cartao.limite)}</p>
-        <p className="text-xs opacity-70 mt-0.5">Limite total</p>
-      </div>
+        <div className="flex items-center justify-between mt-0.5">
+          <p className="text-xs opacity-70">Limite total</p>
+          <span className="text-xs opacity-70 flex items-center gap-1">
+            Ver lançamentos <ArrowRight size={12} />
+          </span>
+        </div>
+      </Link>
       {/* Rodapé */}
       <div className="bg-white px-4 py-2 flex items-center justify-between">
         <div className="flex gap-4 text-xs text-gray-500">
@@ -435,13 +440,6 @@ function CartaoCreditoCard({
           <span>Vence dia <strong className="text-gray-700">{cartao.dia_vencimento}</strong></span>
         </div>
         <div className="flex gap-1 items-center">
-          <Link
-            to={`/cartoes-credito/${cartao.id}/lancamentos`}
-            className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-            title="Ver lançamentos"
-          >
-            <ArrowRight size={15} />
-          </Link>
           <button
             onClick={onEdit}
             className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
