@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import axios from 'axios'
+import { useRegisterSW } from 'virtual:pwa-register/react'
 import { Capacitor } from '@capacitor/core'
 import { StatusBar, Style } from '@capacitor/status-bar'
 import { useAuthStore } from '@/stores/authStore'
@@ -39,9 +40,17 @@ export default function App() {
   const setAccessToken = useAuthStore((s) => s.setAccessToken)
   const setUser = useAuthStore((s) => s.setUser)
 
+  // Detecta novo SW disponível e força reload imediato
+  useRegisterSW({
+    onNeedRefresh() {
+      window.location.reload()
+    },
+    onOfflineReady() {},
+  })
+
   // Força limpeza de cache do SW antigo na primeira abertura de cada versão
   useEffect(() => {
-    const APP_VERSION = '9'
+    const APP_VERSION = '10'
     const stored = localStorage.getItem('app_cache_version')
     if (stored !== APP_VERSION) {
       localStorage.setItem('app_cache_version', APP_VERSION)
