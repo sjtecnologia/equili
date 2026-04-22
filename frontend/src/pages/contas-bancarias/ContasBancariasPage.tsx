@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency } from '@/utils/format'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 
 /* ─────────────── TIPOS ─────────────── */
 
@@ -352,12 +352,16 @@ function ContaBancariaCard({
   onEdit: () => void
   onDelete: () => void
 }) {
+  const navigate = useNavigate()
   return (
     <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100">
       {/* Topo colorido — clicável para lançamentos */}
-      <Link
-        to={`/contas-bancarias/${conta.id}/lancamentos`}
-        className="block p-4 text-white active:opacity-80 transition-opacity"
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => navigate(`/contas-bancarias/${conta.id}/lancamentos`)}
+        onKeyDown={(e) => e.key === 'Enter' && navigate(`/contas-bancarias/${conta.id}/lancamentos`)}
+        className="block p-4 text-white active:opacity-80 transition-opacity cursor-pointer select-none"
         style={{ backgroundColor: conta.cor }}
       >
         <div className="flex items-start justify-between">
@@ -374,7 +378,7 @@ function ContaBancariaCard({
             Ver lançamentos <ArrowRight size={12} />
           </span>
         </div>
-      </Link>
+      </div>
       {/* Rodapé */}
       <div className="bg-white px-4 py-2 flex items-center justify-between">
         <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
@@ -410,12 +414,16 @@ function CartaoCreditoCard({
   onEdit: () => void
   onDelete: () => void
 }) {
+  const navigate = useNavigate()
   return (
     <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100">
       {/* Topo colorido — clicável para lançamentos */}
-      <Link
-        to={`/cartoes-credito/${cartao.id}/lancamentos`}
-        className="block p-4 text-white active:opacity-80 transition-opacity"
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => navigate(`/cartoes-credito/${cartao.id}/lancamentos`)}
+        onKeyDown={(e) => e.key === 'Enter' && navigate(`/cartoes-credito/${cartao.id}/lancamentos`)}
+        className="block p-4 text-white active:opacity-80 transition-opacity cursor-pointer select-none"
         style={{ backgroundColor: cartao.cor }}
       >
         <div className="flex items-start justify-between">
@@ -432,7 +440,7 @@ function CartaoCreditoCard({
             Ver lançamentos <ArrowRight size={12} />
           </span>
         </div>
-      </Link>
+      </div>
       {/* Rodapé */}
       <div className="bg-white px-4 py-2 flex items-center justify-between">
         <div className="flex gap-4 text-xs text-gray-500">
