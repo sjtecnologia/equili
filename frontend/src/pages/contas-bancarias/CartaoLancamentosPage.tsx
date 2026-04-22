@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
-  ArrowLeft, Plus, Trash2, Loader2, X, ShoppingCart, Wallet,
+  ArrowLeft, Trash2, Loader2, X, ShoppingCart, Wallet,
 } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency } from '@/utils/format'
