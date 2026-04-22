@@ -35,7 +35,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        cacheId: 'equili-v2',
+        cacheId: 'equili-v3',
         skipWaiting: true,
         clientsClaim: true,
         runtimeCaching: [
@@ -43,7 +43,7 @@ export default defineConfig({
             urlPattern: /^\/api\/v1\//,
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'api-cache',
+              cacheName: 'api-cache-v3',
               networkTimeoutSeconds: 10,
               expiration: { maxEntries: 50, maxAgeSeconds: 300 },
             },
