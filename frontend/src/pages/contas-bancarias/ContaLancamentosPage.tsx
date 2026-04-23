@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
   ArrowLeft, Plus, Trash2, Loader2, X, Upload,
-  TrendingUp, TrendingDown, ArrowUpCircle, ArrowDownCircle,
+  TrendingUp, TrendingDown, ArrowUpCircle, ArrowDownCircle, FileText, Copy, Check,
 } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency } from '@/utils/format'
@@ -227,12 +227,172 @@ function ImportarOFXModal({
   )
 }
 
+/* ─── Modal Extrato ─── */
+function ExtratoContaModal({
+  lancamentos,
+  saldoInicial,
+  nomeConta,
+  onClose,
+}: {
+  lancamentos: Lancamento[]
+  saldoInicial: number
+  nomeConta: string
+  onClose: () => void
+}) {
+  const mesesDisponiveis = [...new Set(lancamentos.map((l) => l.data.slice(0, 7)))].sort().reverse()
+  const [mesFiltro, setMesFiltro] = useState(mesesDisponiveis[0] ?? '')
+  const [copiado, setCopiado] = useState(false)
+
+  const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+  function formatMesLabel(ym: string) {
+    const [y, m] = ym.split('-')
+    return `${MESES[parseInt(m) - 1]}/${y}`
+  }
+
+  // Lançamentos do mês filtrado, ordem cronológica
+  const doMes = lancamentos
+    .filter((l) => l.data.slice(0, 7) === mesFiltro)
+    .sort((a, b) => a.data.localeCompare(b.data))
+
+  // Saldo acumulado até o início do mês filtrado (todos os lançamentos anteriores)
+  const saldoAntesDoMes = lancamentos
+    .filter((l) => l.data.slice(0, 7) < mesFiltro)
+    .reduce((acc, l) => acc + (l.tipo === 'entrada' ? l.valor : -l.valor), saldoInicial)
+
+  // Saldo acumulado linha a linha
+  const linhas = doMes.reduce<{ lancamento: Lancamento; saldo: number }[]>((acc, l) => {
+    const anterior = acc.length > 0 ? acc[acc.length - 1].saldo : saldoAntesDoMes
+    acc.push({ lancamento: l, saldo: anterior + (l.tipo === 'entrada' ? l.valor : -l.valor) })
+    return acc
+  }, [])
+
+  const totalEntradas = doMes.filter((l) => l.tipo === 'entrada').reduce((s, l) => s + l.valor, 0)
+  const totalSaidas = doMes.filter((l) => l.tipo === 'saida').reduce((s, l) => s + l.valor, 0)
+
+  function copiarCSV() {
+    const header = 'Data;Descrição;Tipo;Valor;Categoria;Saldo'
+    const rows = linhas.map(({ lancamento: l, saldo }) =>
+      [
+        l.data.split('-').reverse().join('/'),
+        l.descricao,
+        l.tipo === 'entrada' ? 'Entrada' : 'Saída',
+        (l.tipo === 'entrada' ? l.valor : -l.valor).toFixed(2).replace('.', ','),
+        l.categoria ?? '',
+        saldo.toFixed(2).replace('.', ','),
+      ].join(';')
+    )
+    navigator.clipboard.writeText([header, ...rows].join('\n'))
+    setCopiado(true)
+    setTimeout(() => setCopiado(false), 2000)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b shrink-0">
+          <div>
+            <h2 className="font-semibold text-gray-800">Extrato — {nomeConta}</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Saldo acumulado por lançamento</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+        </div>
+
+        {/* Filtro de mês */}
+        <div className="px-4 py-3 border-b shrink-0 flex items-center gap-3">
+          <label className="text-sm font-medium text-gray-600 shrink-0">Mês:</label>
+          <select
+            className="input-field flex-1 text-sm py-1.5"
+            value={mesFiltro}
+            onChange={(e) => setMesFiltro(e.target.value)}
+          >
+            {mesesDisponiveis.map((m) => (
+              <option key={m} value={m}>{formatMesLabel(m)}</option>
+            ))}
+          </select>
+          <button
+            onClick={copiarCSV}
+            title="Copiar como CSV"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition-colors shrink-0"
+          >
+            {copiado ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+            {copiado ? 'Copiado!' : 'CSV'}
+          </button>
+        </div>
+
+        {/* Resumo do mês */}
+        <div className="grid grid-cols-3 gap-2 px-4 py-3 border-b shrink-0 text-center">
+          <div>
+            <p className="text-xs text-gray-400">Saldo anterior</p>
+            <p className={`text-sm font-bold ${saldoAntesDoMes >= 0 ? 'text-gray-700' : 'text-red-600'}`}>
+              {formatCurrency(saldoAntesDoMes)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-green-600">+ Entradas</p>
+            <p className="text-sm font-bold text-green-600">{formatCurrency(totalEntradas)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-red-500">− Saídas</p>
+            <p className="text-sm font-bold text-red-500">{formatCurrency(totalSaidas)}</p>
+          </div>
+        </div>
+
+        {/* Lista com saldo acumulado */}
+        <div className="overflow-y-auto flex-1 p-4">
+          {doMes.length === 0 ? (
+            <p className="text-center text-gray-400 py-8 text-sm">Nenhum lançamento neste mês</p>
+          ) : (
+            <div className="space-y-1.5">
+              {/* Linha de saldo anterior */}
+              <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-xl text-xs text-gray-500">
+                <span className="font-medium">Saldo anterior ao mês</span>
+                <span className={`font-bold ${saldoAntesDoMes >= 0 ? 'text-gray-700' : 'text-red-600'}`}>
+                  {formatCurrency(saldoAntesDoMes)}
+                </span>
+              </div>
+              {linhas.map(({ lancamento: l, saldo }) => (
+                <div key={l.id} className="flex items-center gap-2 py-2 px-3 rounded-xl border border-gray-100 bg-white">
+                  <div className={`w-1.5 h-8 rounded-full shrink-0 ${l.tipo === 'entrada' ? 'bg-green-400' : 'bg-red-400'}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{l.descricao}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs text-gray-400">{l.data.split('-').reverse().join('/')}</p>
+                      {l.categoria && <span className="text-xs text-gray-400">· {l.categoria}</span>}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className={`text-sm font-bold ${l.tipo === 'entrada' ? 'text-green-600' : 'text-red-600'}`}>
+                      {l.tipo === 'entrada' ? '+' : '−'}{formatCurrency(l.valor)}
+                    </p>
+                    <p className={`text-xs ${saldo >= 0 ? 'text-gray-500' : 'text-red-500'}`}>
+                      {formatCurrency(saldo)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              {/* Saldo final */}
+              <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-xl text-xs">
+                <span className="font-semibold text-gray-600">Saldo final do mês</span>
+                <span className={`font-bold text-sm ${(linhas.at(-1)?.saldo ?? 0) >= 0 ? 'text-gray-800' : 'text-red-600'}`}>
+                  {formatCurrency(linhas.at(-1)?.saldo ?? saldoAntesDoMes)}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ─── Página principal ─── */
 export default function ContaLancamentosPage() {
   const { contaId } = useParams<{ contaId: string }>()
   const queryClient = useQueryClient()
   const [showNovo, setShowNovo] = useState(false)
   const [showOFX, setShowOFX] = useState(false)
+  const [showExtrato, setShowExtrato] = useState(false)
 
   const queryKey = ['conta-lancamentos', contaId]
   const { data, isLoading, isError } = useQuery<ContaLancamentosData>({
@@ -341,7 +501,14 @@ export default function ContaLancamentosPage() {
           onClick={() => setShowOFX(true)}
           className="btn-secondary flex items-center gap-2 py-2 px-3 text-sm"
         >
-          <Upload size={16} /> Importar OFX
+          <Upload size={16} /> OFX
+        </button>
+        <button
+          onClick={() => setShowExtrato(true)}
+          disabled={lancamentos.length === 0}
+          className="btn-secondary flex items-center gap-2 py-2 px-3 text-sm disabled:opacity-40"
+        >
+          <FileText size={16} /> Extrato
         </button>
       </div>
 
@@ -427,6 +594,14 @@ export default function ContaLancamentosPage() {
           contaId={contaId!}
           onClose={() => setShowOFX(false)}
           onSuccess={onRefresh}
+        />
+      )}
+      {showExtrato && (
+        <ExtratoContaModal
+          lancamentos={lancamentos}
+          saldoInicial={data?.saldo_inicial ?? 0}
+          nomeConta={data?.nome ?? ''}
+          onClose={() => setShowExtrato(false)}
         />
       )}
     </div>

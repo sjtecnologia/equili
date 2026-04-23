@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
-  ArrowLeft, Trash2, Loader2, X, ShoppingCart, Wallet,
+  ArrowLeft, Trash2, Loader2, X, ShoppingCart, Wallet, FileText, Copy, Check,
 } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency } from '@/utils/format'
@@ -139,11 +139,156 @@ function LancamentoCartaoModal({
   )
 }
 
+/* ─── Modal Extrato Cartão ─── */
+function ExtratoCartaoModal({
+  lancamentos,
+  nomeCartao,
+  diaFechamento,
+  onClose,
+}: {
+  lancamentos: Lancamento[]
+  nomeCartao: string
+  diaFechamento: number
+  onClose: () => void
+}) {
+  const mesesDisponiveis = [...new Set(lancamentos.map((l) => l.data.slice(0, 7)))].sort().reverse()
+  const [mesFiltro, setMesFiltro] = useState(mesesDisponiveis[0] ?? '')
+  const [copiado, setCopiado] = useState(false)
+
+  const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+  function formatMesLabel(ym: string) {
+    const [y, m] = ym.split('-')
+    return `${MESES[parseInt(m) - 1]}/${y}`
+  }
+
+  const doMes = lancamentos
+    .filter((l) => l.data.slice(0, 7) === mesFiltro)
+    .sort((a, b) => a.data.localeCompare(b.data))
+
+  const totalCompras = doMes.filter((l) => l.tipo === 'compra').reduce((s, l) => s + l.valor, 0)
+  const totalPagamentos = doMes.filter((l) => l.tipo === 'pagamento').reduce((s, l) => s + l.valor, 0)
+  const saldoFatura = totalCompras - totalPagamentos
+
+  // Dia de fechamento da fatura
+  const fechamentoLabel = (() => {
+    if (!mesFiltro) return ''
+    const [y, m] = mesFiltro.split('-').map(Number)
+    const dia = String(diaFechamento).padStart(2, '0')
+    const mes = String(m).padStart(2, '0')
+    return `Fecha dia ${dia}/${mes}/${y}`
+  })()
+
+  function copiarCSV() {
+    const header = 'Data;Descrição;Tipo;Valor;Categoria'
+    const rows = doMes.map((l) =>
+      [
+        l.data.split('-').reverse().join('/'),
+        l.descricao,
+        l.tipo === 'compra' ? 'Compra' : 'Pagamento',
+        (l.tipo === 'compra' ? l.valor : -l.valor).toFixed(2).replace('.', ','),
+        l.categoria ?? '',
+      ].join(';')
+    )
+    navigator.clipboard.writeText([header, ...rows].join('\n'))
+    setCopiado(true)
+    setTimeout(() => setCopiado(false), 2000)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b shrink-0">
+          <div>
+            <h2 className="font-semibold text-gray-800">Extrato — {nomeCartao}</h2>
+            <p className="text-xs text-gray-400 mt-0.5">{fechamentoLabel}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+        </div>
+
+        {/* Filtro */}
+        <div className="px-4 py-3 border-b shrink-0 flex items-center gap-3">
+          <label className="text-sm font-medium text-gray-600 shrink-0">Mês:</label>
+          <select
+            className="input-field flex-1 text-sm py-1.5"
+            value={mesFiltro}
+            onChange={(e) => setMesFiltro(e.target.value)}
+          >
+            {mesesDisponiveis.map((m) => (
+              <option key={m} value={m}>{formatMesLabel(m)}</option>
+            ))}
+          </select>
+          <button
+            onClick={copiarCSV}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition-colors shrink-0"
+          >
+            {copiado ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+            {copiado ? 'Copiado!' : 'CSV'}
+          </button>
+        </div>
+
+        {/* Resumo */}
+        <div className="grid grid-cols-3 gap-2 px-4 py-3 border-b shrink-0 text-center">
+          <div>
+            <p className="text-xs text-gray-500">Compras</p>
+            <p className="text-sm font-bold text-red-600">{formatCurrency(totalCompras)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-green-600">Pagamentos</p>
+            <p className="text-sm font-bold text-green-600">{formatCurrency(totalPagamentos)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Fatura</p>
+            <p className={`text-sm font-bold ${saldoFatura > 0 ? 'text-red-600' : 'text-green-600'}`}>
+              {formatCurrency(Math.abs(saldoFatura))}
+            </p>
+          </div>
+        </div>
+
+        {/* Lista */}
+        <div className="overflow-y-auto flex-1 p-4">
+          {doMes.length === 0 ? (
+            <p className="text-center text-gray-400 py-8 text-sm">Nenhum lançamento neste mês</p>
+          ) : (
+            <div className="space-y-1.5">
+              {doMes.map((l) => (
+                <div key={l.id} className="flex items-center gap-2 py-2 px-3 rounded-xl border border-gray-100 bg-white">
+                  <div className={`w-1.5 h-8 rounded-full shrink-0 ${l.tipo === 'pagamento' ? 'bg-green-400' : 'bg-red-400'}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{l.descricao}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs text-gray-400">{l.data.split('-').reverse().join('/')}</p>
+                      {l.categoria && <span className="text-xs text-gray-400">· {l.categoria}</span>}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className={`text-sm font-bold ${l.tipo === 'pagamento' ? 'text-green-600' : 'text-red-600'}`}>
+                      {l.tipo === 'pagamento' ? '−' : '+'}{formatCurrency(l.valor)}
+                    </p>
+                    <p className="text-xs text-gray-400 capitalize">{l.tipo}</p>
+                  </div>
+                </div>
+              ))}
+              {/* Total fatura */}
+              <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-xl text-xs">
+                <span className="font-semibold text-gray-600">Total da fatura</span>
+                <span className={`font-bold text-sm ${saldoFatura > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  {formatCurrency(saldoFatura)}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ─── Página principal ─── */
 export default function CartaoLancamentosPage() {
   const { cartaoId } = useParams<{ cartaoId: string }>()
   const queryClient = useQueryClient()
   const [modalTipo, setModalTipo] = useState<'compra' | 'pagamento' | null>(null)
+  const [showExtrato, setShowExtrato] = useState(false)
 
   const queryKey = ['cartao-lancamentos', cartaoId]
   const { data, isLoading, isError } = useQuery<CartaoLancamentosData>({
@@ -239,7 +384,14 @@ export default function CartaoLancamentosPage() {
           onClick={() => setModalTipo('pagamento')}
           className="bg-success-500 hover:bg-success-600 text-white flex items-center gap-2 py-2 px-3 text-sm rounded-xl font-semibold transition-colors"
         >
-          <Wallet size={16} /> Pagar fatura
+          <Wallet size={16} /> Pagar
+        </button>
+        <button
+          onClick={() => setShowExtrato(true)}
+          disabled={lancamentos.length === 0}
+          className="btn-secondary flex items-center gap-2 py-2 px-3 text-sm disabled:opacity-40"
+        >
+          <FileText size={16} /> Extrato
         </button>
       </div>
 
@@ -324,6 +476,14 @@ export default function CartaoLancamentosPage() {
           tipoInicial={modalTipo}
           onClose={() => setModalTipo(null)}
           onSuccess={onRefresh}
+        />
+      )}
+      {showExtrato && (
+        <ExtratoCartaoModal
+          lancamentos={lancamentos}
+          nomeCartao={data?.nome ?? ''}
+          diaFechamento={data?.dia_fechamento ?? 1}
+          onClose={() => setShowExtrato(false)}
         />
       )}
     </div>
