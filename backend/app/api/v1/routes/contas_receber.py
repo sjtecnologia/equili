@@ -2,12 +2,16 @@ from calendar import monthrange
 from datetime import date, datetime, timezone
 from uuid import UUID
 
+from uuid import UUID as PyUUID
+
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, field_validator, model_validator
 from sqlalchemy import select
 
 from app.core.dependencies import CurrentUserID, DBSession
+from app.models.conta_bancaria import ContaBancaria
 from app.models.conta_lancamento import ContaAReceber
+from app.models.lancamento_conta import LancamentoConta
 
 router = APIRouter()
 
@@ -86,6 +90,7 @@ class ContaAReceberUpdate(BaseModel):
 
 class ReceberRequest(BaseModel):
     data_recebimento: date | None = None
+    conta_bancaria_id: PyUUID | None = None
 
 
 @router.get("")
@@ -193,15 +198,31 @@ async def marcar_como_recebido(
     conta_id: UUID, usuario_id: CurrentUserID, db: DBSession,
     data: ReceberRequest | None = None,
 ):
+    from datetime import time
+
     conta = await db.get(ContaAReceber, conta_id)
     if not conta or conta.usuario_id != usuario_id:
         raise HTTPException(status_code=404, detail="Conta a receber não encontrada.")
+
+    data_receb = (data.data_recebimento if data and data.data_recebimento else date.today())
     conta.status = "recebido"
-    if data and data.data_recebimento:
-        from datetime import time
-        conta.recebido_em = datetime.combine(data.data_recebimento, time.min).replace(tzinfo=timezone.utc)
-    else:
-        conta.recebido_em = datetime.now(timezone.utc)
+    conta.recebido_em = datetime.combine(data_receb, time.min).replace(tzinfo=timezone.utc)
+
+    # Gera lançamento automático de entrada se informada conta bancária
+    if data and data.conta_bancaria_id:
+        cb = await db.get(ContaBancaria, data.conta_bancaria_id)
+        if not cb or cb.usuario_id != usuario_id:
+            raise HTTPException(status_code=404, detail="Conta bancária não encontrada.")
+        db.add(LancamentoConta(
+            conta_bancaria_id=data.conta_bancaria_id,
+            descricao=conta.descricao,
+            valor=conta.valor,
+            tipo="entrada",
+            data=data_receb,
+            categoria=conta.origem,
+            origem="contas_receber",
+        ))
+
     await db.commit()
     await db.refresh(conta)
     return conta

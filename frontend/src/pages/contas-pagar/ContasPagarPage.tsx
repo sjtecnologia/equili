@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Trash2, Loader2, X, CheckCircle2, AlertCircle, RefreshCw, Layers, Pencil } from 'lucide-react'
+import { Plus, Trash2, Loader2, X, CheckCircle2, AlertCircle, RefreshCw, Layers, Pencil, CreditCard, Landmark } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
@@ -173,18 +173,39 @@ function PagarContaModal({
   onSuccess: () => void
 }) {
   const [dataPagamento, setDataPagamento] = useState(new Date().toISOString().slice(0, 10))
+  const [meioPagamento, setMeioPagamento] = useState<'nenhum' | 'conta' | 'cartao'>('nenhum')
+  const [contaSelecionada, setContaSelecionada] = useState('')
+  const [cartaoSelecionado, setCartaoSelecionado] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const { data: contas } = useQuery<{ id: string; nome: string; banco: string }[]>({
+    queryKey: ['contas-bancarias-select'],
+    queryFn: () => api.get('/contas-bancarias').then((r) => r.data),
+  })
+  const { data: cartoes } = useQuery<{ id: string; nome: string; bandeira: string }[]>({
+    queryKey: ['cartoes-credito-select'],
+    queryFn: () => api.get('/cartoes-credito').then((r) => r.data),
+  })
 
   async function handleConfirmar() {
     setIsSubmitting(true)
     try {
-      await api.patch(`/contas-pagar/${conta.id}/pagar`, { data_pagamento: dataPagamento || null })
+      await api.patch(`/contas-pagar/${conta.id}/pagar`, {
+        data_pagamento: dataPagamento || null,
+        conta_bancaria_id: meioPagamento === 'conta' && contaSelecionada ? contaSelecionada : null,
+        cartao_credito_id: meioPagamento === 'cartao' && cartaoSelecionado ? cartaoSelecionado : null,
+      })
       onSuccess()
       onClose()
     } finally {
       setIsSubmitting(false)
     }
   }
+
+  const podeConfirmar = !isSubmitting && !!dataPagamento &&
+    (meioPagamento === 'nenhum' ||
+     (meioPagamento === 'conta' && !!contaSelecionada) ||
+     (meioPagamento === 'cartao' && !!cartaoSelecionado))
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
@@ -203,9 +224,53 @@ function PagarContaModal({
             <input type="date" className="input-field" value={dataPagamento}
               onChange={(e) => setDataPagamento(e.target.value)} />
           </div>
+          {/* Meio de pagamento */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Registrar saída em</label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: 'nenhum', label: 'Nenhum', icon: <X size={16} /> },
+                { value: 'conta', label: 'Conta', icon: <Landmark size={16} /> },
+                { value: 'cartao', label: 'Cartão', icon: <CreditCard size={16} /> },
+              ].map((opt) => (
+                <button key={opt.value} type="button"
+                  onClick={() => setMeioPagamento(opt.value as typeof meioPagamento)}
+                  className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-xs font-medium transition-all ${
+                    meioPagamento === opt.value
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : 'border-gray-200 text-gray-500'
+                  }`}>
+                  {opt.icon}
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {meioPagamento === 'conta' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Conta bancária</label>
+              <select className="input-field" value={contaSelecionada} onChange={(e) => setContaSelecionada(e.target.value)}>
+                <option value="">Selecione...</option>
+                {contas?.map((c) => (
+                  <option key={c.id} value={c.id}>{c.nome} — {c.banco}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {meioPagamento === 'cartao' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Cartão de crédito</label>
+              <select className="input-field" value={cartaoSelecionado} onChange={(e) => setCartaoSelecionado(e.target.value)}>
+                <option value="">Selecione...</option>
+                {cartoes?.map((c) => (
+                  <option key={c.id} value={c.id}>{c.nome} — {c.bandeira}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="flex gap-3">
             <button onClick={onClose} className="btn-ghost flex-1">Cancelar</button>
-            <button onClick={handleConfirmar} disabled={isSubmitting || !dataPagamento}
+            <button onClick={handleConfirmar} disabled={!podeConfirmar}
               className="btn-primary flex-1 flex items-center justify-center gap-2">
               {isSubmitting && <Loader2 size={14} className="animate-spin" />}
               Confirmar
