@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from pydantic import BaseModel, field_validator
-from sqlalchemy import func as sql_func, select
+from sqlalchemy import case, func as sql_func, select
 
 from app.core.dependencies import CurrentUserID, DBSession
 from app.models.conta_bancaria import ContaBancaria
@@ -58,7 +58,7 @@ async def _saldo_atual(conta_id: UUID, saldo_inicial: float, db: DBSession) -> f
         select(
             sql_func.coalesce(
                 sql_func.sum(
-                    sql_func.case(
+                    case(
                         (LancamentoConta.tipo == "entrada", LancamentoConta.valor),
                         else_=-LancamentoConta.valor,
                     )
