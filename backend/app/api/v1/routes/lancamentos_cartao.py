@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, field_validator
-from sqlalchemy import func as sql_func, select
+from sqlalchemy import case, func as sql_func, select
 
 from app.core.dependencies import CurrentUserID, DBSession
 from app.models.conta_bancaria import CartaoCredito
@@ -57,7 +57,7 @@ async def _calcular_limite_disponivel(cartao_id: UUID, limite: float, db: DBSess
         select(
             sql_func.coalesce(
                 sql_func.sum(
-                    sql_func.case(
+                    case(
                         (LancamentoCartao.tipo == "compra", LancamentoCartao.valor),
                         else_=-LancamentoCartao.valor,
                     )
