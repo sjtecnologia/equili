@@ -60,11 +60,12 @@ function NovoLancamentoModal({
 }) {
   const [erro, setErro] = useState('')
   const {
-    register, handleSubmit, formState: { errors, isSubmitting },
+    register, handleSubmit, watch, formState: { errors, isSubmitting },
   } = useForm<LancamentoForm>({
     resolver: zodResolver(lancamentoSchema),
     defaultValues: { tipo: 'saida', data: new Date().toISOString().split('T')[0] },
   })
+  const tipoSelecionado = watch('tipo')
 
   async function onSubmit(data: LancamentoForm) {
     try {
@@ -93,8 +94,12 @@ function NovoLancamentoModal({
                 <input type="radio" value={t} className="sr-only" {...register('tipo')} />
                 <span className={`block text-center py-2 rounded-xl text-sm font-medium cursor-pointer border-2 transition-all ${
                   t === 'entrada'
-                    ? 'border-green-400 text-green-700 has-[:checked]:bg-green-50'
-                    : 'border-red-400 text-red-700 has-[:checked]:bg-red-50'
+                    ? tipoSelecionado === 'entrada'
+                      ? 'border-green-500 bg-green-500 text-white'
+                      : 'border-green-400 text-green-700 bg-white'
+                    : tipoSelecionado === 'saida'
+                      ? 'border-red-500 bg-red-500 text-white'
+                      : 'border-red-400 text-red-700 bg-white'
                 }`}>
                   {t === 'entrada' ? '↑ Entrada' : '↓ Saída'}
                 </span>
