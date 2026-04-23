@@ -374,8 +374,8 @@ function ExtratoContaModal({
               {/* Saldo final */}
               <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-xl text-xs">
                 <span className="font-semibold text-gray-600">Saldo final do mês</span>
-                <span className={`font-bold text-sm ${(linhas.at(-1)?.saldo ?? 0) >= 0 ? 'text-gray-800' : 'text-red-600'}`}>
-                  {formatCurrency(linhas.at(-1)?.saldo ?? saldoAntesDoMes)}
+                <span className={`font-bold text-sm ${(linhas[linhas.length - 1]?.saldo ?? 0) >= 0 ? 'text-gray-800' : 'text-red-600'}`}>
+                  {formatCurrency(linhas[linhas.length - 1]?.saldo ?? saldoAntesDoMes)}
                 </span>
               </div>
             </div>
