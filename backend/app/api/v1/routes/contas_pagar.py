@@ -2,12 +2,17 @@ from calendar import monthrange
 from datetime import date, datetime, timezone
 from uuid import UUID
 
+from uuid import UUID as PyUUID
+
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, field_validator, model_validator
 from sqlalchemy import func, select
 
 from app.core.dependencies import CurrentUserID, DBSession
+from app.models.conta_bancaria import CartaoCredito, ContaBancaria
 from app.models.conta_lancamento import ContaAPagar
+from app.models.lancamento_cartao import LancamentoCartao
+from app.models.lancamento_conta import LancamentoConta
 
 router = APIRouter()
 
@@ -87,6 +92,8 @@ class ContaAPagarUpdate(BaseModel):
 
 class PagarRequest(BaseModel):
     data_pagamento: date | None = None
+    conta_bancaria_id: PyUUID | None = None
+    cartao_credito_id: PyUUID | None = None
 
 
 @router.get("/fixas-atrasadas")
@@ -228,15 +235,43 @@ async def marcar_como_pago(
     conta_id: UUID, usuario_id: CurrentUserID, db: DBSession,
     data: PagarRequest | None = None,
 ):
+    from datetime import time
+
     conta = await db.get(ContaAPagar, conta_id)
     if not conta or conta.usuario_id != usuario_id:
         raise HTTPException(status_code=404, detail="Conta não encontrada.")
+
+    data_pagto = (data.data_pagamento if data and data.data_pagamento else date.today())
     conta.status = "pago"
-    if data and data.data_pagamento:
-        from datetime import time
-        conta.pago_em = datetime.combine(data.data_pagamento, time.min).replace(tzinfo=timezone.utc)
-    else:
-        conta.pago_em = datetime.now(timezone.utc)
+    conta.pago_em = datetime.combine(data_pagto, time.min).replace(tzinfo=timezone.utc)
+
+    # Gera lançamento automático se informada conta bancária ou cartão
+    if data and data.conta_bancaria_id:
+        cb = await db.get(ContaBancaria, data.conta_bancaria_id)
+        if not cb or cb.usuario_id != usuario_id:
+            raise HTTPException(status_code=404, detail="Conta bancária não encontrada.")
+        db.add(LancamentoConta(
+            conta_bancaria_id=data.conta_bancaria_id,
+            descricao=conta.descricao,
+            valor=conta.valor,
+            tipo="saida",
+            data=data_pagto,
+            categoria=conta.categoria,
+            origem="contas_pagar",
+        ))
+    elif data and data.cartao_credito_id:
+        cc = await db.get(CartaoCredito, data.cartao_credito_id)
+        if not cc or cc.usuario_id != usuario_id:
+            raise HTTPException(status_code=404, detail="Cartão de crédito não encontrado.")
+        db.add(LancamentoCartao(
+            cartao_credito_id=data.cartao_credito_id,
+            descricao=conta.descricao,
+            valor=conta.valor,
+            tipo="compra",
+            data=data_pagto,
+            categoria=conta.categoria,
+        ))
+
     await db.commit()
     await db.refresh(conta)
     return conta

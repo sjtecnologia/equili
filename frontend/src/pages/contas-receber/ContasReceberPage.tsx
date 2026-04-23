@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Trash2, Loader2, X, CheckCircle2, RefreshCw, Layers, Pencil } from 'lucide-react'
+import { Plus, Trash2, Loader2, X, CheckCircle2, RefreshCw, Layers, Pencil, Landmark } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
@@ -177,18 +177,31 @@ function ReceberContaModal({
   onSuccess: () => void
 }) {
   const [dataRecebimento, setDataRecebimento] = useState(new Date().toISOString().slice(0, 10))
+  const [registrarNaConta, setRegistrarNaConta] = useState(false)
+  const [contaSelecionada, setContaSelecionada] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const { data: contas } = useQuery<{ id: string; nome: string; banco: string }[]>({
+    queryKey: ['contas-bancarias-select'],
+    queryFn: () => api.get('/contas-bancarias').then((r) => r.data),
+  })
 
   async function handleConfirmar() {
     setIsSubmitting(true)
     try {
-      await api.patch(`/contas-receber/${conta.id}/receber`, { data_recebimento: dataRecebimento || null })
+      await api.patch(`/contas-receber/${conta.id}/receber`, {
+        data_recebimento: dataRecebimento || null,
+        conta_bancaria_id: registrarNaConta && contaSelecionada ? contaSelecionada : null,
+      })
       onSuccess()
       onClose()
     } finally {
       setIsSubmitting(false)
     }
   }
+
+  const podeConfirmar = !isSubmitting && !!dataRecebimento &&
+    (!registrarNaConta || !!contaSelecionada)
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
@@ -207,9 +220,30 @@ function ReceberContaModal({
             <input type="date" className="input-field" value={dataRecebimento}
               onChange={(e) => setDataRecebimento(e.target.value)} />
           </div>
+          {/* Registrar entrada em conta bancária */}
+          <label className="flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all
+            border-gray-200 hover:border-primary-300">
+            <input type="checkbox" className="w-4 h-4 accent-primary-500"
+              checked={registrarNaConta} onChange={(e) => setRegistrarNaConta(e.target.checked)} />
+            <div className="flex items-center gap-2">
+              <Landmark size={16} className="text-gray-500" />
+              <span className="text-sm font-medium text-gray-700">Registrar entrada em conta bancária</span>
+            </div>
+          </label>
+          {registrarNaConta && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Conta bancária</label>
+              <select className="input-field" value={contaSelecionada} onChange={(e) => setContaSelecionada(e.target.value)}>
+                <option value="">Selecione...</option>
+                {contas?.map((c) => (
+                  <option key={c.id} value={c.id}>{c.nome} — {c.banco}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="flex gap-3">
             <button onClick={onClose} className="btn-ghost flex-1">Cancelar</button>
-            <button onClick={handleConfirmar} disabled={isSubmitting || !dataRecebimento}
+            <button onClick={handleConfirmar} disabled={!podeConfirmar}
               className="btn-primary flex-1 flex items-center justify-center gap-2">
               {isSubmitting && <Loader2 size={14} className="animate-spin" />}
               Confirmar
