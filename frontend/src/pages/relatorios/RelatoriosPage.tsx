@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts'
-import { Download, TrendingUp, TrendingDown, Scale, Loader2 } from 'lucide-react'
+import { Download, TrendingUp, TrendingDown, Scale, Loader2, FileText, Copy, Check } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
@@ -58,6 +58,59 @@ interface RelatorioDetalhado {
     total_receber: number
     saldo: number
   }
+}
+
+interface LancamentoConta {
+  id: string
+  descricao: string
+  valor: number
+  tipo: 'entrada' | 'saida'
+  data: string
+  categoria: string | null
+  origem: string
+}
+
+interface ContaLancamentosData {
+  lancamentos: LancamentoConta[]
+  saldo_inicial: number
+  saldo_atual: number
+  nome: string
+  banco: string
+  cor: string
+}
+
+interface LancamentoCartao {
+  id: string
+  descricao: string
+  valor: number
+  tipo: 'compra' | 'pagamento'
+  data: string
+  categoria: string | null
+}
+
+interface CartaoLancamentosData {
+  lancamentos: LancamentoCartao[]
+  limite_total: number
+  limite_usado: number
+  nome: string
+  bandeira: string
+  cor: string
+  dia_fechamento: number
+  dia_vencimento: number
+}
+
+interface ContaBancariaItem {
+  id: string
+  nome: string
+  banco: string
+  cor: string
+}
+
+interface CartaoCreditoItem {
+  id: string
+  nome: string
+  bandeira: string
+  cor: string
 }
 
 // ---------- Constantes ----------
@@ -168,13 +221,20 @@ function exportDetalhadoExcel(data: RelatorioDetalhado, mes: number, ano: number
 // ---------- Componente principal ----------
 
 export default function RelatoriosPage() {
-  const [tab, setTab] = useState<'fluxo' | 'detalhado'>('fluxo')
+  const [tab, setTab] = useState<'fluxo' | 'detalhado' | 'extrato'>('fluxo')
   const currentYear = new Date().getFullYear()
   const currentMonth = new Date().getMonth() + 1
 
   const [anoFluxo, setAnoFluxo] = useState(currentYear)
   const [mesDetalhe, setMesDetalhe] = useState(currentMonth)
   const [anoDetalhe, setAnoDetalhe] = useState(currentYear)
+
+  // Estado aba Extrato
+  const [tipoExtrato, setTipoExtrato] = useState<'conta' | 'cartao'>('conta')
+  const [contaExtratoId, setContaExtratoId] = useState('')
+  const [cartaoExtratoId, setCartaoExtratoId] = useState('')
+  const [mesExtrato, setMesExtrato] = useState(String(currentYear) + '-' + String(currentMonth).padStart(2, '0'))
+  const [copiadoExtrato, setCopiadoExtrato] = useState(false)
 
   const years = [currentYear - 1, currentYear, currentYear + 1]
 
@@ -188,6 +248,28 @@ export default function RelatoriosPage() {
     queryFn: () =>
       api.get(`/relatorio/detalhado?mes=${mesDetalhe}&ano=${anoDetalhe}`).then((r) => r.data),
     enabled: tab === 'detalhado',
+  })
+
+  // Queries aba Extrato
+  const { data: contasBancarias } = useQuery<ContaBancariaItem[]>({
+    queryKey: ['contas-bancarias'],
+    queryFn: () => api.get('/contas-bancarias').then((r) => r.data),
+    enabled: tab === 'extrato',
+  })
+  const { data: cartoes } = useQuery<CartaoCreditoItem[]>({
+    queryKey: ['cartoes-credito'],
+    queryFn: () => api.get('/cartoes-credito').then((r) => r.data),
+    enabled: tab === 'extrato',
+  })
+  const { data: dadosConta, isLoading: loadingConta } = useQuery<ContaLancamentosData>({
+    queryKey: ['conta-lancamentos', contaExtratoId],
+    queryFn: () => api.get(`/contas-bancarias/${contaExtratoId}/lancamentos`).then((r) => r.data),
+    enabled: tab === 'extrato' && tipoExtrato === 'conta' && !!contaExtratoId,
+  })
+  const { data: dadosCartao, isLoading: loadingCartao } = useQuery<CartaoLancamentosData>({
+    queryKey: ['cartao-lancamentos', cartaoExtratoId],
+    queryFn: () => api.get(`/cartoes-credito/${cartaoExtratoId}/lancamentos`).then((r) => r.data),
+    enabled: tab === 'extrato' && tipoExtrato === 'cartao' && !!cartaoExtratoId,
   })
 
   const chartData = fluxoData?.map((d) => ({ ...d, nome: MESES_ABR[d.mes - 1] })) ?? []
@@ -207,11 +289,12 @@ export default function RelatoriosPage() {
       <div className="flex gap-1 p-1 bg-gray-100 rounded-xl">
         {[
           { key: 'fluxo', label: 'Fluxo de Caixa' },
-          { key: 'detalhado', label: 'Relatório Detalhado' },
+          { key: 'detalhado', label: 'Detalhado' },
+          { key: 'extrato', label: 'Extrato' },
         ].map((t) => (
           <button
             key={t.key}
-            onClick={() => setTab(t.key as 'fluxo' | 'detalhado')}
+            onClick={() => setTab(t.key as typeof tab)}
             className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
               tab === t.key
                 ? 'bg-white text-primary-500 shadow-sm'
@@ -541,8 +624,228 @@ export default function RelatoriosPage() {
               </div>
             </>
           ) : null}
-        </div>
-      )}
+
+      {/* ===== Tab: Extrato Bancário ===== */}
+      {tab === 'extrato' && (() => {
+        const MESES_LABEL = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+
+        // Monta lista de meses disponíveis a partir dos lançamentos
+        const lancamentos = tipoExtrato === 'conta'
+          ? (dadosConta?.lancamentos ?? [])
+          : (dadosCartao?.lancamentos ?? [])
+
+        const mesesDisponiveis = [...new Set(lancamentos.map((l) => l.data.slice(0, 7)))].sort().reverse()
+
+        // Sincroniza mesExtrato quando muda de conta/cartão
+        const mesEfetivo = mesesDisponiveis.includes(mesExtrato) ? mesExtrato : (mesesDisponiveis[0] ?? mesExtrato)
+
+        const doMes = lancamentos
+          .filter((l) => l.data.slice(0, 7) === mesEfetivo)
+          .sort((a, b) => a.data.localeCompare(b.data))
+
+        // Saldo acumulado (só para conta bancária)
+        const saldoInicial = dadosConta?.saldo_inicial ?? 0
+        const saldoAntesDoMes = tipoExtrato === 'conta'
+          ? lancamentos
+              .filter((l) => l.data.slice(0, 7) < mesEfetivo)
+              .reduce((acc, l) => acc + ((l as LancamentoConta).tipo === 'entrada' ? l.valor : -l.valor), saldoInicial)
+          : 0
+
+        const linhasConta = tipoExtrato === 'conta'
+          ? (doMes as LancamentoConta[]).reduce<{ lancamento: LancamentoConta; saldo: number }[]>((acc, l) => {
+              const anterior = acc.length > 0 ? acc[acc.length - 1].saldo : saldoAntesDoMes
+              acc.push({ lancamento: l, saldo: anterior + (l.tipo === 'entrada' ? l.valor : -l.valor) })
+              return acc
+            }, [])
+          : []
+
+        const totalEntC = (doMes as LancamentoConta[]).filter((l) => l.tipo === 'entrada').reduce((s, l) => s + l.valor, 0)
+        const totalSaiC = (doMes as LancamentoConta[]).filter((l) => l.tipo === 'saida').reduce((s, l) => s + l.valor, 0)
+        const totalCompras = (doMes as LancamentoCartao[]).filter((l) => l.tipo === 'compra').reduce((s, l) => s + l.valor, 0)
+        const totalPagamentos = (doMes as LancamentoCartao[]).filter((l) => l.tipo === 'pagamento').reduce((s, l) => s + l.valor, 0)
+
+        function copiarCSV() {
+          let rows: string[]
+          if (tipoExtrato === 'conta') {
+            const header = 'Data;Descrição;Tipo;Valor;Categoria;Saldo'
+            rows = linhasConta.map(({ lancamento: l, saldo }) =>
+              [l.data.split('-').reverse().join('/'), l.descricao,
+               l.tipo === 'entrada' ? 'Entrada' : 'Saída',
+               (l.tipo === 'entrada' ? l.valor : -l.valor).toFixed(2).replace('.', ','),
+               l.categoria ?? '', saldo.toFixed(2).replace('.', ',')].join(';')
+            )
+            navigator.clipboard.writeText([header, ...rows].join('\n'))
+          } else {
+            const header = 'Data;Descrição;Tipo;Valor;Categoria'
+            rows = (doMes as LancamentoCartao[]).map((l) =>
+              [l.data.split('-').reverse().join('/'), l.descricao,
+               l.tipo === 'compra' ? 'Compra' : 'Pagamento',
+               (l.tipo === 'compra' ? l.valor : -l.valor).toFixed(2).replace('.', ','),
+               l.categoria ?? ''].join(';')
+            )
+            navigator.clipboard.writeText([header, ...rows].join('\n'))
+          }
+          setCopiadoExtrato(true)
+          setTimeout(() => setCopiadoExtrato(false), 2000)
+        }
+
+        const isLoading = tipoExtrato === 'conta' ? loadingConta : loadingCartao
+
+        return (
+          <div className="space-y-4">
+            {/* Tipo conta/cartão */}
+            <div className="flex gap-2">
+              {(['conta', 'cartao'] as const).map((t) => (
+                <button key={t}
+                  onClick={() => { setTipoExtrato(t); setContaExtratoId(''); setCartaoExtratoId('') }}
+                  className={`flex-1 py-2 rounded-xl border-2 text-sm font-medium transition-all ${
+                    tipoExtrato === t
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : 'border-gray-200 text-gray-500'
+                  }`}>
+                  {t === 'conta' ? '🏦 Conta Bancária' : '💳 Cartão de Crédito'}
+                </button>
+              ))}
+            </div>
+
+            {/* Seleção da conta/cartão */}
+            {tipoExtrato === 'conta' ? (
+              <select className="input-field" value={contaExtratoId}
+                onChange={(e) => setContaExtratoId(e.target.value)}>
+                <option value="">Selecione uma conta...</option>
+                {(contasBancarias ?? []).map((c) => (
+                  <option key={c.id} value={c.id}>{c.nome} — {c.banco}</option>
+                ))}
+              </select>
+            ) : (
+              <select className="input-field" value={cartaoExtratoId}
+                onChange={(e) => setCartaoExtratoId(e.target.value)}>
+                <option value="">Selecione um cartão...</option>
+                {(cartoes ?? []).map((c) => (
+                  <option key={c.id} value={c.id}>{c.nome} — {c.bandeira}</option>
+                ))}
+              </select>
+            )}
+
+            {/* Conteúdo do extrato */}
+            {isLoading ? (
+              <div className="card h-32 flex items-center justify-center">
+                <Loader2 size={24} className="animate-spin text-gray-400" />
+              </div>
+            ) : lancamentos.length === 0 && (contaExtratoId || cartaoExtratoId) ? (
+              <div className="card p-8 text-center text-gray-400">
+                <FileText size={36} className="mx-auto mb-2 opacity-30" />
+                <p className="text-sm">Nenhum lançamento encontrado</p>
+              </div>
+            ) : lancamentos.length > 0 ? (
+              <div className="card overflow-hidden">
+                {/* Filtro mês + CSV */}
+                <div className="flex items-center gap-3 p-4 border-b">
+                  <label className="text-sm font-medium text-gray-600 shrink-0">Mês:</label>
+                  <select className="input-field flex-1 text-sm py-1.5" value={mesEfetivo}
+                    onChange={(e) => setMesExtrato(e.target.value)}>
+                    {mesesDisponiveis.map((m) => {
+                      const [y, mo] = m.split('-')
+                      return <option key={m} value={m}>{MESES_LABEL[parseInt(mo) - 1]}/{y}</option>
+                    })}
+                  </select>
+                  <button onClick={copiarCSV}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition-colors shrink-0">
+                    {copiadoExtrato ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                    {copiadoExtrato ? 'Copiado!' : 'CSV'}
+                  </button>
+                </div>
+
+                {/* Resumo */}
+                <div className={`grid gap-2 px-4 py-3 border-b text-center ${
+                  tipoExtrato === 'conta' ? 'grid-cols-3' : 'grid-cols-3'
+                }`}>
+                  {tipoExtrato === 'conta' ? (
+                    <>
+                      <div><p className="text-xs text-gray-400">Saldo anterior</p>
+                        <p className={`text-sm font-bold ${saldoAntesDoMes >= 0 ? 'text-gray-700' : 'text-red-600'}`}>
+                          {formatCurrency(saldoAntesDoMes)}</p></div>
+                      <div><p className="text-xs text-green-600">+ Entradas</p>
+                        <p className="text-sm font-bold text-green-600">{formatCurrency(totalEntC)}</p></div>
+                      <div><p className="text-xs text-red-500">− Saídas</p>
+                        <p className="text-sm font-bold text-red-500">{formatCurrency(totalSaiC)}</p></div>
+                    </>
+                  ) : (
+                    <>
+                      <div><p className="text-xs text-red-500">Compras</p>
+                        <p className="text-sm font-bold text-red-600">{formatCurrency(totalCompras)}</p></div>
+                      <div><p className="text-xs text-green-600">Pagamentos</p>
+                        <p className="text-sm font-bold text-green-600">{formatCurrency(totalPagamentos)}</p></div>
+                      <div><p className="text-xs text-gray-500">Fatura</p>
+                        <p className={`text-sm font-bold ${totalCompras - totalPagamentos > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {formatCurrency(Math.abs(totalCompras - totalPagamentos))}</p></div>
+                    </>
+                  )}
+                </div>
+
+                {/* Lista */}
+                <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto">
+                  {tipoExtrato === 'conta' && (
+                    <div className="flex items-center justify-between px-4 py-2 bg-gray-50 text-xs text-gray-500">
+                      <span className="font-medium">Saldo anterior ao mês</span>
+                      <span className={`font-bold ${saldoAntesDoMes >= 0 ? 'text-gray-700' : 'text-red-600'}`}>
+                        {formatCurrency(saldoAntesDoMes)}
+                      </span>
+                    </div>
+                  )}
+                  {tipoExtrato === 'conta'
+                    ? linhasConta.map(({ lancamento: l, saldo }) => (
+                        <div key={l.id} className="flex items-center gap-2 px-4 py-2.5">
+                          <div className={`w-1 h-8 rounded-full shrink-0 ${l.tipo === 'entrada' ? 'bg-green-400' : 'bg-red-400'}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-800 truncate">{l.descricao}</p>
+                            <p className="text-xs text-gray-400">{l.data.split('-').reverse().join('/')}{l.categoria ? ` · ${l.categoria}` : ''}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className={`text-sm font-bold ${l.tipo === 'entrada' ? 'text-green-600' : 'text-red-600'}`}>
+                              {l.tipo === 'entrada' ? '+' : '−'}{formatCurrency(l.valor)}
+                            </p>
+                            <p className={`text-xs ${saldo >= 0 ? 'text-gray-400' : 'text-red-400'}`}>{formatCurrency(saldo)}</p>
+                          </div>
+                        </div>
+                      ))
+                    : (doMes as LancamentoCartao[]).map((l) => (
+                        <div key={l.id} className="flex items-center gap-2 px-4 py-2.5">
+                          <div className={`w-1 h-8 rounded-full shrink-0 ${l.tipo === 'pagamento' ? 'bg-green-400' : 'bg-red-400'}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-800 truncate">{l.descricao}</p>
+                            <p className="text-xs text-gray-400">{l.data.split('-').reverse().join('/')}{l.categoria ? ` · ${l.categoria}` : ''}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className={`text-sm font-bold ${l.tipo === 'pagamento' ? 'text-green-600' : 'text-red-600'}`}>
+                              {l.tipo === 'pagamento' ? '−' : '+'}{formatCurrency(l.valor)}
+                            </p>
+                            <p className="text-xs text-gray-400 capitalize">{l.tipo}</p>
+                          </div>
+                        </div>
+                      ))
+                  }
+                  {tipoExtrato === 'conta' && linhasConta.length > 0 && (
+                    <div className="flex items-center justify-between px-4 py-2 bg-gray-50 text-xs">
+                      <span className="font-semibold text-gray-600">Saldo final do mês</span>
+                      <span className={`font-bold text-sm ${
+                        (linhasConta[linhasConta.length - 1]?.saldo ?? 0) >= 0 ? 'text-gray-800' : 'text-red-600'
+                      }`}>
+                        {formatCurrency(linhasConta[linhasConta.length - 1]?.saldo ?? saldoAntesDoMes)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="card p-8 text-center text-gray-400">
+                <FileText size={36} className="mx-auto mb-2 opacity-30" />
+                <p className="text-sm">Selecione uma {tipoExtrato === 'conta' ? 'conta bancária' : 'cartão de crédito'} acima</p>
+              </div>
+            )}
+          </div>
+        )
+      })()}
     </div>
   )
 }
