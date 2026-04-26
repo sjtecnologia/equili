@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   BarChart,
@@ -251,26 +251,74 @@ export default function RelatoriosPage() {
   })
 
   // Queries aba Extrato
-  const { data: contasBancarias } = useQuery<ContaBancariaItem[]>({
+  const {
+    data: contasBancarias,
+    isLoading: loadingContas,
+    isError: contasError,
+  } = useQuery<ContaBancariaItem[]>({
     queryKey: ['contas-bancarias'],
     queryFn: () => api.get('/contas-bancarias').then((r) => r.data),
     enabled: tab === 'extrato',
   })
-  const { data: cartoes } = useQuery<CartaoCreditoItem[]>({
+  const {
+    data: cartoes,
+    isLoading: loadingCartoes,
+    isError: cartoesError,
+  } = useQuery<CartaoCreditoItem[]>({
     queryKey: ['cartoes-credito'],
     queryFn: () => api.get('/cartoes-credito').then((r) => r.data),
     enabled: tab === 'extrato',
   })
-  const { data: dadosConta, isLoading: loadingConta } = useQuery<ContaLancamentosData>({
+  const {
+    data: dadosConta,
+    isLoading: loadingConta,
+    isError: contaLancamentosError,
+  } = useQuery<ContaLancamentosData>({
     queryKey: ['conta-lancamentos', contaExtratoId],
     queryFn: () => api.get(`/contas-bancarias/${contaExtratoId}/lancamentos`).then((r) => r.data),
     enabled: tab === 'extrato' && tipoExtrato === 'conta' && !!contaExtratoId,
   })
-  const { data: dadosCartao, isLoading: loadingCartao } = useQuery<CartaoLancamentosData>({
+  const {
+    data: dadosCartao,
+    isLoading: loadingCartao,
+    isError: cartaoLancamentosError,
+  } = useQuery<CartaoLancamentosData>({
     queryKey: ['cartao-lancamentos', cartaoExtratoId],
     queryFn: () => api.get(`/cartoes-credito/${cartaoExtratoId}/lancamentos`).then((r) => r.data),
     enabled: tab === 'extrato' && tipoExtrato === 'cartao' && !!cartaoExtratoId,
   })
+
+  useEffect(() => {
+    if (tab !== 'extrato') return
+
+    const hasContas = (contasBancarias?.length ?? 0) > 0
+    const hasCartoes = (cartoes?.length ?? 0) > 0
+
+    if (tipoExtrato === 'conta' && !hasContas && hasCartoes) {
+      setTipoExtrato('cartao')
+      return
+    }
+
+    if (tipoExtrato === 'cartao' && !hasCartoes && hasContas) {
+      setTipoExtrato('conta')
+    }
+  }, [tab, tipoExtrato, contasBancarias, cartoes])
+
+  useEffect(() => {
+    if (tab !== 'extrato' || tipoExtrato !== 'conta') return
+    if (contaExtratoId) return
+    if ((contasBancarias?.length ?? 0) > 0) {
+      setContaExtratoId(contasBancarias![0].id)
+    }
+  }, [tab, tipoExtrato, contaExtratoId, contasBancarias])
+
+  useEffect(() => {
+    if (tab !== 'extrato' || tipoExtrato !== 'cartao') return
+    if (cartaoExtratoId) return
+    if ((cartoes?.length ?? 0) > 0) {
+      setCartaoExtratoId(cartoes![0].id)
+    }
+  }, [tab, tipoExtrato, cartaoExtratoId, cartoes])
 
   const chartData = fluxoData?.map((d) => ({ ...d, nome: MESES_ABR[d.mes - 1] })) ?? []
   const totalEntradas = fluxoData?.reduce((acc, d) => acc + d.entradas, 0) ?? 0
@@ -630,6 +678,10 @@ export default function RelatoriosPage() {
       {/* ===== Tab: Extrato Bancário ===== */}
       {tab === 'extrato' && (() => {
         const MESES_LABEL = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+        const hasContas = (contasBancarias?.length ?? 0) > 0
+        const hasCartoes = (cartoes?.length ?? 0) > 0
+        const loadingListas = loadingContas || loadingCartoes
+        const erroListas = contasError || cartoesError
 
         // Monta lista de meses disponíveis a partir dos lançamentos
         const lancamentos = tipoExtrato === 'conta'
@@ -691,7 +743,8 @@ export default function RelatoriosPage() {
           setTimeout(() => setCopiadoExtrato(false), 2000)
         }
 
-        const isLoading = tipoExtrato === 'conta' ? loadingConta : loadingCartao
+        const isLoadingLancamentos = tipoExtrato === 'conta' ? loadingConta : loadingCartao
+        const erroLancamentos = tipoExtrato === 'conta' ? contaLancamentosError : cartaoLancamentosError
 
         return (
           <div className="space-y-4">
@@ -730,9 +783,30 @@ export default function RelatoriosPage() {
             )}
 
             {/* Conteúdo do extrato */}
-            {isLoading ? (
+            {loadingListas ? (
               <div className="card h-32 flex items-center justify-center">
                 <Loader2 size={24} className="animate-spin text-gray-400" />
+              </div>
+            ) : erroListas ? (
+              <div className="card p-8 text-center text-red-500">
+                <p className="text-sm">Não foi possível carregar contas/cartões.</p>
+              </div>
+            ) : !hasContas && !hasCartoes ? (
+              <div className="card p-8 text-center text-gray-500">
+                <FileText size={36} className="mx-auto mb-2 opacity-40" />
+                <p className="text-sm">Cadastre uma conta bancária ou cartão para ver o extrato.</p>
+              </div>
+            ) : (tipoExtrato === 'conta' && !hasContas) || (tipoExtrato === 'cartao' && !hasCartoes) ? (
+              <div className="card p-8 text-center text-gray-500">
+                <p className="text-sm">Nenhum {tipoExtrato === 'conta' ? 'conta bancária' : 'cartão'} disponível.</p>
+              </div>
+            ) : isLoadingLancamentos ? (
+              <div className="card h-32 flex items-center justify-center">
+                <Loader2 size={24} className="animate-spin text-gray-400" />
+              </div>
+            ) : erroLancamentos ? (
+              <div className="card p-8 text-center text-red-500">
+                <p className="text-sm">Não foi possível carregar os lançamentos do extrato.</p>
               </div>
             ) : lancamentos.length === 0 && (contaExtratoId || cartaoExtratoId) ? (
               <div className="card p-8 text-center text-gray-400">
