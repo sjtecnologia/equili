@@ -6,7 +6,9 @@ export default defineConfig({
     plugins: [
         react(),
         VitePWA({
-            registerType: 'prompt',
+            registerType: 'autoUpdate',
+            filename: 'sw-v2.js',
+            selfDestroying: true,
             includeAssets: ['favicon.png', 'icons/*.png'],
             manifest: {
                 name: 'Equili — Controle Financeiro',
@@ -33,10 +35,11 @@ export default defineConfig({
                 screenshots: [],
             },
             workbox: {
-                globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+                globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
                 cacheId: 'equili-v3',
                 skipWaiting: true,
                 clientsClaim: true,
+                cleanupOutdatedCaches: true,
                 runtimeCaching: [
                     {
                         urlPattern: /^\/api\/v1\//,
