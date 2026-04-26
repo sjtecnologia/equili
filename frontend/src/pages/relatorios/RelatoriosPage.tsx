@@ -624,6 +624,8 @@ export default function RelatoriosPage() {
               </div>
             </>
           ) : null}
+        </div>
+      )}
 
       {/* ===== Tab: Extrato Bancário ===== */}
       {tab === 'extrato' && (() => {
