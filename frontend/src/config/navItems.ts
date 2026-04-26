@@ -39,5 +39,5 @@ export const DEFAULT_SHORTCUTS = [
   '/contas-pagar',
   '/dividas',
   '/renda',
-  '/configuracoes',
+  '/relatorios',
 ]
