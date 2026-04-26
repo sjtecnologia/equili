@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Wallet, CreditCard, Sparkles, Settings, LogOut, ArrowDownCircle, ArrowUpCircle, BarChart2, Receipt, MessageSquare, TrendingUp, Landmark } from 'lucide-react'
+import { LayoutDashboard, Wallet, CreditCard, Sparkles, Settings, LogOut, ArrowDownCircle, ArrowUpCircle, BarChart2, Receipt, MessageSquare, TrendingUp, Landmark, FileText } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import api from '@/services/api'
 import logo from '@/assets/logo.png'
@@ -16,6 +16,7 @@ const navItems = [
   { to: '/investimentos', icon: TrendingUp, label: 'Investimentos' },
   { to: '/contas-bancarias', icon: Landmark, label: 'Contas e Cartões' },
   { to: '/relatorios', icon: BarChart2, label: 'Relatórios' },
+  { to: '/relatorios?tab=extrato', icon: FileText, label: 'Extrato' },
 ]
 
 function avatarLetters(nome: string) {
