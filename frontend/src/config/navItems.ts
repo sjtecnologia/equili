@@ -9,6 +9,7 @@ import {
   MessageSquare,
   Sparkles,
   BarChart2,
+  FileText,
   Settings,
   Landmark,
 } from 'lucide-react'
@@ -31,6 +32,7 @@ export const ALL_NAV_ITEMS: NavItem[] = [
   { to: '/chat',                 label: 'Assistente IA', icon: MessageSquare },
   { to: '/plano-de-acao',   label: 'Plano IA',      icon: Sparkles },
   { to: '/relatorios',      label: 'Relatórios',    icon: BarChart2 },
+  { to: '/relatorios?tab=extrato', label: 'Extrato', icon: FileText },
   { to: '/configuracoes',   label: 'Config.',       icon: Settings },
 ]
 

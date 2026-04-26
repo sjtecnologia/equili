@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import {
   BarChart,
   Bar,
@@ -221,7 +222,13 @@ function exportDetalhadoExcel(data: RelatorioDetalhado, mes: number, ano: number
 // ---------- Componente principal ----------
 
 export default function RelatoriosPage() {
-  const [tab, setTab] = useState<'fluxo' | 'detalhado' | 'extrato'>('fluxo')
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const tabFromQuery = searchParams.get('tab')
+  const initialTab: 'fluxo' | 'detalhado' | 'extrato' =
+    tabFromQuery === 'detalhado' || tabFromQuery === 'extrato' ? tabFromQuery : 'fluxo'
+
+  const [tab, setTab] = useState<'fluxo' | 'detalhado' | 'extrato'>(initialTab)
   const currentYear = new Date().getFullYear()
   const currentMonth = new Date().getMonth() + 1
 
@@ -324,6 +331,24 @@ export default function RelatoriosPage() {
   const totalEntradas = fluxoData?.reduce((acc, d) => acc + d.entradas, 0) ?? 0
   const totalSaidas = fluxoData?.reduce((acc, d) => acc + d.saidas, 0) ?? 0
   const saldoAnual = totalEntradas - totalSaidas
+
+  useEffect(() => {
+    const fromQuery = searchParams.get('tab')
+    if ((fromQuery === 'fluxo' || fromQuery === 'detalhado' || fromQuery === 'extrato') && fromQuery !== tab) {
+      setTab(fromQuery)
+    }
+  }, [searchParams, tab])
+
+  useEffect(() => {
+    const current = searchParams.get('tab') ?? 'fluxo'
+    if (current === tab) return
+
+    const next = new URLSearchParams(searchParams)
+    if (tab === 'fluxo') next.delete('tab')
+    else next.set('tab', tab)
+
+    setSearchParams(next, { replace: true })
+  }, [tab, searchParams, setSearchParams])
 
   return (
     <div className="p-4 space-y-4 max-w-3xl mx-auto">
