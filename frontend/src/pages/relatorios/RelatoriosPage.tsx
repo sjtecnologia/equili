@@ -225,10 +225,8 @@ export default function RelatoriosPage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const tabFromQuery = searchParams.get('tab')
-  const initialTab: 'fluxo' | 'detalhado' | 'extrato' =
+  const tab: 'fluxo' | 'detalhado' | 'extrato' =
     tabFromQuery === 'detalhado' || tabFromQuery === 'extrato' ? tabFromQuery : 'fluxo'
-
-  const [tab, setTab] = useState<'fluxo' | 'detalhado' | 'extrato'>(initialTab)
   const currentYear = new Date().getFullYear()
   const currentMonth = new Date().getMonth() + 1
 
@@ -332,23 +330,15 @@ export default function RelatoriosPage() {
   const totalSaidas = fluxoData?.reduce((acc, d) => acc + d.saidas, 0) ?? 0
   const saldoAnual = totalEntradas - totalSaidas
 
-  useEffect(() => {
-    const fromQuery = searchParams.get('tab')
-    if ((fromQuery === 'fluxo' || fromQuery === 'detalhado' || fromQuery === 'extrato') && fromQuery !== tab) {
-      setTab(fromQuery)
-    }
-  }, [searchParams, tab])
-
-  useEffect(() => {
-    const current = searchParams.get('tab') ?? 'fluxo'
-    if (current === tab) return
+  function handleTabChange(nextTab: 'fluxo' | 'detalhado' | 'extrato') {
+    if (nextTab === tab) return
 
     const next = new URLSearchParams(searchParams)
-    if (tab === 'fluxo') next.delete('tab')
-    else next.set('tab', tab)
+    if (nextTab === 'fluxo') next.delete('tab')
+    else next.set('tab', nextTab)
 
     setSearchParams(next, { replace: true })
-  }, [tab, searchParams, setSearchParams])
+  }
 
   return (
     <div className="p-4 space-y-4 max-w-3xl mx-auto">
@@ -367,7 +357,7 @@ export default function RelatoriosPage() {
         ].map((t) => (
           <button
             key={t.key}
-            onClick={() => setTab(t.key as typeof tab)}
+            onClick={() => handleTabChange(t.key as 'fluxo' | 'detalhado' | 'extrato')}
             className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
               tab === t.key
                 ? 'bg-white text-primary-500 shadow-sm'
