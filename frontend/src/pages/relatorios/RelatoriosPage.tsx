@@ -12,7 +12,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts'
-import { Download, TrendingUp, TrendingDown, Scale, Loader2, FileText, Copy, Check } from 'lucide-react'
+import { Download, TrendingUp, TrendingDown, Scale, Loader2, FileText, Copy, Check, Printer } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
@@ -349,7 +349,7 @@ export default function RelatoriosPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 p-1 bg-gray-100 rounded-xl">
+      <div className="flex gap-1 p-1 bg-gray-100 rounded-xl print:hidden">
         {[
           { key: 'fluxo', label: 'Fluxo de Caixa' },
           { key: 'detalhado', label: 'Detalhado' },
@@ -386,14 +386,24 @@ export default function RelatoriosPage() {
                 ))}
               </select>
             </div>
-            <button
-              onClick={() => fluxoData && exportFluxoCaixaExcel(fluxoData, anoFluxo)}
-              disabled={!fluxoData || loadingFluxo}
-              className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50"
-            >
-              <Download size={15} />
-              Exportar Excel
-            </button>
+            <div className="flex items-center gap-2 print:hidden">
+              <button
+                onClick={() => fluxoData && exportFluxoCaixaExcel(fluxoData, anoFluxo)}
+                disabled={!fluxoData || loadingFluxo}
+                className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50"
+              >
+                <Download size={15} />
+                Exportar Excel
+              </button>
+              <button
+                onClick={() => window.print()}
+                disabled={!fluxoData || loadingFluxo}
+                className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50"
+              >
+                <Printer size={15} />
+                Imprimir
+              </button>
+            </div>
           </div>
 
           {/* Cards resumo anual */}
@@ -515,14 +525,24 @@ export default function RelatoriosPage() {
                 ))}
               </select>
             </div>
-            <button
-              onClick={() => detalhado && exportDetalhadoExcel(detalhado, mesDetalhe, anoDetalhe)}
-              disabled={!detalhado || loadingDetalhado}
-              className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50"
-            >
-              <Download size={15} />
-              Exportar Excel
-            </button>
+            <div className="flex items-center gap-2 print:hidden">
+              <button
+                onClick={() => detalhado && exportDetalhadoExcel(detalhado, mesDetalhe, anoDetalhe)}
+                disabled={!detalhado || loadingDetalhado}
+                className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50"
+              >
+                <Download size={15} />
+                Exportar Excel
+              </button>
+              <button
+                onClick={() => window.print()}
+                disabled={!detalhado || loadingDetalhado}
+                className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50"
+              >
+                <Printer size={15} />
+                Imprimir
+              </button>
+            </div>
           </div>
 
           {loadingDetalhado ? (
@@ -841,9 +861,14 @@ export default function RelatoriosPage() {
                     })}
                   </select>
                   <button onClick={copiarCSV}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition-colors shrink-0">
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition-colors shrink-0 print:hidden">
                     {copiadoExtrato ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
                     {copiadoExtrato ? 'Copiado!' : 'CSV'}
+                  </button>
+                  <button onClick={() => window.print()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition-colors shrink-0 print:hidden">
+                    <Printer size={14} />
+                    Imprimir
                   </button>
                 </div>
 
@@ -875,7 +900,7 @@ export default function RelatoriosPage() {
                 </div>
 
                 {/* Lista */}
-                <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto">
+                <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto print-scroll-none">
                   {tipoExtrato === 'conta' && (
                     <div className="flex items-center justify-between px-4 py-2 bg-gray-50 text-xs text-gray-500">
                       <span className="font-medium">Saldo anterior ao mês</span>
