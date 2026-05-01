@@ -1,7 +1,27 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Calendar, Lightbulb, Loader2, RefreshCw, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Calendar, Lightbulb, Loader2, RefreshCw, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react'
 import api from '@/services/api'
+
+
+interface ContaAPagar {
+  id: string
+  descricao: string
+  categoria: string
+  valor: number
+  data_vencimento: string
+  status: string
+}
+
+interface ContaAReceber {
+  id: string
+  descricao: string
+  origem: string
+  valor: number
+  data_prevista: string
+  status: string
+  devedor?: string
+}
 
 
 interface OrdemQuitacao {
@@ -21,6 +41,7 @@ interface PlanoConteudo {
   meses_ate_liberdade?: number
   sugestoes_economia: string[]
   mensagem_motivacional: string
+  alerta_fluxo_caixa?: string | null
 }
 
 interface PlanoAcao {
@@ -68,6 +89,16 @@ export default function PlanoAcaoPage() {
         .get('/plano-acao/atual')
         .then((r) => r.data)
         .catch(() => null),
+  })
+
+  const { data: contasPagar } = useQuery<ContaAPagar[]>({
+    queryKey: ['contas-pagar-pendentes-plano'],
+    queryFn: () => api.get('/contas-pagar?status=pendente').then((r) => r.data),
+  })
+
+  const { data: contasReceber } = useQuery<ContaAReceber[]>({
+    queryKey: ['contas-receber-pendentes-plano'],
+    queryFn: () => api.get('/contas-receber?status=pendente').then((r) => r.data),
   })
 
   const gerarMutation = useMutation({
@@ -179,6 +210,87 @@ export default function PlanoAcaoPage() {
               <p className="text-sm text-gray-600 capitalize">{plano.conteudo.estrategia}</p>
               {plano.conteudo.justificativa_estrategia && (
                 <p className="text-xs text-gray-500 mt-1">{plano.conteudo.justificativa_estrategia}</p>
+              )}
+            </div>
+          )}
+
+          {/* Alerta de fluxo de caixa */}
+          {plano.conteudo?.alerta_fluxo_caixa && (
+            <div className="card border border-amber-200 bg-amber-50 p-4 flex gap-3">
+              <AlertTriangle size={18} className="text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-sm text-gray-700">{plano.conteudo.alerta_fluxo_caixa}</p>
+            </div>
+          )}
+
+          {/* Resumo contas a pagar/receber */}
+          {((contasPagar?.length ?? 0) > 0 || (contasReceber?.length ?? 0) > 0) && (
+            <div className="card p-4 space-y-3">
+              <h2 className="font-semibold text-gray-800 text-sm">Movimentação pendente</h2>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-danger-50 p-3">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <ArrowDownCircle size={14} className="text-danger-500" />
+                    <span className="text-xs font-medium text-danger-600">A pagar</span>
+                  </div>
+                  <p className="text-base font-bold text-danger-600">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                      (contasPagar ?? []).reduce((s, c) => s + Number(c.valor), 0)
+                    )}
+                  </p>
+                  <p className="text-xs text-gray-500">{contasPagar?.length ?? 0} conta(s)</p>
+                </div>
+                <div className="rounded-xl bg-success-50 p-3">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <ArrowUpCircle size={14} className="text-success-500" />
+                    <span className="text-xs font-medium text-success-600">A receber</span>
+                  </div>
+                  <p className="text-base font-bold text-success-600">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                      (contasReceber ?? []).reduce((s, c) => s + Number(c.valor), 0)
+                    )}
+                  </p>
+                  <p className="text-xs text-gray-500">{contasReceber?.length ?? 0} conta(s)</p>
+                </div>
+              </div>
+              {/* Próximas a vencer */}
+              {(contasPagar?.length ?? 0) > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Próximas a vencer</p>
+                  {contasPagar!.slice(0, 5).map((c) => (
+                    <div key={c.id} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-700 truncate flex-1 mr-2">{c.descricao}</span>
+                      <span className="text-xs text-gray-400 shrink-0">
+                        {c.data_vencimento.split('-').reverse().join('/')}
+                      </span>
+                      <span className="text-sm font-medium text-danger-500 ml-3 shrink-0">
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(c.valor))}
+                      </span>
+                    </div>
+                  ))}
+                  {(contasPagar?.length ?? 0) > 5 && (
+                    <p className="text-xs text-gray-400">+ {(contasPagar?.length ?? 0) - 5} outras contas a pagar</p>
+                  )}
+                </div>
+              )}
+              {/* Próximos a receber */}
+              {(contasReceber?.length ?? 0) > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Próximos a receber</p>
+                  {contasReceber!.slice(0, 5).map((c) => (
+                    <div key={c.id} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-700 truncate flex-1 mr-2">{c.descricao}</span>
+                      <span className="text-xs text-gray-400 shrink-0">
+                        {c.data_prevista.split('-').reverse().join('/')}
+                      </span>
+                      <span className="text-sm font-medium text-success-500 ml-3 shrink-0">
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(c.valor))}
+                      </span>
+                    </div>
+                  ))}
+                  {(contasReceber?.length ?? 0) > 5 && (
+                    <p className="text-xs text-gray-400">+ {(contasReceber?.length ?? 0) - 5} outras contas a receber</p>
+                  )}
+                </div>
               )}
             </div>
           )}

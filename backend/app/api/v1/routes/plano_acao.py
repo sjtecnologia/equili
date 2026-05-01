@@ -100,7 +100,7 @@ async def gerar_plano(usuario_id: CurrentUserID, db: DBSession):
     renda_total = sum(float(r.valor) for r in rendas)
     total_dividas = sum(float(d.valor_total) for d in dividas)
 
-    # Contas a pagar nos próximos 30 dias
+    # Todas as contas pendentes (sem limite de data)
     hoje = date.today()
     em_30_dias = hoje + timedelta(days=30)
     contas_pagar_result = await db.execute(
@@ -108,28 +108,29 @@ async def gerar_plano(usuario_id: CurrentUserID, db: DBSession):
         .where(
             ContaAPagar.usuario_id == usuario_id,
             ContaAPagar.status != "pago",
-            ContaAPagar.data_vencimento >= hoje,
-            ContaAPagar.data_vencimento <= em_30_dias,
         )
         .order_by(ContaAPagar.data_vencimento)
     )
     contas_pagar = contas_pagar_result.scalars().all()
 
-    # Contas a receber nos próximos 30 dias
+    # Todas as contas a receber pendentes
     contas_receber_result = await db.execute(
         select(ContaAReceber)
         .where(
             ContaAReceber.usuario_id == usuario_id,
             ContaAReceber.status != "recebido",
-            ContaAReceber.data_prevista >= hoje,
-            ContaAReceber.data_prevista <= em_30_dias,
         )
         .order_by(ContaAReceber.data_prevista)
     )
     contas_receber = contas_receber_result.scalars().all()
 
-    total_a_pagar_30d = sum(float(c.valor) for c in contas_pagar)
-    total_a_receber_30d = sum(float(c.valor) for c in contas_receber)
+    # Saldo dos próximos 30 dias (janela imediata de caixa)
+    pagar_30d = [c for c in contas_pagar if c.data_vencimento <= em_30_dias]
+    receber_30d = [c for c in contas_receber if c.data_prevista <= em_30_dias]
+    total_a_pagar_30d = sum(float(c.valor) for c in pagar_30d)
+    total_a_receber_30d = sum(float(c.valor) for c in receber_30d)
+    total_a_pagar_total = sum(float(c.valor) for c in contas_pagar)
+    total_a_receber_total = sum(float(c.valor) for c in contas_receber)
     saldo_disponivel_real = renda_total + total_a_receber_30d - total_a_pagar_30d
 
     rendas_texto = "\n".join(
@@ -149,12 +150,12 @@ async def gerar_plano(usuario_id: CurrentUserID, db: DBSession):
         f"- {c.descricao} ({c.categoria}) | Vence: {c.data_vencimento.strftime('%d/%m/%Y')} | "
         f"R$ {float(c.valor):,.2f} | Status: {c.status}"
         for c in contas_pagar
-    ) or "Nenhuma conta a pagar registrada nos próximos 30 dias."
+    ) or "Nenhuma conta a pagar pendente."
     contas_receber_texto = "\n".join(
         f"- {c.descricao} ({c.origem}) | Previsto: {c.data_prevista.strftime('%d/%m/%Y')} | "
         f"R$ {float(c.valor):,.2f}" + (f" | De: {c.devedor}" if c.devedor else "")
         for c in contas_receber
-    ) or "Nenhuma conta a receber registrada nos próximos 30 dias."
+    ) or "Nenhuma conta a receber pendente."
 
     user_prompt = f"""
 Situação financeira da família:
@@ -174,10 +175,15 @@ FLUXO DE CAIXA — PRÓXIMOS 30 DIAS:
   Total a RECEBER: R$ {total_a_receber_30d:,.2f}
   SALDO DISPONÍVEL REAL (renda + receber - pagar): R$ {saldo_disponivel_real:,.2f}
 
-CONTAS A PAGAR (próximos 30 dias):
+TOTAL GERAL PENDENTE:
+  Total a PAGAR (todos os meses): R$ {total_a_pagar_total:,.2f}
+  Total a RECEBER (todos os meses): R$ {total_a_receber_total:,.2f}
+  SALDO LÍQUIDO FUTURO: R$ {total_a_receber_total - total_a_pagar_total:,.2f}
+
+TODAS AS CONTAS A PAGAR PENDENTES:
 {contas_pagar_texto}
 
-CONTAS A RECEBER (próximos 30 dias):
+TODAS AS CONTAS A RECEBER PENDENTES:
 {contas_receber_texto}
 
 Data atual: {hoje.strftime("%d/%m/%Y")}
