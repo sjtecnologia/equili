@@ -25,14 +25,14 @@ export default function AppLayout() {
     <div className="overflow-hidden bg-gray-100 flex" style={{ height: '100dvh' }}>
       <DrawerNav open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       {/* Sidebar — apenas desktop */}
-      <aside className="hidden lg:flex">
+      <aside className="hidden lg:flex print:hidden">
         <Sidebar />
       </aside>
 
       {/* Coluna principal: h-full para herdar a altura do pai */}
       <div className="flex flex-col flex-1 h-full">
         {/* Header mobile */}
-        <header className="lg:hidden flex-shrink-0 flex items-center justify-between px-4 bg-white border-b border-gray-100 z-10"
+        <header className="lg:hidden print:hidden flex-shrink-0 flex items-center justify-between px-4 bg-white border-b border-gray-100 z-10"
           style={{ paddingTop: 'max(12px, env(safe-area-inset-top))', paddingBottom: '12px' }}>
           <div className="flex items-center gap-3">
             <button
@@ -70,14 +70,14 @@ export default function AppLayout() {
         </main>
 
         {/* Bottom Nav — padding-bottom para o home indicator do iPhone */}
-        <div className="lg:hidden flex-shrink-0"
+        <div className="lg:hidden print:hidden flex-shrink-0"
           style={{ backgroundColor: '#ffffff', paddingBottom: 'env(safe-area-inset-bottom)', borderTop: 'none' }}>
           <BottomNav />
         </div>
       </div>
 
       {/* Botão de voz flutuante — aparece quando logado */}
-      <VoiceButton />
+      <div className="print:hidden"><VoiceButton /></div>
     </div>
   )
 }

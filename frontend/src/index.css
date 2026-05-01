@@ -208,3 +208,43 @@
 .dot-1 { -webkit-animation-delay: 0s;   animation-delay: 0s; }
 .dot-2 { -webkit-animation-delay: 0.22s; animation-delay: 0.22s; }
 .dot-3 { -webkit-animation-delay: 0.44s; animation-delay: 0.44s; }
+
+/* ── Print styles ──────────────────────────────────────────────────────────
+   Corrige o layout 100dvh/overflow-hidden do AppLayout para impressão funcionar
+   -------------------------------------------------------------------------- */
+@media print {
+  html, body, #root {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* AppLayout outer wrapper */
+  #root > div {
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  /* Coluna principal e <main> */
+  #root > div > div {
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  main {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  /* Remove max-height do extrato para imprimir todas as linhas */
+  .print-scroll-none {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  @page {
+    margin: 16mm 12mm;
+  }
+}
