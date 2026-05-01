@@ -98,14 +98,7 @@ export default function Sidebar() {
           <LogOut size={20} />
           Sair
         </button>
-        {user && (
-          <div className="mt-2 mx-1 p-3 bg-primary-100 rounded text-xs">
-            <p className="font-semibold text-primary-500 capitalize">Plano {user.plano}</p>
-            {user.plano === 'gratuito' && (
-              <p className="text-gray-500 mt-0.5">Upgrade para recursos completos</p>
-            )}
-          </div>
-        )}
+
       </div>
     </div>
   )
