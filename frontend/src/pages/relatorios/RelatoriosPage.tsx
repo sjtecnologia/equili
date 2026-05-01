@@ -369,8 +369,18 @@ export default function RelatoriosPage() {
     <div className="p-4 space-y-4 max-w-3xl mx-auto">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-gray-800">Relatórios</h1>
-        <p className="text-sm text-gray-500">Análise financeira e exportação para Excel</p>
+        <h1 className="text-xl font-bold text-gray-800 print:hidden">Relatórios</h1>
+        <p className="text-sm text-gray-500 print:hidden">Análise financeira e exportação para Excel</p>
+        {/* Título de impressão — visível apenas no print */}
+        <div className="hidden print:block mb-4">
+          <h1 className="text-2xl font-bold text-gray-900">
+            {tab === 'fluxo' && `Fluxo de Caixa — ${anoFluxo}`}
+            {tab === 'detalhado' && `Relatório Detalhado — ${MESES_FULL[mesDetalhe - 1]}/${anoDetalhe}`}
+            {tab === 'extrato' && 'Extrato Bancário'}
+            {tab === 'dia' && `Contas a Pagar do Dia — ${dataDia.split('-').reverse().join('/')}`}
+          </h1>
+          <p className="text-sm text-gray-400 mt-1">Equili · Impresso em {new Date().toLocaleDateString('pt-BR')}</p>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -399,11 +409,10 @@ export default function RelatoriosPage() {
       {tab === 'fluxo' && (
         <div className="space-y-4">
           {/* Controles */}
-          <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center justify-between gap-3 flex-wrap print:hidden">
             <div className="flex items-center gap-2">
               <label className="text-sm text-gray-600">Ano:</label>
               <select
-                value={anoFluxo}
                 onChange={(e) => setAnoFluxo(Number(e.target.value))}
                 className="input-field w-24 py-1.5 text-sm"
               >
@@ -529,11 +538,10 @@ export default function RelatoriosPage() {
       {tab === 'detalhado' && (
         <div className="space-y-4">
           {/* Controles */}
-          <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center justify-between flex-wrap gap-3 print:hidden">
             <div className="flex items-center gap-2">
               <label className="text-sm text-gray-600">Mês:</label>
               <select
-                value={mesDetalhe}
                 onChange={(e) => setMesDetalhe(Number(e.target.value))}
                 className="input-field py-1.5 text-sm"
               >
@@ -809,8 +817,16 @@ export default function RelatoriosPage() {
 
         return (
           <div className="space-y-4">
+            {/* Info de impressão: conta/cartão e mês selecionados */}
+            <div className="hidden print:block text-sm text-gray-500 -mt-2 mb-1">
+              {tipoExtrato === 'conta'
+                ? contasBancarias?.find((c) => c.id === contaExtratoId)?.nome ?? ''
+                : cartoes?.find((c) => c.id === cartaoExtratoId)?.nome ?? ''}
+              {' · '}
+              {mesEfetivo ? (() => { const [y, mo] = mesEfetivo.split('-'); return `${['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][parseInt(mo)-1]}/${y}` })() : ''}
+            </div>
             {/* Tipo conta/cartão */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 print:hidden">
               {(['conta', 'cartao'] as const).map((t) => (
                 <button key={t}
                   onClick={() => { setTipoExtrato(t); setContaExtratoId(''); setCartaoExtratoId('') }}
@@ -825,6 +841,7 @@ export default function RelatoriosPage() {
             </div>
 
             {/* Seleção da conta/cartão */}
+            <div className="print:hidden">
             {tipoExtrato === 'conta' ? (
               <select className="input-field" value={contaExtratoId}
                 onChange={(e) => setContaExtratoId(e.target.value)}>
@@ -842,6 +859,7 @@ export default function RelatoriosPage() {
                 ))}
               </select>
             )}
+            </div>
 
             {/* Conteúdo do extrato */}
             {loadingListas ? (
@@ -877,7 +895,7 @@ export default function RelatoriosPage() {
             ) : lancamentos.length > 0 ? (
               <div className="card overflow-hidden">
                 {/* Filtro mês + CSV */}
-                <div className="flex items-center gap-3 p-4 border-b">
+                <div className="flex items-center gap-3 p-4 border-b print:hidden">
                   <label className="text-sm font-medium text-gray-600 shrink-0">Mês:</label>
                   <select className="input-field flex-1 text-sm py-1.5" value={mesEfetivo}
                     onChange={(e) => setMesExtrato(e.target.value)}>
@@ -992,7 +1010,7 @@ export default function RelatoriosPage() {
       {tab === 'dia' && (
         <div className="space-y-4">
           {/* Controles */}
-          <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center justify-between flex-wrap gap-3 print:hidden">
             <div className="flex items-center gap-2">
               <label className="text-sm text-gray-600">Data:</label>
               <input
