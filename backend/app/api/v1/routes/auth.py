@@ -136,18 +136,53 @@ async def login_google(data: SocialGoogleRequest, response: Response, db: DBSess
 
 @router.post("/apple", response_model=TokenResponse)
 async def login_apple(data: SocialAppleRequest, response: Response, db: DBSession):
-    """Valida um identity_token da Apple e faz login/cadastro automático."""
-    import base64, json as _json
+    """Valida um identity_token da Apple via JWKS público e faz login/cadastro automático."""
+    import base64
+    import json as _json
 
+    # 1. Busca as chaves públicas da Apple
     try:
-        # O identity_token da Apple é um JWT — decodifica o payload (parte do meio)
+        async with httpx.AsyncClient(timeout=10) as client:
+            jwks_resp = await client.get("https://appleid.apple.com/auth/keys")
+            jwks_resp.raise_for_status()
+        jwks = jwks_resp.json()
+    except Exception:
+        raise HTTPException(status_code=503, detail="Não foi possível verificar o token Apple.")
+
+    # 2. Decodifica o header do JWT para obter o kid
+    try:
         parts = data.identity_token.split(".")
         if len(parts) != 3:
             raise ValueError
-        payload_bytes = parts[1] + "=="  # padding
-        payload = _json.loads(base64.urlsafe_b64decode(payload_bytes))
+        # Adiciona padding para base64
+        header_bytes = parts[0] + "=" * (-len(parts[0]) % 4)
+        header = _json.loads(base64.urlsafe_b64decode(header_bytes))
+        kid = header.get("kid")
     except Exception:
         raise HTTPException(status_code=401, detail="Token da Apple inválido.")
+
+    # 3. Localiza a chave correta no JWKS
+    public_key = None
+    for key_data in jwks.get("keys", []):
+        if key_data.get("kid") == kid:
+            public_key = key_data
+            break
+    if not public_key:
+        raise HTTPException(status_code=401, detail="Chave pública Apple não encontrada.")
+
+    # 4. Verifica a assinatura do JWT usando python-jose
+    from jose import jwt as jose_jwt, JWTError
+    from jose.backends import RSAKey
+    try:
+        payload = jose_jwt.decode(
+            data.identity_token,
+            public_key,
+            algorithms=["RS256"],
+            audience="com.equili.app",
+            options={"verify_aud": False},  # audience pode variar por plataforma
+        )
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Assinatura do token Apple inválida.")
 
     apple_id = payload.get("sub")
     email = payload.get("email")
