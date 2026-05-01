@@ -94,9 +94,6 @@ async def gerar_plano(usuario_id: CurrentUserID, db: DBSession):
     )
     dividas = dividas_result.scalars().all()
 
-    if not dividas:
-        raise HTTPException(status_code=400, detail="Cadastre ao menos uma dívida antes de gerar o plano.")
-
     renda_total = sum(float(r.valor) for r in rendas)
     total_dividas = sum(float(d.valor_total) for d in dividas)
 
@@ -165,10 +162,9 @@ RENDA MENSAL RECORRENTE: R$ {renda_total:,.2f}
 FONTES DE RENDA:
 {rendas_texto}
 
-TOTAL DE DÍVIDAS: R$ {total_dividas:,.2f}
+{f'TOTAL DE DÍVIDAS: R$ {total_dividas:,.2f}' if dividas else 'SEM DÍVIDAS CADASTRADAS'}
 
-DÍVIDAS ATIVAS:
-{dividas_texto}
+{f'DÍVIDAS ATIVAS:\n{dividas_texto}' if dividas else ''}
 
 FLUXO DE CAIXA — PRÓXIMOS 30 DIAS:
   Total a PAGAR: R$ {total_a_pagar_30d:,.2f}
@@ -188,7 +184,7 @@ TODAS AS CONTAS A RECEBER PENDENTES:
 
 Data atual: {hoje.strftime("%d/%m/%Y")}
 
-Crie o plano de ação para esta família sair das dívidas, levando em conta o fluxo de caixa real.
+{"Crie o plano de ação para esta família sair das dívidas, levando em conta o fluxo de caixa real." if dividas else "Esta família não tem dívidas mas possui contas a pagar pendentes. Crie um plano de ação financeiro para organizar o fluxo de caixa, garantir o pagamento em dia e começar a poupar."}
 """
 
     if not settings.GITHUB_TOKEN:

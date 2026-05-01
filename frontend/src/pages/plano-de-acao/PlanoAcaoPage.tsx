@@ -81,6 +81,7 @@ export default function PlanoAcaoPage() {
   const queryClient = useQueryClient()
   const [isGenerating, setIsGenerating] = useState(false)
   const [limitError, setLimitError] = useState(false)
+  const [erroGerar, setErroGerar] = useState<string | null>(null)
 
   const { data: plano, isLoading } = useQuery<PlanoAcao | null>({
     queryKey: ['plano-atual'],
@@ -103,14 +104,16 @@ export default function PlanoAcaoPage() {
 
   const gerarMutation = useMutation({
     mutationFn: () => api.post('/plano-acao/gerar'),
-    onMutate: () => setIsGenerating(true),
+    onMutate: () => { setIsGenerating(true); setErroGerar(null) },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['plano-atual'] })
       setIsGenerating(false)
     },
-    onError: (err: { response?: { status: number } }) => {
+    onError: (err: { response?: { status: number; data?: { detail?: string } } }) => {
       setIsGenerating(false)
       if (err.response?.status === 403) setLimitError(true)
+      else if (err.response?.status === 400) setErroGerar(err.response.data?.detail ?? 'Não foi possível gerar o plano.')
+      else setErroGerar('Erro ao gerar o plano. Tente novamente.')
     },
   })
 
@@ -144,10 +147,13 @@ export default function PlanoAcaoPage() {
 
       {limitError && (
         <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm text-gray-700">
-          Você atingiu o limite de geração de planos no plano gratuito este mês.{' '}
-          <a href="#" className="text-primary-500 font-medium hover:underline">
-            Fazer upgrade
-          </a>
+          Você atingiu o limite de geração de planos este mês.
+        </div>
+      )}
+
+      {erroGerar && (
+        <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+          {erroGerar}
         </div>
       )}
 
