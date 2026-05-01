@@ -225,14 +225,18 @@ export default function RelatoriosPage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const tabFromQuery = searchParams.get('tab')
-  const tab: 'fluxo' | 'detalhado' | 'extrato' =
-    tabFromQuery === 'detalhado' || tabFromQuery === 'extrato' ? tabFromQuery : 'fluxo'
+  const tab: 'fluxo' | 'detalhado' | 'extrato' | 'dia' =
+    tabFromQuery === 'detalhado' || tabFromQuery === 'extrato' || tabFromQuery === 'dia' ? tabFromQuery : 'fluxo'
   const currentYear = new Date().getFullYear()
   const currentMonth = new Date().getMonth() + 1
 
   const [anoFluxo, setAnoFluxo] = useState(currentYear)
   const [mesDetalhe, setMesDetalhe] = useState(currentMonth)
   const [anoDetalhe, setAnoDetalhe] = useState(currentYear)
+
+  // Estado aba Por Dia
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const [dataDia, setDataDia] = useState(todayStr)
 
   // Estado aba Extrato
   const [tipoExtrato, setTipoExtrato] = useState<'conta' | 'cartao'>('conta')
@@ -253,6 +257,27 @@ export default function RelatoriosPage() {
     queryFn: () =>
       api.get(`/relatorio/detalhado?mes=${mesDetalhe}&ano=${anoDetalhe}`).then((r) => r.data),
     enabled: tab === 'detalhado',
+  })
+
+  // Query aba Por Dia
+  interface ContaPagarDiaItem {
+    id: string
+    descricao: string
+    categoria: string
+    valor: number
+    status: string
+    tipo: string
+    observacao: string | null
+  }
+  interface ContasPagarDiaData {
+    data: string
+    total: number
+    contas: ContaPagarDiaItem[]
+  }
+  const { data: contasDia, isLoading: loadingDia } = useQuery<ContasPagarDiaData>({
+    queryKey: ['contas-pagar-dia', dataDia],
+    queryFn: () => api.get(`/relatorio/contas-pagar-dia?data=${dataDia}`).then((r) => r.data),
+    enabled: tab === 'dia',
   })
 
   // Queries aba Extrato
@@ -330,7 +355,7 @@ export default function RelatoriosPage() {
   const totalSaidas = fluxoData?.reduce((acc, d) => acc + d.saidas, 0) ?? 0
   const saldoAnual = totalEntradas - totalSaidas
 
-  function handleTabChange(nextTab: 'fluxo' | 'detalhado' | 'extrato') {
+  function handleTabChange(nextTab: 'fluxo' | 'detalhado' | 'extrato' | 'dia') {
     if (nextTab === tab) return
 
     const next = new URLSearchParams(searchParams)
@@ -354,10 +379,11 @@ export default function RelatoriosPage() {
           { key: 'fluxo', label: 'Fluxo de Caixa' },
           { key: 'detalhado', label: 'Detalhado' },
           { key: 'extrato', label: 'Extrato' },
+          { key: 'dia', label: 'Por Dia' },
         ].map((t) => (
           <button
             key={t.key}
-            onClick={() => handleTabChange(t.key as 'fluxo' | 'detalhado' | 'extrato')}
+            onClick={() => handleTabChange(t.key as 'fluxo' | 'detalhado' | 'extrato' | 'dia')}
             className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
               tab === t.key
                 ? 'bg-white text-primary-500 shadow-sm'
@@ -962,6 +988,94 @@ export default function RelatoriosPage() {
           </div>
         )
       })()}
-    </div>
+      {/* ===== Tab: Contas a Pagar Por Dia ===== */}
+      {tab === 'dia' && (
+        <div className="space-y-4">
+          {/* Controles */}
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600">Data:</label>
+              <input
+                type="date"
+                value={dataDia}
+                onChange={(e) => setDataDia(e.target.value)}
+                className="input-field py-1.5 text-sm w-auto"
+              />
+            </div>
+            <button
+              onClick={() => window.print()}
+              disabled={!contasDia || loadingDia}
+              className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50 print:hidden"
+            >
+              <Printer size={15} />
+              Imprimir
+            </button>
+          </div>
+
+          {loadingDia ? (
+            <div className="card h-32 flex items-center justify-center">
+              <Loader2 size={24} className="animate-spin text-gray-400" />
+            </div>
+          ) : contasDia ? (
+            <>
+              {/* Card total */}
+              <div className="card p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-500 mb-0.5">Total a pagar em {dataDia.split('-').reverse().join('/')}</p>
+                  <p className="text-xl font-bold text-danger-500">{formatCurrency(contasDia.total)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-gray-400">{contasDia.contas.length} conta(s)</p>
+                </div>
+              </div>
+
+              {contasDia.contas.length === 0 ? (
+                <div className="card p-8 text-center text-gray-400">
+                  <FileText size={36} className="mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">Nenhuma conta a pagar nesta data.</p>
+                </div>
+              ) : (
+                <div className="card overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-100">
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Descrição</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Categoria</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tipo</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Valor</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contasDia.contas.map((c) => (
+                        <tr key={c.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3 font-medium text-gray-700 max-w-[160px] truncate">{c.descricao}</td>
+                          <td className="px-4 py-3 text-gray-500">{CATEGORIAS_LABEL[c.categoria] ?? c.categoria}</td>
+                          <td className="px-4 py-3 text-gray-500 capitalize">{c.tipo}</td>
+                          <td className="px-4 py-3 text-right font-semibold text-danger-500">{formatCurrency(c.valor)}</td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                              STATUS_PAGAR[c.status]?.classes ?? 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {STATUS_PAGAR[c.status]?.label ?? c.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-gray-50 border-t border-gray-200">
+                        <td colSpan={3} className="px-4 py-3 text-sm font-semibold text-gray-700">Total</td>
+                        <td className="px-4 py-3 text-right font-bold text-danger-500">{formatCurrency(contasDia.total)}</td>
+                        <td />
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </>
+          ) : null}
+        </div>
+      )}    </div>
   )
 }
