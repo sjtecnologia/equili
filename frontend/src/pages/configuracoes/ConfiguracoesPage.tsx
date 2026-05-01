@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Loader2, User, Lock, LogOut, CheckCircle, Bell, Smartphone, Check } from 'lucide-react'
+import { Download, Loader2, Lock, LogOut, ShieldCheck, Trash2, User, CheckCircle, Bell, Smartphone, Check } from 'lucide-react'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'
 import { useNavStore } from '@/stores/navStore'
@@ -327,6 +327,9 @@ export default function ConfiguracoesPage() {
         <PushNotificationToggle />
       </section>
 
+      {/* LGPD — Privacidade e dados */}
+      <SecaoPrivacidade />
+
       {/* Zona de perigo */}
       <section className="card p-6 border border-red-100">
         <h2 className="text-base font-semibold text-gray-800 mb-3">Conta</h2>
@@ -339,5 +342,124 @@ export default function ConfiguracoesPage() {
         </button>
       </section>
     </div>
+  )
+}
+
+
+// ─── Seção LGPD: Privacidade ──────────────────────────────────────────────────
+function SecaoPrivacidade() {
+  const navigate = useNavigate()
+  const logout = useAuthStore((s) => s.logout)
+  const [exportando, setExportando] = useState(false)
+  const [excluindo, setExcluindo] = useState(false)
+  const [confirmarExclusao, setConfirmarExclusao] = useState(false)
+  const [senha, setSenha] = useState('')
+  const [confirmacaoTexto, setConfirmacaoTexto] = useState('')
+  const [erro, setErro] = useState<string | null>(null)
+
+  async function handleExportar() {
+    setExportando(true)
+    try {
+      const { data } = await api.get('/usuarios/me/exportar-dados')
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `equili-meus-dados-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setErro('Erro ao exportar dados. Tente novamente.')
+    } finally {
+      setExportando(false)
+    }
+  }
+
+  async function handleExcluirConta() {
+    setErro(null)
+    setExcluindo(true)
+    try {
+      await api.delete('/usuarios/me', {
+        data: { senha, confirmacao: confirmacaoTexto },
+      })
+      logout()
+      navigate('/login', { replace: true })
+    } catch (e: unknown) {
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setErro(detail ?? 'Erro ao excluir conta.')
+    } finally {
+      setExcluindo(false)
+    }
+  }
+
+  return (
+    <section className="card p-6 space-y-4">
+      <div className="flex items-center gap-2">
+        <ShieldCheck size={18} className="text-primary-500" />
+        <h2 className="text-base font-semibold text-gray-800">Privacidade (LGPD)</h2>
+      </div>
+      <p className="text-sm text-gray-500">
+        Conforme a Lei Geral de Proteção de Dados (Lei 13.709/2018), você tem direito de acessar,
+        exportar e solicitar a exclusão dos seus dados pessoais.
+      </p>
+
+      {/* Exportar dados */}
+      <button
+        onClick={handleExportar}
+        disabled={exportando}
+        className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 w-full"
+      >
+        {exportando ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+        Exportar meus dados (JSON)
+      </button>
+
+      {/* Excluir conta */}
+      {!confirmarExclusao ? (
+        <button
+          onClick={() => setConfirmarExclusao(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 text-red-500 text-sm font-medium hover:bg-red-50 transition-colors w-full"
+        >
+          <Trash2 size={16} />
+          Excluir minha conta e todos os dados
+        </button>
+      ) : (
+        <div className="space-y-3 border border-red-200 rounded-xl p-4 bg-red-50">
+          <p className="text-sm font-medium text-red-700">
+            Atenção: esta ação é irreversível. Todos os seus dados serão apagados permanentemente.
+          </p>
+          <input
+            type="password"
+            placeholder="Sua senha"
+            value={senha}
+            onChange={(e) => setSenha(e.target.value)}
+            className="input-field text-sm"
+          />
+          <input
+            type="text"
+            placeholder='Digite: EXCLUIR MINHA CONTA'
+            value={confirmacaoTexto}
+            onChange={(e) => setConfirmacaoTexto(e.target.value)}
+            className="input-field text-sm"
+          />
+          {erro && <p className="text-xs text-red-600">{erro}</p>}
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setConfirmarExclusao(false); setErro(null); setSenha(''); setConfirmacaoTexto('') }}
+              className="flex-1 py-2 rounded-lg border border-gray-200 text-gray-600 text-sm font-medium hover:bg-white transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleExcluirConta}
+              disabled={excluindo || confirmacaoTexto !== 'EXCLUIR MINHA CONTA'}
+              className="flex-1 py-2 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {excluindo ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+              Confirmar exclusão
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
   )
 }
