@@ -309,9 +309,6 @@ export default function ConfiguracoesPage() {
           <div>
             <p className="font-semibold text-gray-800">{user.nome}</p>
             <p className="text-sm text-gray-500">{user.email}</p>
-            <span className="mt-1 inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-primary-100 text-primary-500 capitalize">
-              Plano {user.plano}
-            </span>
           </div>
         </div>
       )}
