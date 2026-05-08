@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/authStore'
-import { queryClient } from '@/main'
+import { queryClient } from '@/lib/queryClient'
 
 const api = axios.create({
   baseURL: '/api/v1',
