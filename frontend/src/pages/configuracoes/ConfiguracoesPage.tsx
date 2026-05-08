@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { Download, Loader2, Lock, LogOut, ShieldCheck, Trash2, User, CheckCircle, Bell, Smartphone, Check } from 'lucide-react'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'
+import { queryClient } from '@/main'
 import { useNavStore } from '@/stores/navStore'
 import { ALL_NAV_ITEMS } from '@/config/navItems'
 import PushNotificationToggle from '@/components/pwa/PushNotificationToggle'
@@ -285,6 +286,7 @@ export default function ConfiguracoesPage() {
 
   async function handleLogout() {
     await api.post('/auth/logout').catch(() => {})
+    queryClient.clear()
     logout()
     navigate('/login', { replace: true })
   }
@@ -382,6 +384,7 @@ function SecaoPrivacidade() {
       await api.delete('/usuarios/me', {
         data: { senha, confirmacao: confirmacaoTexto },
       })
+      queryClient.clear()
       logout()
       navigate('/login', { replace: true })
     } catch (e: unknown) {
