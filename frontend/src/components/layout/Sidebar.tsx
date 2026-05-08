@@ -2,7 +2,6 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, Wallet, CreditCard, Sparkles, Settings, LogOut, ArrowDownCircle, ArrowUpCircle, BarChart2, Receipt, MessageSquare, TrendingUp, Landmark } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import api from '@/services/api'
-import { queryClient } from '@/lib/queryClient'
 import logo from '@/assets/logo.png'
 
 const navItems = [
@@ -35,7 +34,6 @@ export default function Sidebar() {
 
   async function handleLogout() {
     await api.post('/auth/logout').catch(() => {})
-    queryClient.clear()
     logout()
     navigate('/login', { replace: true })
   }

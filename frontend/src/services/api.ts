@@ -1,6 +1,5 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/authStore'
-import { queryClient } from '@/lib/queryClient'
 
 const api = axios.create({
   baseURL: '/api/v1',
@@ -31,7 +30,6 @@ api.interceptors.response.use(
         original.headers.Authorization = `Bearer ${data.access_token}`
         return api(original)
       } catch {
-        queryClient.clear()
         useAuthStore.getState().logout()
         window.location.href = '/login'
       }
