@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useReducer } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useFormSubmit } from '@/hooks/useFormSubmit'
+import { useInlineEdit } from '@/hooks/useInlineEdit'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Trash2, Loader2, Pencil, AlertTriangle, History } from 'lucide-react'
@@ -240,29 +242,23 @@ export function DividaForm({
 }
 
 export function DividaModal({ onClose, onSuccess }: DividaModalProps) {
-  const [serverError, setServerError] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { submit, error: serverError, isPending: isSubmitting } = useFormSubmit()
 
   async function onSubmit(data: FormData) {
-    setServerError(null)
-    setIsSubmitting(true)
-    try {
-      await api.post('/dividas', data)
-      onSuccess()
-      onClose()
-    } catch (err: unknown) {
-      const e = err as LimiteError
-      if (e.response?.status === 403) {
-        setServerError(
-          e.response.data?.detail ??
-            'Você atingiu o limite de dívidas do plano gratuito. Faça upgrade para adicionar mais.'
-        )
-      } else {
-        setServerError('Erro ao salvar dívida.')
+    await submit(
+      async () => {
+        await api.post('/dividas', data)
+        onSuccess()
+        onClose()
+      },
+      (err) => {
+        const e = err as LimiteError
+        return e.response?.status === 403
+          ? (e.response.data?.detail ??
+              'Você atingiu o limite de dívidas do plano gratuito. Faça upgrade para adicionar mais.')
+          : 'Erro ao salvar dívida.'
       }
-    } finally {
-      setIsSubmitting(false)
-    }
+    )
   }
 
   return (
@@ -283,8 +279,7 @@ export function EditarDividaModal({
   onClose,
   onSuccess,
 }: EditarDividaModalProps) {
-  const [serverError, setServerError] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { submit, error: serverError, isPending: isSubmitting } = useFormSubmit()
 
   const defaultValues: Partial<FormData> = {
     descricao: divida.descricao,
@@ -300,17 +295,11 @@ export function EditarDividaModal({
   }
 
   async function onSubmit(data: FormData) {
-    setServerError(null)
-    setIsSubmitting(true)
-    try {
+    await submit(async () => {
       await api.patch(`/dividas/${divida.id}`, data)
       onSuccess()
       onClose()
-    } catch {
-      setServerError('Erro ao atualizar dívida.')
-    } finally {
-      setIsSubmitting(false)
-    }
+    })
   }
 
   return (
@@ -327,6 +316,31 @@ export function EditarDividaModal({
   )
 }
 
+// ── PagarParcelaModal state ───────────────────────────────────────────────────
+type PagarParcelaState = {
+  dataReferencia: string
+  dataPagamento: string
+  valorPago: string
+  observacao: string
+  status: 'idle' | 'submitting'
+  erro: string | null
+}
+type PagarParcelaAction =
+  | { type: 'SET_FIELD'; field: 'dataReferencia' | 'dataPagamento' | 'valorPago' | 'observacao'; value: string }
+  | { type: 'SUBMIT_START' }
+  | { type: 'SUBMIT_ERROR'; message: string }
+  | { type: 'SUBMIT_SUCCESS' }
+
+function pagarParcelaReducer(state: PagarParcelaState, action: PagarParcelaAction): PagarParcelaState {
+  switch (action.type) {
+    case 'SET_FIELD': return { ...state, [action.field]: action.value }
+    case 'SUBMIT_START': return { ...state, status: 'submitting', erro: null }
+    case 'SUBMIT_ERROR': return { ...state, status: 'idle', erro: action.message }
+    case 'SUBMIT_SUCCESS': return { ...state, status: 'idle' }
+    default: return state
+  }
+}
+
 export function PagarParcelaModal({
   divida,
   onClose,
@@ -337,41 +351,43 @@ export function PagarParcelaModal({
   const atrasada = vencimento < hoje
   const mesAnoAtrasado = vencimento.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
 
-  const [dataReferencia, setDataReferencia] = useState(divida.data_prox_vencimento)
-  const [dataPagamento, setDataPagamento] = useState(new Date().toISOString().slice(0, 10))
-  const [valorPago, setValorPago] = useState(divida.valor_parcela.toFixed(2).replace('.', ','))
-  const [observacao, setObservacao] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [erro, setErro] = useState<string | null>(null)
+  const [s, dispatch] = useReducer(pagarParcelaReducer, {
+    dataReferencia: divida.data_prox_vencimento,
+    dataPagamento: new Date().toISOString().slice(0, 10),
+    valorPago: divida.valor_parcela.toFixed(2).replace('.', ','),
+    observacao: '',
+    status: 'idle',
+    erro: null,
+  })
 
   // Calcula o próximo vencimento que resultará da seleção atual
   const proxDataPreview = (() => {
-    if (!dataReferencia) return '—'
-    const d = new Date(dataReferencia + 'T00:00:00')
+    if (!s.dataReferencia) return '—'
+    const d = new Date(s.dataReferencia + 'T00:00:00')
     d.setMonth(d.getMonth() + 1)
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
   })()
 
-  const valorPagoNum = parseFloat(valorPago.replace(',', '.')) || 0
+  const valorPagoNum = parseFloat(s.valorPago.replace(',', '.')) || 0
 
   async function handleConfirmar() {
-    setErro(null)
-    setIsSubmitting(true)
+    dispatch({ type: 'SUBMIT_START' })
     try {
       await api.post(`/dividas/${divida.id}/pagar-parcela`, {
-        data_referencia: dataReferencia || null,
-        data_pagamento: dataPagamento || null,
+        data_referencia: s.dataReferencia || null,
+        data_pagamento: s.dataPagamento || null,
         valor_pago: valorPagoNum > 0 ? valorPagoNum : null,
-        observacao: observacao.trim() || null,
+        observacao: s.observacao.trim() || null,
       })
+      dispatch({ type: 'SUBMIT_SUCCESS' })
       onSuccess()
       onClose()
     } catch {
-      setErro('Erro ao registrar pagamento. Tente novamente.')
-    } finally {
-      setIsSubmitting(false)
+      dispatch({ type: 'SUBMIT_ERROR', message: 'Erro ao registrar pagamento. Tente novamente.' })
     }
   }
+
+  const isSubmitting = s.status === 'submitting'
 
   return (
     <ModalDialog title="Registrar pagamento" onClose={onClose} size="sm">
@@ -404,10 +420,10 @@ export function PagarParcelaModal({
             <input
               type="date"
               className="input-field"
-              value={dataReferencia}
-              onChange={(e) => setDataReferencia(e.target.value)}
+              value={s.dataReferencia}
+              onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'dataReferencia', value: e.target.value })}
             />
-            {dataReferencia && divida.parcelas_restantes > 1 && (
+            {s.dataReferencia && divida.parcelas_restantes > 1 && (
               <p className="mt-1.5 text-xs text-gray-400">
                 Próximo vencimento será: <span className="font-medium text-gray-600">{proxDataPreview}</span>
               </p>
@@ -422,8 +438,8 @@ export function PagarParcelaModal({
             <input
               type="date"
               className="input-field"
-              value={dataPagamento}
-              onChange={(e) => setDataPagamento(e.target.value)}
+              value={s.dataPagamento}
+              onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'dataPagamento', value: e.target.value })}
             />
           </div>
 
@@ -436,8 +452,8 @@ export function PagarParcelaModal({
               type="text"
               inputMode="decimal"
               className="input-field"
-              value={valorPago}
-              onChange={(e) => setValorPago(e.target.value)}
+              value={s.valorPago}
+              onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'valorPago', value: e.target.value })}
             />
             {valorPagoNum !== divida.valor_parcela && valorPagoNum > 0 && (
               <p className="mt-1.5 text-xs text-amber-600">
@@ -455,14 +471,14 @@ export function PagarParcelaModal({
               type="text"
               className="input-field"
               placeholder="Ex.: incluiu multa de atraso"
-              value={observacao}
-              onChange={(e) => setObservacao(e.target.value)}
+              value={s.observacao}
+              onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'observacao', value: e.target.value })}
               maxLength={300}
             />
           </div>
 
-          {erro && (
-            <p className="text-sm text-danger-500">{erro}</p>
+          {s.erro && (
+            <p className="text-sm text-danger-500">{s.erro}</p>
           )}
 
           <div className="flex gap-3 pt-1">
@@ -472,7 +488,7 @@ export function PagarParcelaModal({
             <button
               type="button"
               onClick={handleConfirmar}
-              disabled={isSubmitting || !dataReferencia || valorPagoNum <= 0}
+              disabled={isSubmitting || !s.dataReferencia || valorPagoNum <= 0}
               className="btn-primary flex-1 flex items-center justify-center gap-2"
             >
               {isSubmitting && <Loader2 size={14} className="animate-spin" />}
@@ -496,11 +512,8 @@ export function HistoricoPagamentosModal({
     queryFn: () => api.get(`/dividas/${divida.id}/pagamentos`).then((r) => r.data),
   })
 
-  // Edição inline
-  const [editandoId, setEditandoId] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState({ data_referencia: '', data_pagamento: '', valor_pago: '', observacao: '' })
-  const [editErro, setEditErro] = useState<string | null>(null)
-  const [salvando, setSalvando] = useState(false)
+  // Edição inline e confirmação de exclusão
+  const { editState, editDispatch } = useInlineEdit()
 
   // Exclusão
   const deleteMutation = useMutation({
@@ -508,37 +521,40 @@ export function HistoricoPagamentosModal({
       api.delete(`/dividas/${divida.id}/pagamentos/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
   })
-  const [confirmandoId, setConfirmandoId] = useState<string | null>(null)
 
   function abrirEdicao(p: DividaPagamento) {
-    setEditandoId(p.id)
-    setEditErro(null)
-    setEditForm({
-      data_referencia: p.data_referencia,
-      data_pagamento: p.data_pagamento,
-      valor_pago: String(p.valor_pago).replace('.', ','),
-      observacao: p.observacao ?? '',
+    editDispatch({
+      type: 'OPEN_EDIT',
+      id: p.id,
+      form: {
+        data_referencia: p.data_referencia,
+        data_pagamento: p.data_pagamento,
+        valor_pago: String(p.valor_pago).replace('.', ','),
+        observacao: p.observacao ?? '',
+      },
     })
   }
 
   async function salvarEdicao(id: string) {
-    setEditErro(null)
-    setSalvando(true)
+    if (editState.mode !== 'editing') return
+    const { form } = editState
+    const valorNum = parseFloat(form.valor_pago.replace(',', '.'))
+    if (!valorNum || valorNum <= 0) {
+      editDispatch({ type: 'SAVE_ERROR', message: 'Valor inválido' })
+      return
+    }
+    editDispatch({ type: 'SAVE_START' })
     try {
-      const valorNum = parseFloat(editForm.valor_pago.replace(',', '.'))
-      if (!valorNum || valorNum <= 0) throw new Error('Valor inválido')
       await api.patch(`/dividas/${divida.id}/pagamentos/${id}`, {
-        data_referencia: editForm.data_referencia || null,
-        data_pagamento: editForm.data_pagamento || null,
+        data_referencia: form.data_referencia || null,
+        data_pagamento: form.data_pagamento || null,
         valor_pago: valorNum,
-        observacao: editForm.observacao.trim() || null,
+        observacao: form.observacao.trim() || null,
       })
       await queryClient.invalidateQueries({ queryKey })
-      setEditandoId(null)
+      editDispatch({ type: 'SAVE_SUCCESS' })
     } catch {
-      setEditErro('Erro ao salvar. Verifique os dados.')
-    } finally {
-      setSalvando(false)
+      editDispatch({ type: 'SAVE_ERROR', message: 'Erro ao salvar. Verifique os dados.' })
     }
   }
 
@@ -553,39 +569,40 @@ export function HistoricoPagamentosModal({
             <div className="space-y-2">
               {pagamentos.map((p) => {
                 const diferenca = p.valor_pago - p.valor_parcela_original
-                const esteEditando = editandoId === p.id
-                const esteConfirmando = confirmandoId === p.id
+                const esteEditando = editState.mode === 'editing' && editState.id === p.id
+                const esteConfirmando = editState.mode === 'confirming' && editState.id === p.id
 
-                if (esteEditando) {
+                if (esteEditando && editState.mode === 'editing') {
+                  const { form, erro: editErro, salvando } = editState
                   return (
                     <div key={p.id} className="border border-primary-200 rounded-xl p-3 space-y-3 bg-primary-50/30">
                       <p className="text-xs font-medium text-primary-600 uppercase tracking-wide">Editando baixa</p>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <label className="block text-xs text-gray-500 mb-0.5">Parcela (mês ref.)</label>
-                          <input type="date" className="input-field text-sm py-1.5" value={editForm.data_referencia}
-                            onChange={(e) => setEditForm((f) => ({ ...f, data_referencia: e.target.value }))} />
+                          <input type="date" className="input-field text-sm py-1.5" value={form.data_referencia}
+                            onChange={(e) => editDispatch({ type: 'UPDATE_FORM', patch: { data_referencia: e.target.value } })} />
                         </div>
                         <div>
                           <label className="block text-xs text-gray-500 mb-0.5">Data do pagamento</label>
-                          <input type="date" className="input-field text-sm py-1.5" value={editForm.data_pagamento}
-                            onChange={(e) => setEditForm((f) => ({ ...f, data_pagamento: e.target.value }))} />
+                          <input type="date" className="input-field text-sm py-1.5" value={form.data_pagamento}
+                            onChange={(e) => editDispatch({ type: 'UPDATE_FORM', patch: { data_pagamento: e.target.value } })} />
                         </div>
                       </div>
                       <div>
                         <label className="block text-xs text-gray-500 mb-0.5">Valor pago (R$)</label>
-                        <input type="text" inputMode="decimal" className="input-field text-sm py-1.5" value={editForm.valor_pago}
-                          onChange={(e) => setEditForm((f) => ({ ...f, valor_pago: e.target.value }))} />
+                        <input type="text" inputMode="decimal" className="input-field text-sm py-1.5" value={form.valor_pago}
+                          onChange={(e) => editDispatch({ type: 'UPDATE_FORM', patch: { valor_pago: e.target.value } })} />
                       </div>
                       <div>
                         <label className="block text-xs text-gray-500 mb-0.5">Observação</label>
                         <input type="text" className="input-field text-sm py-1.5" placeholder="Ex.: multa de atraso"
-                          value={editForm.observacao} maxLength={300}
-                          onChange={(e) => setEditForm((f) => ({ ...f, observacao: e.target.value }))} />
+                          value={form.observacao} maxLength={300}
+                          onChange={(e) => editDispatch({ type: 'UPDATE_FORM', patch: { observacao: e.target.value } })} />
                       </div>
                       {editErro && <p className="text-xs text-danger-500">{editErro}</p>}
                       <div className="flex gap-2">
-                        <button onClick={() => setEditandoId(null)} className="btn-ghost text-xs flex-1">Cancelar</button>
+                        <button onClick={() => editDispatch({ type: 'CANCEL_EDIT' })} className="btn-ghost text-xs flex-1">Cancelar</button>
                         <button onClick={() => salvarEdicao(p.id)} disabled={salvando}
                           className="btn-primary text-xs flex-1 flex items-center justify-center gap-1">
                           {salvando && <Loader2 size={12} className="animate-spin" />}
@@ -625,17 +642,17 @@ export function HistoricoPagamentosModal({
                           </button>
                           {esteConfirmando ? (
                             <>
-                              <button onClick={() => { deleteMutation.mutate(p.id); setConfirmandoId(null) }}
+                              <button onClick={() => { deleteMutation.mutate(p.id); editDispatch({ type: 'CANCEL_CONFIRM' }) }}
                                 className="text-xs text-danger-500 font-medium hover:underline">
                                 Confirmar
                               </button>
-                              <button onClick={() => setConfirmandoId(null)}
+                              <button onClick={() => editDispatch({ type: 'CANCEL_CONFIRM' })}
                                 className="text-xs text-gray-400 hover:underline">
                                 Não
                               </button>
                             </>
                           ) : (
-                            <button onClick={() => setConfirmandoId(p.id)}
+                            <button onClick={() => editDispatch({ type: 'OPEN_CONFIRM', id: p.id })}
                               className="text-gray-300 hover:text-danger-500 transition-colors"
                               aria-label="Excluir baixa">
                               <Trash2 size={13} />

@@ -1,11 +1,11 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/services/api'
 import type { ContaLancamentosData } from '@/types/financeiro'
 
 export function useContaLancamentos(contaId: string | undefined) {
   const qc = useQueryClient()
-  const queryKey = ['conta-lancamentos', contaId]
+  const queryKey = useMemo(() => ['conta-lancamentos', contaId], [contaId])
 
   const query = useQuery<ContaLancamentosData>({
     queryKey,
@@ -26,7 +26,7 @@ export function useContaLancamentos(contaId: string | undefined) {
   const invalidate = useCallback(() => {
     qc.invalidateQueries({ queryKey })
     qc.invalidateQueries({ queryKey: ['contas-bancarias'] })
-  }, [qc, contaId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [qc, queryKey])
 
   return { ...query, deletar, invalidate }
 }

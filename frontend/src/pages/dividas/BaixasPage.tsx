@@ -6,6 +6,7 @@ import { formatCurrency, formatDate } from '@/utils/format'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { EmptyState } from '@/components/ui/EmptyState'
 import type { Baixa } from '@/types/financeiro'
+import { useInlineEdit } from '@/hooks/useInlineEdit'
 
 export default function BaixasPage() {
   const queryClient = useQueryClient()
@@ -18,16 +19,7 @@ export default function BaixasPage() {
   })
 
   const [busca, setBusca] = useState('')
-  const [editandoId, setEditandoId] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState({
-    data_referencia: '',
-    data_pagamento: '',
-    valor_pago: '',
-    observacao: '',
-  })
-  const [editErro, setEditErro] = useState<string | null>(null)
-  const [salvando, setSalvando] = useState(false)
-  const [confirmandoId, setConfirmandoId] = useState<string | null>(null)
+  const { editState, editDispatch } = useInlineEdit()
 
   const deleteMutation = useMutation({
     mutationFn: ({ dividaId, id }: { dividaId: string; id: string }) =>
@@ -39,35 +31,39 @@ export default function BaixasPage() {
   })
 
   function abrirEdicao(b: Baixa) {
-    setEditandoId(b.id)
-    setEditErro(null)
-    setEditForm({
-      data_referencia: b.data_referencia,
-      data_pagamento: b.data_pagamento ?? '',
-      valor_pago: String(b.valor_pago).replace('.', ','),
-      observacao: b.observacao ?? '',
+    editDispatch({
+      type: 'OPEN_EDIT',
+      id: b.id,
+      form: {
+        data_referencia: b.data_referencia,
+        data_pagamento: b.data_pagamento ?? '',
+        valor_pago: String(b.valor_pago).replace('.', ','),
+        observacao: b.observacao ?? '',
+      },
     })
   }
 
   async function salvarEdicao(b: Baixa) {
-    setEditErro(null)
-    setSalvando(true)
+    if (editState.mode !== 'editing') return
+    const { form } = editState
+    const valorNum = parseFloat(form.valor_pago.replace(',', '.'))
+    if (!valorNum || valorNum <= 0) {
+      editDispatch({ type: 'SAVE_ERROR', message: 'Valor inválido' })
+      return
+    }
+    editDispatch({ type: 'SAVE_START' })
     try {
-      const valorNum = parseFloat(editForm.valor_pago.replace(',', '.'))
-      if (!valorNum || valorNum <= 0) throw new Error('Valor inválido')
       await api.patch(`/dividas/${b.divida_id}/pagamentos/${b.id}`, {
-        data_referencia: editForm.data_referencia || null,
-        data_pagamento: editForm.data_pagamento || null,
+        data_referencia: form.data_referencia || null,
+        data_pagamento: form.data_pagamento || null,
         valor_pago: valorNum,
-        observacao: editForm.observacao.trim() || null,
+        observacao: form.observacao.trim() || null,
       })
       await queryClient.invalidateQueries({ queryKey })
       await queryClient.invalidateQueries({ queryKey: ['dividas'] })
-      setEditandoId(null)
+      editDispatch({ type: 'SAVE_SUCCESS' })
     } catch {
-      setEditErro('Erro ao salvar. Verifique os dados.')
-    } finally {
-      setSalvando(false)
+      editDispatch({ type: 'SAVE_ERROR', message: 'Erro ao salvar. Verifique os dados.' })
     }
   }
 
@@ -124,10 +120,11 @@ export default function BaixasPage() {
         <div className="space-y-2">
           {baixasFiltradas.map((b) => {
             const diferenca = b.valor_pago - b.valor_parcela_original
-            const esteEditando = editandoId === b.id
-            const esteConfirmando = confirmandoId === b.id
+            const esteEditando = editState.mode === 'editing' && editState.id === b.id
+            const esteConfirmando = editState.mode === 'confirming' && editState.id === b.id
 
-            if (esteEditando) {
+            if (esteEditando && editState.mode === 'editing') {
+              const { form, erro: editErro, salvando } = editState
               return (
                 <div
                   key={b.id}
@@ -151,9 +148,9 @@ export default function BaixasPage() {
                       <input
                         type="date"
                         className="input-field text-sm py-1.5"
-                        value={editForm.data_referencia}
+                        value={form.data_referencia}
                         onChange={(e) =>
-                          setEditForm((f) => ({ ...f, data_referencia: e.target.value }))
+                          editDispatch({ type: 'UPDATE_FORM', patch: { data_referencia: e.target.value } })
                         }
                       />
                     </div>
@@ -164,9 +161,9 @@ export default function BaixasPage() {
                       <input
                         type="date"
                         className="input-field text-sm py-1.5"
-                        value={editForm.data_pagamento}
+                        value={form.data_pagamento}
                         onChange={(e) =>
-                          setEditForm((f) => ({ ...f, data_pagamento: e.target.value }))
+                          editDispatch({ type: 'UPDATE_FORM', patch: { data_pagamento: e.target.value } })
                         }
                       />
                     </div>
@@ -178,9 +175,9 @@ export default function BaixasPage() {
                       type="text"
                       inputMode="decimal"
                       className="input-field text-sm py-1.5"
-                      value={editForm.valor_pago}
+                      value={form.valor_pago}
                       onChange={(e) =>
-                        setEditForm((f) => ({ ...f, valor_pago: e.target.value }))
+                        editDispatch({ type: 'UPDATE_FORM', patch: { valor_pago: e.target.value } })
                       }
                     />
                   </div>
@@ -191,10 +188,10 @@ export default function BaixasPage() {
                       type="text"
                       className="input-field text-sm py-1.5"
                       placeholder="Ex.: multa de atraso"
-                      value={editForm.observacao}
+                      value={form.observacao}
                       maxLength={300}
                       onChange={(e) =>
-                        setEditForm((f) => ({ ...f, observacao: e.target.value }))
+                        editDispatch({ type: 'UPDATE_FORM', patch: { observacao: e.target.value } })
                       }
                     />
                   </div>
@@ -203,7 +200,7 @@ export default function BaixasPage() {
 
                   <div className="flex gap-2">
                     <button
-                      onClick={() => setEditandoId(null)}
+                      onClick={() => editDispatch({ type: 'CANCEL_EDIT' })}
                       className="btn-ghost text-xs flex-1"
                     >
                       Cancelar
@@ -281,14 +278,14 @@ export default function BaixasPage() {
                           <button
                             onClick={() => {
                               deleteMutation.mutate({ dividaId: b.divida_id, id: b.id })
-                              setConfirmandoId(null)
+                              editDispatch({ type: 'CANCEL_CONFIRM' })
                             }}
                             className="text-xs text-danger-500 font-medium hover:underline"
                           >
                             Confirmar
                           </button>
                           <button
-                            onClick={() => setConfirmandoId(null)}
+                            onClick={() => editDispatch({ type: 'CANCEL_CONFIRM' })}
                             className="text-xs text-gray-400 hover:underline"
                           >
                             Não
@@ -296,7 +293,7 @@ export default function BaixasPage() {
                         </div>
                       ) : (
                         <button
-                          onClick={() => setConfirmandoId(b.id)}
+                          onClick={() => editDispatch({ type: 'OPEN_CONFIRM', id: b.id })}
                           className="text-gray-300 hover:text-danger-500 transition-colors p-1"
                           aria-label="Excluir baixa"
                         >

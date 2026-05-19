@@ -1,9 +1,8 @@
-import { useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import api from '@/services/api'
-import { parseApiError } from '@/utils/api'
+import { useFormSubmit } from '@/hooks/useFormSubmit'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
 import { ModalDialog } from '@/components/ui/ModalDialog'
 import { rendaSchema } from '@/lib/schemas/financeiro'
@@ -47,11 +46,10 @@ export function RendaModal({
       : { frequencia: 'mensal', tipo: 'salario' },
   })
 
-  const [erroForm, setErroForm] = useState('')
+  const { submit, error: erroForm } = useFormSubmit()
 
   async function onSubmit(data: FormData) {
-    setErroForm('')
-    try {
+    await submit(async () => {
       if (renda) {
         await api.patch(`/rendas/${renda.id}`, data)
       } else {
@@ -59,9 +57,7 @@ export function RendaModal({
       }
       onSuccess()
       onClose()
-    } catch (err) {
-      setErroForm(parseApiError(err) ?? 'Erro ao salvar. Tente novamente.')
-    }
+    })
   }
 
   return (

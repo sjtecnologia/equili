@@ -5,7 +5,6 @@ import type { ContaAPagar, ContaAReceber, PlanoAcao } from '@/types/financeiro'
 
 export function usePlanoAcao() {
   const queryClient = useQueryClient()
-  const [isGenerating, setIsGenerating] = useState(false)
   const [limitError, setLimitError] = useState(false)
   const [erroGerar, setErroGerar] = useState<string | null>(null)
 
@@ -31,15 +30,12 @@ export function usePlanoAcao() {
   const gerarMutation = useMutation({
     mutationFn: () => api.post('/plano-acao/gerar'),
     onMutate: () => {
-      setIsGenerating(true)
       setErroGerar(null)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['plano-atual'] })
-      setIsGenerating(false)
     },
     onError: (err: { response?: { status: number; data?: { detail?: string } } }) => {
-      setIsGenerating(false)
       if (err.response?.status === 403) setLimitError(true)
       else if (err.response?.status === 400)
         setErroGerar(err.response.data?.detail ?? 'Não foi possível gerar o plano.')
@@ -56,7 +52,6 @@ export function usePlanoAcao() {
   return {
     plano,
     isLoading,
-    isGenerating,
     limitError,
     erroGerar,
     contasPagar: contasPagar ?? [],
