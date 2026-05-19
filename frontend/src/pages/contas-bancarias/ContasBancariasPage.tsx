@@ -4,11 +4,14 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
-  Plus, Trash2, Loader2, X, Pencil, Landmark, CreditCard, ArrowRight,
+  Trash2, Loader2, Pencil, Landmark, CreditCard, ArrowRight,
 } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency } from '@/utils/format'
 import { useNavigate } from 'react-router-dom'
+import { ModalDialog } from '@/components/ui/ModalDialog'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 /* ─────────────── TIPOS ─────────────── */
 
@@ -128,17 +131,11 @@ function ContaBancariaModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="font-semibold text-gray-800">
-            {isEdit ? 'Editar conta bancária' : 'Nova conta bancária'}
-          </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X size={20} />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4">
+    <ModalDialog
+      title={isEdit ? 'Editar conta bancária' : 'Nova conta bancária'}
+      onClose={onClose}
+    >
+      <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Nome da conta</label>
@@ -205,8 +202,7 @@ function ContaBancariaModal({
             {isEdit ? 'Salvar alterações' : 'Adicionar conta'}
           </button>
         </form>
-      </div>
-    </div>
+    </ModalDialog>
   )
 }
 
@@ -248,17 +244,11 @@ function CartaoModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="font-semibold text-gray-800">
-            {isEdit ? 'Editar cartão' : 'Novo cartão de crédito'}
-          </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X size={20} />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4">
+    <ModalDialog
+      title={isEdit ? 'Editar cartão' : 'Novo cartão de crédito'}
+      onClose={onClose}
+    >
+      <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Nome do cartão</label>
@@ -336,8 +326,7 @@ function CartaoModal({
             {isEdit ? 'Salvar alterações' : 'Adicionar cartão'}
           </button>
         </form>
-      </div>
-    </div>
+    </ModalDialog>
   )
 }
 
@@ -511,21 +500,17 @@ export default function ContasBancariasPage() {
   const totalLimite = cartoes.reduce((s, c) => s + c.limite, 0)
 
   return (
-    <div className="p-4 max-w-2xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold text-gray-800">Contas e Cartões</h1>
-        <button
-          onClick={() => tab === 'contas' ? setShowContaModal(true) : setShowCartaoModal(true)}
-          className="btn-primary flex items-center gap-2 py-2 px-3 text-sm"
-        >
-          <Plus size={16} />
-          {tab === 'contas' ? 'Nova conta' : 'Novo cartão'}
-        </button>
-      </div>
+    <div className="p-4 max-w-2xl mx-auto space-y-4">
+      <PageHeader
+        title="Contas e Cartões"
+        action={{
+          label: tab === 'contas' ? 'Nova conta' : 'Novo cartão',
+          onClick: () => tab === 'contas' ? setShowContaModal(true) : setShowCartaoModal(true),
+        }}
+      />
 
       {/* Tabs */}
-      <div className="flex bg-gray-100 rounded-xl p-1 mb-4">
+      <div className="flex bg-gray-100 rounded-xl p-1">
         <button
           onClick={() => setTab('contas')}
           className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -548,13 +533,13 @@ export default function ContasBancariasPage() {
 
       {/* Resumo */}
       {tab === 'contas' && contas.length > 0 && (
-        <div className="bg-primary-50 border border-primary-200 rounded-xl p-3 mb-4 flex items-center justify-between">
+        <div className="bg-primary-50 border border-primary-200 rounded-xl p-3 flex items-center justify-between">
           <span className="text-sm text-primary-700 font-medium">Total em contas</span>
           <span className="text-lg font-bold text-primary-700">{formatCurrency(totalSaldo)}</span>
         </div>
       )}
       {tab === 'cartoes' && cartoes.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 flex items-center justify-between">
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center justify-between">
           <span className="text-sm text-blue-700 font-medium">Limite total</span>
           <span className="text-lg font-bold text-blue-700">{formatCurrency(totalLimite)}</span>
         </div>
@@ -568,11 +553,7 @@ export default function ContasBancariasPage() {
               <Loader2 className="animate-spin text-primary-500" size={28} />
             </div>
           ) : contas.length === 0 ? (
-            <div className="text-center py-16 text-gray-400">
-              <Landmark size={40} className="mx-auto mb-3 opacity-30" />
-              <p className="font-medium">Nenhuma conta cadastrada</p>
-              <p className="text-sm mt-1">Clique em "Nova conta" para começar</p>
-            </div>
+            <EmptyState icon={Landmark} title="Nenhuma conta cadastrada" description={'Clique em "Nova conta" para começar'} />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {contas.map((conta) => (
@@ -595,11 +576,7 @@ export default function ContasBancariasPage() {
               <Loader2 className="animate-spin text-primary-500" size={28} />
             </div>
           ) : cartoes.length === 0 ? (
-            <div className="text-center py-16 text-gray-400">
-              <CreditCard size={40} className="mx-auto mb-3 opacity-30" />
-              <p className="font-medium">Nenhum cartão cadastrado</p>
-              <p className="text-sm mt-1">Clique em "Novo cartão" para começar</p>
-            </div>
+            <EmptyState icon={CreditCard} title="Nenhum cartão cadastrado" description={'Clique em "Novo cartão" para começar'} />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {cartoes.map((cartao) => (

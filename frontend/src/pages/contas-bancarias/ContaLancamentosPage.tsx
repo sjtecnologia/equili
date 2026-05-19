@@ -5,11 +5,13 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
-  ArrowLeft, Plus, Trash2, Loader2, X, Upload,
-  TrendingUp, TrendingDown, ArrowUpCircle, ArrowDownCircle, FileText, Copy, Check,
+  ArrowLeft, Plus, Trash2, Loader2, Upload,
+  TrendingUp, TrendingDown, ArrowUpCircle, ArrowDownCircle, FileText, Copy, Check, X,
 } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency } from '@/utils/format'
+import { ModalDialog } from '@/components/ui/ModalDialog'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 /* ─── Tipos ─── */
 interface Lancamento {
@@ -80,13 +82,8 @@ function NovoLancamentoModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="font-semibold text-gray-800">Novo lançamento</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-        </div>
-        <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-3">
+    <ModalDialog title="Novo lançamento" onClose={onClose}>
+      <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-3">
           {/* Tipo */}
           <div className="flex gap-2">
             {(['entrada', 'saida'] as const).map((t) => (
@@ -138,8 +135,7 @@ function NovoLancamentoModal({
             Adicionar lançamento
           </button>
         </form>
-      </div>
-    </div>
+    </ModalDialog>
   )
 }
 
@@ -180,13 +176,8 @@ function ImportarOFXModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="font-semibold text-gray-800">Importar extrato OFX</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-        </div>
-        <div className="p-4 space-y-4">
+    <ModalDialog title="Importar extrato OFX" onClose={onClose}>
+      <div className="p-4 space-y-4">
           {resultado ? (
             <div className="text-center py-4">
               <p className="text-2xl font-bold text-success-600">{resultado.importados}</p>
@@ -222,8 +213,7 @@ function ImportarOFXModal({
             </>
           )}
         </div>
-      </div>
-    </div>
+    </ModalDialog>
   )
 }
 
@@ -530,11 +520,11 @@ export default function ContaLancamentosPage() {
           </button>
         </div>
       ) : lancamentos.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <TrendingUp size={40} className="mx-auto mb-3 opacity-30" />
-          <p className="font-medium">Nenhum lançamento ainda</p>
-          <p className="text-sm mt-1">Adicione entradas e saídas manualmente ou importe um extrato OFX</p>
-        </div>
+        <EmptyState
+          icon={TrendingUp}
+          title="Nenhum lançamento ainda"
+          description="Adicione entradas e saídas manualmente ou importe um extrato OFX"
+        />
       ) : (
         <div className="space-y-4">
           {mesesOrdenados.map((mes) => (

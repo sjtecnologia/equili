@@ -8,6 +8,7 @@ import { Capacitor } from '@capacitor/core'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'
 import { useBiometricAuth } from '@/hooks/useBiometricAuth'
+import { useGoogleAuth } from '@/hooks/useGoogleAuth'
 import logo from '@/assets/logo.png'
 
 const IconGoogle = () => (
@@ -31,7 +32,7 @@ export default function LoginPage() {
   const setUser = useAuthStore((s) => s.setUser)
   const [showPassword, setShowPassword] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
-  const [socialLoading, setSocialLoading] = useState<'google' | null>(null)
+  const { getIdToken, loading: googleLoading } = useGoogleAuth()
   const [bioDisponivel, setBioDisponivel] = useState(false)
   const [bioHabilitado, setBioHabilitado] = useState(false)
 
@@ -100,26 +101,17 @@ export default function LoginPage() {
   }
 
   async function loginGoogle() {
-    setSocialLoading('google')
     setServerError(null)
+    const { token, error } = await getIdToken()
+    if (!token) {
+      if (error) setServerError(error)
+      return
+    }
     try {
-      if (isNative) {
-        const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
-        const gUser = await GoogleAuth.signIn()
-        const idToken = gUser.authentication.idToken
-        if (!idToken) throw new Error('Token Google não recebido.')
-        const res = await api.post<{ access_token: string }>('/auth/google', { id_token: idToken })
-        await finalizarLogin(res.data.access_token)
-      } else {
-        setServerError('Login com Google disponível apenas no app mobile.')
-      }
-    } catch (e: unknown) {
-      const err = e as { message?: string }
-      if (!err.message?.includes('cancel')) {
-        setServerError('Erro ao entrar com Google. Tente novamente.')
-      }
-    } finally {
-      setSocialLoading(null)
+      const res = await api.post<{ access_token: string }>('/auth/google', { id_token: token })
+      await finalizarLogin(res.data.access_token)
+    } catch {
+      setServerError('Erro ao entrar com Google. Tente novamente.')
     }
   }
 
@@ -147,10 +139,10 @@ export default function LoginPage() {
           {isNative && (
             <button
               onClick={loginGoogle}
-              disabled={socialLoading !== null}
+              disabled={googleLoading}
               className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
-              {socialLoading === 'google' ? <Loader2 size={16} className="animate-spin" /> : <IconGoogle />}
+              {googleLoading ? <Loader2 size={16} className="animate-spin" /> : <IconGoogle />}
               Google
             </button>
           )}

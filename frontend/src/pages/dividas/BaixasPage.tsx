@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2, X, Pencil, Trash2, Search, History } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
+import { SkeletonList } from '@/components/ui/SkeletonList'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 interface Baixa {
   id: string
@@ -119,18 +121,12 @@ export default function BaixasPage() {
 
       {/* Lista */}
       {isLoading ? (
-        <div className="space-y-3">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />
-          ))}
-        </div>
+        <SkeletonList count={4} height="h-20" />
       ) : baixasFiltradas.length === 0 ? (
-        <div className="text-center py-16">
-          <History size={40} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">
-            {busca ? 'Nenhuma baixa encontrada para essa busca.' : 'Nenhuma baixa registrada ainda.'}
-          </p>
-        </div>
+        <EmptyState
+          icon={History}
+          title={busca ? 'Nenhuma baixa encontrada para essa busca.' : 'Nenhuma baixa registrada ainda.'}
+        />
       ) : (
         <div className="space-y-2">
           {baixasFiltradas.map((b) => {

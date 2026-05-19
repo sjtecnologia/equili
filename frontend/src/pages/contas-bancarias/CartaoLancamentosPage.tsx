@@ -9,6 +9,8 @@ import {
 } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency } from '@/utils/format'
+import { ModalDialog } from '@/components/ui/ModalDialog'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 /* ─── Tipos ─── */
 interface Lancamento {
@@ -86,15 +88,8 @@ function LancamentoCartaoModal({
   const isPagamento = tipoInicial === 'pagamento'
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="font-semibold text-gray-800">
-            {isPagamento ? 'Pagar fatura' : 'Nova compra'}
-          </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-        </div>
-        <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-3">
+    <ModalDialog title={isPagamento ? 'Pagar fatura' : 'Nova compra'} onClose={onClose}>
+      <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-3">
           <input type="hidden" {...register('tipo')} />
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
@@ -134,8 +129,7 @@ function LancamentoCartaoModal({
             {isPagamento ? 'Registrar pagamento' : 'Adicionar compra'}
           </button>
         </form>
-      </div>
-    </div>
+    </ModalDialog>
   )
 }
 
@@ -413,11 +407,11 @@ export default function CartaoLancamentosPage() {
           </button>
         </div>
       ) : lancamentos.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <ShoppingCart size={40} className="mx-auto mb-3 opacity-30" />
-          <p className="font-medium">Nenhuma movimentação ainda</p>
-          <p className="text-sm mt-1">Registre compras ou pagamentos de fatura</p>
-        </div>
+        <EmptyState
+          icon={ShoppingCart}
+          title="Nenhuma movimentação ainda"
+          description="Registre compras ou pagamentos de fatura"
+        />
       ) : (
         <div className="space-y-4">
           {mesesOrdenados.map((mes) => (
