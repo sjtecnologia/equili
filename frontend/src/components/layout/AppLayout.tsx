@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Outlet, Link, useNavigate } from 'react-router-dom'
+import { Outlet, Link } from 'react-router-dom'
 import { Settings, Menu } from 'lucide-react'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
@@ -14,11 +14,7 @@ function avatarLetters(nome: string) {
 
 export default function AppLayout() {
   const user = useAuthStore((s) => s.user)
-  const navigate = useNavigate()
   const [drawerOpen, setDrawerOpen] = useState(false)
-
-  // Não usado diretamente, mas mantém o navigate disponível para futuros usos
-  void navigate
 
   return (
     // 100dvh = dynamic viewport height, certo em iOS WebView

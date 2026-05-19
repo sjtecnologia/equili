@@ -20,18 +20,18 @@ export interface NavItem {
 }
 
 export const ALL_NAV_ITEMS: NavItem[] = [
-  { to: '/dashboard',       label: 'Início',       icon: LayoutDashboard },
-  { to: '/renda',           label: 'Renda',         icon: Wallet },
-  { to: '/dividas',         label: 'Dívidas',       icon: CreditCard },
-  { to: '/dividas/baixas',  label: 'Baixas',        icon: Receipt },
-  { to: '/contas-pagar',    label: 'A Pagar',       icon: ArrowUpCircle },
-  { to: '/contas-receber',  label: 'A Receber',     icon: ArrowDownCircle },
-  { to: '/investimentos',        label: 'Investimentos', icon: TrendingUp },
-  { to: '/contas-bancarias',     label: 'Contas e Cartões', icon: Landmark },
-  { to: '/chat',                 label: 'Assistente IA', icon: MessageSquare },
-  { to: '/plano-de-acao',   label: 'Plano IA',      icon: Sparkles },
-  { to: '/relatorios',      label: 'Relatórios',    icon: BarChart2 },
-  { to: '/configuracoes',   label: 'Config.',       icon: Settings },
+  { to: '/dashboard',       label: 'Dashboard',         icon: LayoutDashboard },
+  { to: '/renda',           label: 'Renda',              icon: Wallet },
+  { to: '/dividas',         label: 'Dívidas',            icon: CreditCard },
+  { to: '/dividas/baixas',  label: 'Baixas de Dívidas',  icon: Receipt },
+  { to: '/contas-pagar',    label: 'Contas a Pagar',     icon: ArrowUpCircle },
+  { to: '/contas-receber',  label: 'Contas a Receber',   icon: ArrowDownCircle },
+  { to: '/investimentos',   label: 'Investimentos',      icon: TrendingUp },
+  { to: '/contas-bancarias', label: 'Contas e Cartões',  icon: Landmark },
+  { to: '/chat',            label: 'Assistente IA',      icon: MessageSquare },
+  { to: '/plano-de-acao',   label: 'Plano de Ação',      icon: Sparkles },
+  { to: '/relatorios',      label: 'Relatórios',         icon: BarChart2 },
+  { to: '/configuracoes',   label: 'Configurações',      icon: Settings },
 ]
 
 export const DEFAULT_SHORTCUTS = [

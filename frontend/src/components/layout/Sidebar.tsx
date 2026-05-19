@@ -1,22 +1,11 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Wallet, CreditCard, Sparkles, Settings, LogOut, ArrowDownCircle, ArrowUpCircle, BarChart2, Receipt, MessageSquare, TrendingUp, Landmark } from 'lucide-react'
+import { Settings, LogOut } from 'lucide-react'
+import { ALL_NAV_ITEMS } from '@/config/navItems'
 import { useAuthStore } from '@/stores/authStore'
 import api from '@/services/api'
 import logo from '@/assets/logo.png'
 
-const navItems = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/renda', icon: Wallet, label: 'Renda' },
-  { to: '/dividas', icon: CreditCard, label: 'Dívidas' },
-  { to: '/dividas/baixas', icon: Receipt, label: 'Baixas de Dívidas' },
-  { to: '/contas-pagar', icon: ArrowUpCircle, label: 'Contas a Pagar' },
-  { to: '/contas-receber', icon: ArrowDownCircle, label: 'Contas a Receber' },
-  { to: '/plano-de-acao', icon: Sparkles, label: 'Plano de Ação' },
-  { to: '/chat', icon: MessageSquare, label: 'Assistente IA' },
-  { to: '/investimentos', icon: TrendingUp, label: 'Investimentos' },
-  { to: '/contas-bancarias', icon: Landmark, label: 'Contas e Cartões' },
-  { to: '/relatorios', icon: BarChart2, label: 'Relatórios' },
-]
+const mainNavItems = ALL_NAV_ITEMS.filter((item) => item.to !== '/configuracoes')
 
 function avatarLetters(nome: string) {
   return nome
@@ -60,7 +49,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 p-4 space-y-1">
-        {navItems.map(({ to, icon: Icon, label }) => (
+        {mainNavItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}

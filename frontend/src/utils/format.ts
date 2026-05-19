@@ -10,13 +10,4 @@ export function formatDate(dateStr: string): string {
   return new Intl.DateTimeFormat('pt-BR').format(date)
 }
 
-export function formatMonthYear(yyyyMm: string): string {
-  const [year, month] = yyyyMm.split('-')
-  const date = new Date(Number(year), Number(month) - 1)
-  return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(date)
-}
 
-export function parseCurrencyInput(value: string): number {
-  const clean = value.replace(/[^\d,]/g, '').replace(',', '.')
-  return parseFloat(clean) || 0
-}
