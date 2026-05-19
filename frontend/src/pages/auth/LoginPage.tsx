@@ -55,9 +55,7 @@ export default function LoginPage() {
 
   async function finalizarLogin(accessToken: string) {
     setAccessToken(accessToken)
-    const me = await api.get('/usuarios/me', {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
+    const me = await api.get('/usuarios/me')
     setUser(me.data)
     navigate('/dashboard', { replace: true })
   }

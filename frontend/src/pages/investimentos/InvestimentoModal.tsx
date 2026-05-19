@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import api from '@/services/api'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
-import { useAuthStore } from '@/stores/authStore'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
 import { ModalDialog } from '@/components/ui/ModalDialog'
 import { investimentoSchema } from '@/lib/schemas/financeiro'
@@ -39,7 +38,6 @@ export function InvestimentoModal({
   onClose: () => void
   editando: Investimento | null
 }) {
-  const token = useAuthStore((s) => s.accessToken)
   const qc = useQueryClient()
   const { submit, error: erroForm } = useFormSubmit()
 
@@ -73,11 +71,10 @@ export function InvestimentoModal({
 
   const onSubmit = async (data: FormData) => {
     await submit(async () => {
-      const headers = { Authorization: `Bearer ${token}` }
       if (editando) {
-        await api.patch(`/investimentos/${editando.id}`, data, { headers })
+        await api.patch(`/investimentos/${editando.id}`, data)
       } else {
-        await api.post('/investimentos', data, { headers })
+        await api.post('/investimentos', data)
       }
       qc.invalidateQueries({ queryKey: ['investimentos'] })
       qc.invalidateQueries({ queryKey: ['investimentos-resumo'] })

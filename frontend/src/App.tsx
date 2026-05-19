@@ -90,9 +90,7 @@ export default function App() {
       .post('/api/v1/auth/refresh', {}, { withCredentials: true })
       .then(async (res) => {
         setAccessToken(res.data.access_token)
-        const me = await api.get('/usuarios/me', {
-          headers: { Authorization: `Bearer ${res.data.access_token}` },
-        })
+        const me = await api.get('/usuarios/me')
         setUser(me.data)
       })
       .catch(() => {})

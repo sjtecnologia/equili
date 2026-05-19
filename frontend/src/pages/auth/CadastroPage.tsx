@@ -44,9 +44,7 @@ export default function CadastroPage() {
 
   async function finalizarLogin(accessToken: string) {
     setAccessToken(accessToken)
-    const me = await api.get('/usuarios/me', {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
+    const me = await api.get('/usuarios/me')
     setUser(me.data)
     navigate('/onboarding', { replace: true })
   }
