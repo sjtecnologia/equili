@@ -1,6 +1,5 @@
 import { useRef, useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
@@ -13,7 +12,8 @@ import { ModalDialog } from '@/components/ui/ModalDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { lancamentoContaSchema } from '@/lib/schemas/financeiro'
 import type { LancamentoContaFormData } from '@/lib/schemas/financeiro'
-import type { Lancamento, ContaLancamentosData } from '@/types/financeiro'
+import type { Lancamento } from '@/types/financeiro'
+import { useContaLancamentos } from '@/hooks/useContaLancamentos'
 
 /* ─── Schema ─── */
 const lancamentoSchema = lancamentoContaSchema
@@ -369,33 +369,17 @@ function ExtratoContaModal({
 /* ─── Página principal ─── */
 export default function ContaLancamentosPage() {
   const { contaId } = useParams<{ contaId: string }>()
-  const queryClient = useQueryClient()
+  const { data, isLoading, isError, deletar, invalidate } = useContaLancamentos(contaId)
   const [showNovo, setShowNovo] = useState(false)
   const [showOFX, setShowOFX] = useState(false)
   const [showExtrato, setShowExtrato] = useState(false)
 
-  const queryKey = ['conta-lancamentos', contaId]
-  const { data, isLoading, isError } = useQuery<ContaLancamentosData>({
-    queryKey,
-    queryFn: () => api.get(`/contas-bancarias/${contaId}/lancamentos`).then((r) => r.data),
-    enabled: !!contaId,
-    retry: 1,
-    staleTime: 5 * 60_000,
-  })
-
-  const deletar = useMutation({
-    mutationFn: (lancamentoId: string) =>
-      api.delete(`/contas-bancarias/${contaId}/lancamentos/${lancamentoId}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
-  })
-
   function handleDelete(id: string) {
-    if (confirm('Remover este lançamento?')) deletar.mutate(id)
+    if (confirm('Remover este lançamento?')) deletar(id)
   }
 
   function onRefresh() {
-    queryClient.invalidateQueries({ queryKey })
-    queryClient.invalidateQueries({ queryKey: ['contas-bancarias'] })
+    invalidate()
   }
 
   const lancamentos = data?.lancamentos ?? []
@@ -504,7 +488,7 @@ export default function ContaLancamentosPage() {
           <p className="font-medium">Erro ao carregar lançamentos</p>
           <p className="text-sm mt-1">Verifique sua conexão e tente novamente</p>
           <button
-            onClick={() => queryClient.invalidateQueries({ queryKey })}
+            onClick={invalidate}
             className="mt-3 text-sm text-primary-600 underline"
           >
             Tentar novamente

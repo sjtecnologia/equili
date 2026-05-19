@@ -1,8 +1,6 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Calendar, Lightbulb, Loader2, RefreshCw, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react'
-import api from '@/services/api'
-import type { ContaAPagar, ContaAReceber, PlanoAcao } from '@/types/financeiro'
+import { usePlanoAcao } from '@/hooks/usePlanoAcao'
 
 const mensagensCarregando = [
   'Analisando sua situação financeira...',
@@ -29,50 +27,18 @@ function LoadingState() {
 }
 
 export default function PlanoAcaoPage() {
-  const queryClient = useQueryClient()
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [limitError, setLimitError] = useState(false)
-  const [erroGerar, setErroGerar] = useState<string | null>(null)
-
-  const { data: plano, isLoading } = useQuery<PlanoAcao | null>({
-    queryKey: ['plano-atual'],
-    queryFn: () =>
-      api
-        .get('/plano-acao/atual')
-        .then((r) => r.data)
-        .catch(() => null),
-  })
-
-  const { data: contasPagar } = useQuery<ContaAPagar[]>({
-    queryKey: ['contas-pagar-pendentes-plano'],
-    queryFn: () => api.get('/contas-pagar?status=pendente').then((r) => r.data),
-  })
-
-  const { data: contasReceber } = useQuery<ContaAReceber[]>({
-    queryKey: ['contas-receber-pendentes-plano'],
-    queryFn: () => api.get('/contas-receber?status=pendente').then((r) => r.data),
-  })
-
-  const gerarMutation = useMutation({
-    mutationFn: () => api.post('/plano-acao/gerar'),
-    onMutate: () => { setIsGenerating(true); setErroGerar(null) },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['plano-atual'] })
-      setIsGenerating(false)
-    },
-    onError: (err: { response?: { status: number; data?: { detail?: string } } }) => {
-      setIsGenerating(false)
-      if (err.response?.status === 403) setLimitError(true)
-      else if (err.response?.status === 400) setErroGerar(err.response.data?.detail ?? 'Não foi possível gerar o plano.')
-      else setErroGerar('Erro ao gerar o plano. Tente novamente.')
-    },
-  })
-
-  const feedbackMutation = useMutation({
-    mutationFn: ({ id, valor }: { id: string; valor: number }) =>
-      api.post(`/plano-acao/${id}/feedback`, { feedback: valor }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['plano-atual'] }),
-  })
+  const {
+    plano,
+    isLoading,
+    isGenerating,
+    limitError,
+    erroGerar,
+    contasPagar,
+    contasReceber,
+    gerar,
+    isGerando,
+    darFeedback,
+  } = usePlanoAcao()
 
   if (isLoading) return <LoadingState />
   if (isGenerating) return <LoadingState />
@@ -86,8 +52,8 @@ export default function PlanoAcaoPage() {
         </div>
         {plano && (
           <button
-            onClick={() => gerarMutation.mutate()}
-            disabled={gerarMutation.isPending}
+            onClick={gerar}
+            disabled={isGerando}
             className="btn-ghost flex items-center gap-2 text-sm"
           >
             <RefreshCw size={14} />
@@ -121,11 +87,11 @@ export default function PlanoAcaoPage() {
             </p>
           </div>
           <button
-            onClick={() => gerarMutation.mutate()}
-            disabled={gerarMutation.isPending || limitError}
+            onClick={gerar}
+            disabled={isGerando || limitError}
             className="btn-primary flex items-center gap-2 mx-auto"
           >
-            {gerarMutation.isPending ? (
+            {isGerando ? (
               <Loader2 size={16} className="animate-spin" />
             ) : (
               <Sparkles size={16} />
@@ -298,16 +264,14 @@ export default function PlanoAcaoPage() {
               <p className="text-sm text-gray-600">Este plano foi útil para você?</p>
               <div className="flex gap-2">
                 <button
-                  onClick={() => feedbackMutation.mutate({ id: plano.id, valor: 1 })}
-                  disabled={feedbackMutation.isPending}
+                  onClick={() => darFeedback({ id: plano.id, valor: 1 })}
                   className="p-2 rounded-lg hover:bg-green-50 text-gray-400 hover:text-success-500 transition-colors"
                   aria-label="Gostei"
                 >
                   <ThumbsUp size={18} />
                 </button>
                 <button
-                  onClick={() => feedbackMutation.mutate({ id: plano.id, valor: -1 })}
-                  disabled={feedbackMutation.isPending}
+                  onClick={() => darFeedback({ id: plano.id, valor: -1 })}
                   className="p-2 rounded-lg hover:bg-danger-100 text-gray-400 hover:text-danger-500 transition-colors"
                   aria-label="Não gostei"
                 >

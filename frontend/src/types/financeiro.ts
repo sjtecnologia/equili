@@ -210,3 +210,40 @@ export interface PlanoAcao {
   data_livre_prevista: string | null
   feedback: number | null
 }
+
+// ─── Relatórios ───────────────────────────────────────────────────────────────
+
+export interface FluxoMes {
+  mes: number
+  mes_nome: string
+  ano: number
+  entradas: number
+  saidas: number
+  saldo: number
+}
+
+export interface RelatorioDetalhado {
+  contas_pagar: ContaAPagar[]
+  contas_receber: ContaAReceber[]
+  totais: {
+    total_pagar: number
+    total_receber: number
+    saldo: number
+  }
+}
+
+export interface ContaPagarDiaItem {
+  id: string
+  descricao: string
+  categoria: string
+  valor: number
+  status: string
+  tipo: string
+  observacao: string | null
+}
+
+export interface ContasPagarDiaData {
+  data: string
+  total: number
+  contas: ContaPagarDiaItem[]
+}

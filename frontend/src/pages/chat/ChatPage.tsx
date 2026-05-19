@@ -1,12 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { Send, Bot, User, Loader2, RefreshCw } from 'lucide-react'
-import api from '@/services/api'
-import { useAuthStore } from '@/stores/authStore'
-
-interface Message {
-  role: 'user' | 'assistant'
-  content: string
-}
+import { useChat } from '@/hooks/useChat'
 
 const SUGESTOES = [
   'Quanto tenho a pagar esse mês?',
@@ -31,71 +25,18 @@ function format(text: string) {
 }
 
 export default function ChatPage() {
-  const token = useAuthStore((s) => s.accessToken)
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content:
-        'Olá! Sou o assistente financeiro do Equili 👋\n\nPode me fazer qualquer pergunta sobre sua situação financeira. Tenho acesso aos seus dados em tempo real.',
-    },
-  ])
-  const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
+  const { messages, input, setInput, loading, send, reset, inputRef } = useChat()
   const bottomRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
-
-  const send = async (text?: string) => {
-    const userText = (text ?? input).trim()
-    if (!userText || loading) return
-
-    const userMsg: Message = { role: 'user', content: userText }
-    const newMessages = [...messages, userMsg]
-    setMessages(newMessages)
-    setInput('')
-    setLoading(true)
-
-    try {
-      const { data } = await api.post(
-        '/chat',
-        {
-          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      setMessages((prev) => [...prev, { role: 'assistant', content: data.reply }])
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: 'Desculpe, não consegui processar sua pergunta agora. Tente novamente em instantes.',
-        },
-      ])
-    } finally {
-      setLoading(false)
-      setTimeout(() => inputRef.current?.focus(), 100)
-    }
-  }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       send()
     }
-  }
-
-  const reset = () => {
-    setMessages([
-      {
-        role: 'assistant',
-        content: 'Conversa reiniciada. Como posso ajudar?',
-      },
-    ])
-    setInput('')
   }
 
   return (
