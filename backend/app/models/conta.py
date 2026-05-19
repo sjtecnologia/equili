@@ -8,6 +8,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 
+# TODO: Modelo legado — tabela `contas_fixas` não possui rotas CRUD ativas.
+# A FK em ContaLancamento ainda referencia esta tabela. Antes de remover:
+# 1. Verificar dados em produção; 2. Criar migração para dropar a FK e a tabela.
 class ContaFixa(Base):
     __tablename__ = "contas_fixas"
 
@@ -23,6 +26,8 @@ class ContaFixa(Base):
     usuario: Mapped["Usuario"] = relationship(back_populates="contas_fixas")  # noqa: F821
 
 
+# TODO: Modelo legado — tabela `alertas` não é consultada por nenhuma rota.
+# Antes de remover: verificar dados em produção e criar migração adequada.
 class Alerta(Base):
     __tablename__ = "alertas"
 
