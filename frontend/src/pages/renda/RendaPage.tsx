@@ -150,6 +150,7 @@ export default function RendaPage() {
   const { data: rendas = [], isLoading } = useQuery<Renda[]>({
     queryKey: ['rendas'],
     queryFn: () => api.get('/rendas').then((r) => r.data),
+    staleTime: 5 * 60_000,
   })
 
   const deleteMutation = useMutation({

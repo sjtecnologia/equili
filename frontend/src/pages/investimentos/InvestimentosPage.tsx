@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { TrendingUp, TrendingDown, Pencil, Trash2, Loader2, PieChart } from 'lucide-react'
 import { useForm } from 'react-hook-form'
@@ -235,11 +235,13 @@ export default function InvestimentosPage() {
   const { data: resumo } = useQuery<CarteiraResumo>({
     queryKey: ['investimentos-resumo'],
     queryFn: () => api.get('/investimentos/resumo', { headers }).then((r) => r.data),
+    staleTime: 5 * 60_000,
   })
 
   const { data: lista = [], isLoading } = useQuery<Investimento[]>({
     queryKey: ['investimentos'],
     queryFn: () => api.get('/investimentos', { headers }).then((r) => r.data),
+    staleTime: 5 * 60_000,
   })
 
   const deletar = useMutation({
@@ -261,6 +263,11 @@ export default function InvestimentosPage() {
   }
 
   const rentPos = (resumo?.rentabilidade_pct ?? 0) >= 0
+  const tiposOrdenados = useMemo(
+    () => Object.entries(resumo?.por_tipo ?? {}).sort(([, a], [, b]) => b - a),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [resumo?.por_tipo]
+  )
 
   return (
     <div className="p-4 space-y-6 max-w-2xl mx-auto">
@@ -301,9 +308,7 @@ export default function InvestimentosPage() {
             <h2 className="text-sm font-semibold text-gray-700">Distribuição por tipo</h2>
           </div>
           <div className="space-y-2">
-            {Object.entries(resumo.por_tipo)
-              .sort(([, a], [, b]) => b - a)
-              .map(([tipo, valor]) => {
+            {tiposOrdenados.map(([tipo, valor]) => {
                 const pct = resumo.total_atual > 0 ? (valor / resumo.total_atual) * 100 : 0
                 return (
                   <div key={tipo}>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2, X, Pencil, Trash2, Search, History } from 'lucide-react'
 import api from '@/services/api'
@@ -25,6 +25,7 @@ export default function BaixasPage() {
   const { data: baixas = [], isLoading } = useQuery<Baixa[]>({
     queryKey,
     queryFn: () => api.get('/dividas/pagamentos').then((r) => r.data),
+    staleTime: 5 * 60_000,
   })
 
   const [busca, setBusca] = useState('')
@@ -81,15 +82,18 @@ export default function BaixasPage() {
     }
   }
 
-  const baixasFiltradas = baixas.filter((b) => {
-    if (!busca.trim()) return true
-    const termo = busca.toLowerCase()
-    return (
-      b.divida_descricao.toLowerCase().includes(termo) ||
-      (b.divida_credor?.toLowerCase().includes(termo) ?? false) ||
-      (b.observacao?.toLowerCase().includes(termo) ?? false)
-    )
-  })
+  const baixasFiltradas = useMemo(
+    () => baixas.filter((b) => {
+      if (!busca.trim()) return true
+      const termo = busca.toLowerCase()
+      return (
+        b.divida_descricao.toLowerCase().includes(termo) ||
+        (b.divida_credor?.toLowerCase().includes(termo) ?? false) ||
+        (b.observacao?.toLowerCase().includes(termo) ?? false)
+      )
+    }),
+    [baixas, busca]
+  )
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto">
