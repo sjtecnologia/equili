@@ -36,20 +36,14 @@ export function usePushNotification() {
       if (result !== 'granted') return
 
       const reg = await navigator.serviceWorker.ready
-      const { data } = await api.get('/notificacoes/vapid-public-key', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const { data } = await api.get('/notificacoes/vapid-public-key')
 
       const subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(data.public_key).buffer as ArrayBuffer,
       })
 
-      await api.post(
-        '/notificacoes/subscribe',
-        { subscription: subscription.toJSON() },
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
+      await api.post('/notificacoes/subscribe', { subscription: subscription.toJSON() })
     } catch (err) {
       notify.error('Erro ao ativar notificações. Tente novamente.')
       console.error('Erro ao ativar notificações:', err)
@@ -66,11 +60,7 @@ export function usePushNotification() {
       const sub = await reg.pushManager.getSubscription()
       if (sub) {
         await sub.unsubscribe()
-        await api.post(
-          '/notificacoes/unsubscribe',
-          { endpoint: sub.endpoint },
-          { headers: { Authorization: `Bearer ${token}` } }
-        )
+        await api.post('/notificacoes/unsubscribe', { endpoint: sub.endpoint })
       }
       setPermission('default')
     } catch (err) {
