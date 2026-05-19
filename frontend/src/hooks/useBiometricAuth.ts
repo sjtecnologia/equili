@@ -31,8 +31,12 @@ export function useBiometricAuth() {
 
   /** Verifica se o usuário já habilitou o login biométrico */
   async function isHabilitado(): Promise<boolean> {
-    const { value } = await Preferences.get({ key: KEY_HABILITADO })
-    return value === 'true'
+    try {
+      const { value } = await Preferences.get({ key: KEY_HABILITADO })
+      return value === 'true'
+    } catch {
+      return false
+    }
   }
 
   /**
@@ -40,20 +44,28 @@ export function useBiometricAuth() {
    * Deve ser chamado APÓS login bem-sucedido com email/senha.
    */
   async function salvarCredenciais(email: string, senha: string): Promise<void> {
-    await Promise.all([
-      Preferences.set({ key: KEY_EMAIL, value: email }),
-      Preferences.set({ key: KEY_SENHA, value: senha }),
-      Preferences.set({ key: KEY_HABILITADO, value: 'true' }),
-    ])
+    try {
+      await Promise.all([
+        Preferences.set({ key: KEY_EMAIL, value: email }),
+        Preferences.set({ key: KEY_SENHA, value: senha }),
+        Preferences.set({ key: KEY_HABILITADO, value: 'true' }),
+      ])
+    } catch (err) {
+      console.warn('[useBiometricAuth] Falha ao salvar credenciais:', err)
+    }
   }
 
   /** Remove as credenciais salvas e desabilita login biométrico */
   async function desabilitar(): Promise<void> {
-    await Promise.all([
-      Preferences.remove({ key: KEY_EMAIL }),
-      Preferences.remove({ key: KEY_SENHA }),
-      Preferences.set({ key: KEY_HABILITADO, value: 'false' }),
-    ])
+    try {
+      await Promise.all([
+        Preferences.remove({ key: KEY_EMAIL }),
+        Preferences.remove({ key: KEY_SENHA }),
+        Preferences.set({ key: KEY_HABILITADO, value: 'false' }),
+      ])
+    } catch (err) {
+      console.warn('[useBiometricAuth] Falha ao remover credenciais:', err)
+    }
   }
 
   /**

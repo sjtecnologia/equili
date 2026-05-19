@@ -232,15 +232,22 @@ function CartaoModal({
   })
 
   const corAtual = watch('cor')
+  const [erro, setErro] = useState('')
 
   async function onSubmit(data: CartaoFormData) {
-    if (isEdit) {
-      await api.patch(`/cartoes-credito/${cartao!.id}`, data)
-    } else {
-      await api.post('/cartoes-credito', data)
+    setErro('')
+    try {
+      if (isEdit) {
+        await api.patch(`/cartoes-credito/${cartao!.id}`, data)
+      } else {
+        await api.post('/cartoes-credito', data)
+      }
+      onSuccess()
+      onClose()
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setErro(detail ?? 'Erro ao salvar. Tente novamente.')
     }
-    onSuccess()
-    onClose()
   }
 
   return (
@@ -317,6 +324,7 @@ function CartaoModal({
               ))}
             </div>
           </div>
+          {erro && <p className="text-sm text-danger-600 bg-danger-50 rounded-lg px-3 py-2">{erro}</p>}
           <button
             type="submit"
             disabled={isSubmitting}
