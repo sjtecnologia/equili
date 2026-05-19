@@ -7,6 +7,8 @@ import { Loader2, Eye, EyeOff } from 'lucide-react'
 import { Capacitor } from '@capacitor/core'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'
+import { useGoogleAuth } from '@/hooks/useGoogleAuth'
+import { parseApiError } from '@/utils/api'
 import logo from '@/assets/logo.png'
 
 const IconGoogle = () => (
@@ -36,7 +38,7 @@ export default function CadastroPage() {
   const setUser = useAuthStore((s) => s.setUser)
   const [showPassword, setShowPassword] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
-  const [socialLoading, setSocialLoading] = useState<'google' | null>(null)
+  const { getIdToken, loading: googleLoading } = useGoogleAuth()
 
   const isNative = Capacitor.isNativePlatform()
 
@@ -50,21 +52,18 @@ export default function CadastroPage() {
   }
 
   async function cadastroGoogle() {
-    setSocialLoading('google')
     setServerError(null)
+    const { token, error } = await getIdToken()
+    if (!token) {
+      if (error) setServerError(error)
+      return
+    }
     try {
-      const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
-      const gUser = await GoogleAuth.signIn()
-      const idToken = gUser.authentication.idToken
-      if (!idToken) throw new Error('Token não recebido.')
-      const res = await api.post<{ access_token: string }>('/auth/google', { id_token: idToken })
+      const res = await api.post<{ access_token: string }>('/auth/google', { id_token: token })
       await finalizarLogin(res.data.access_token)
-    } catch (e: unknown) {
-      const err = e as { message?: string }
-      if (!err.message?.includes('cancel')) {
-        setServerError('Erro ao entrar com Google. Tente novamente.')
-      }
-    } finally { setSocialLoading(null) }
+    } catch {
+      setServerError('Erro ao entrar com Google. Tente novamente.')
+    }
   }
 
   const {
@@ -78,22 +77,8 @@ export default function CadastroPage() {
     try {
       const res = await api.post<{ access_token: string }>('/auth/register', data)
       await finalizarLogin(res.data.access_token)
-    } catch (err: unknown) {
-      const e = err as { response?: { status?: number; data?: { detail?: string | { msg: string }[] } } }
-      const status = e.response?.status
-      const detail = e.response?.data?.detail
-      if (status === 409) {
-        setServerError('Este e-mail já está cadastrado. Tente fazer login.')
-      } else if (status === 422 && Array.isArray(detail)) {
-        // Erro de validação Pydantic — mostrar primeiro erro
-        setServerError(detail[0]?.msg || 'Dados inválidos. Verifique os campos.')
-      } else if (typeof detail === 'string') {
-        setServerError(detail)
-      } else if (!status) {
-        setServerError('Servidor indisponível. Tente novamente em instantes.')
-      } else {
-        setServerError('Erro ao criar conta. Tente novamente.')
-      }
+    } catch (err) {
+      setServerError(parseApiError(err))
     }
   }
 
@@ -112,10 +97,10 @@ export default function CadastroPage() {
             <button
               type="button"
               onClick={cadastroGoogle}
-              disabled={socialLoading !== null}
+              disabled={googleLoading}
               className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
-              {socialLoading === 'google' ? <Loader2 size={16} className="animate-spin" /> : <IconGoogle />}
+              {googleLoading ? <Loader2 size={16} className="animate-spin" /> : <IconGoogle />}
               Continuar com Google
             </button>
           )}

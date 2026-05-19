@@ -3,10 +3,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Trash2, Loader2, X, CheckCircle, Lock, Pencil, AlertTriangle, History, CalendarClock } from 'lucide-react'
+import { Trash2, Loader2, CheckCircle, Lock, Pencil, AlertTriangle, History, CalendarClock } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
+import { ModalDialog } from '@/components/ui/ModalDialog'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { SkeletonList } from '@/components/ui/SkeletonList'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 interface Divida {
   id: string
@@ -287,23 +291,15 @@ function DividaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white rounded-t-2xl">
-          <h2 className="font-semibold text-gray-800">Nova dívida</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X size={20} />
-          </button>
-        </div>
-        <DividaForm
-          onSubmit={onSubmit}
-          isSubmitting={isSubmitting}
-          serverError={serverError}
-          onClose={onClose}
-          submitLabel="Salvar"
-        />
-      </div>
-    </div>
+    <ModalDialog title="Nova dívida" onClose={onClose} scrollable>
+      <DividaForm
+        onSubmit={onSubmit}
+        isSubmitting={isSubmitting}
+        serverError={serverError}
+        onClose={onClose}
+        submitLabel="Salvar"
+      />
+    </ModalDialog>
   )
 }
 
@@ -358,15 +354,7 @@ function PagarParcelaModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="font-semibold text-gray-800">Registrar pagamento</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X size={20} />
-          </button>
-        </div>
-
+    <ModalDialog title="Registrar pagamento" onClose={onClose} size="sm">
         <div className="p-4 space-y-4">
           {/* Info da dívida */}
           <div className="bg-gray-50 rounded-xl p-3">
@@ -472,8 +460,7 @@ function PagarParcelaModal({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </ModalDialog>
   )
 }
 
@@ -539,30 +526,12 @@ function HistoricoPagamentosModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[85vh] flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b">
-          <div>
-            <h2 className="font-semibold text-gray-800">Histórico de pagamentos</h2>
-            <p className="text-xs text-gray-400 truncate">{divida.descricao}</p>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="overflow-y-auto flex-1 p-4">
+    <ModalDialog title="Histórico de pagamentos" onClose={onClose} subtitle={divida.descricao} scrollable>
+        <div className="p-4">
           {isLoading ? (
-            <div className="space-y-2">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />
-              ))}
-            </div>
+            <SkeletonList count={3} height="h-16" />
           ) : pagamentos.length === 0 ? (
-            <div className="text-center py-8">
-              <History size={32} className="text-gray-300 mx-auto mb-2" />
-              <p className="text-sm text-gray-500">Nenhum pagamento registrado ainda.</p>
-            </div>
+            <EmptyState icon={History} title="Nenhum pagamento registrado ainda." />
           ) : (
             <div className="space-y-2">
               {pagamentos.map((p) => {
@@ -664,8 +633,7 @@ function HistoricoPagamentosModal({
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </ModalDialog>
   )
 }
 
@@ -709,24 +677,16 @@ function EditarDividaModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white rounded-t-2xl">
-          <h2 className="font-semibold text-gray-800">Editar dívida</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X size={20} />
-          </button>
-        </div>
-        <DividaForm
-          defaultValues={defaultValues}
-          onSubmit={onSubmit}
-          isSubmitting={isSubmitting}
-          serverError={serverError}
-          onClose={onClose}
-          submitLabel="Atualizar"
-        />
-      </div>
-    </div>
+    <ModalDialog title="Editar dívida" onClose={onClose} scrollable>
+      <DividaForm
+        defaultValues={defaultValues}
+        onSubmit={onSubmit}
+        isSubmitting={isSubmitting}
+        serverError={serverError}
+        onClose={onClose}
+        submitLabel="Atualizar"
+      />
+    </ModalDialog>
   )
 }
 
@@ -771,20 +731,11 @@ export default function DividasPage() {
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-800">Dívidas</h1>
-          <p className="text-sm text-gray-500">{dividasAtivas.length} dívida(s) ativa(s)</p>
-        </div>
-        <button
-          onClick={() => setShowModal(true)}
-          disabled={isLoading}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus size={16} />
-          <span className="hidden sm:inline">Adicionar</span>
-        </button>
-      </div>
+      <PageHeader
+        title="Dívidas"
+        subtitle={`${dividasAtivas.length} dívida(s) ativa(s)`}
+        action={{ label: 'Adicionar', onClick: () => setShowModal(true), disabled: isLoading }}
+      />
 
       {/* Limite freemium */}
       {atingiuLimite && (
@@ -854,17 +805,9 @@ export default function DividasPage() {
 
       {/* Lista */}
       {isLoading ? (
-        <div className="space-y-3">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="card h-24 animate-pulse bg-gray-100" />
-          ))}
-        </div>
+        <SkeletonList count={3} height="h-24" />
       ) : dividasAtivas.length === 0 ? (
-        <div className="card p-8 text-center">
-          <CheckCircle size={32} className="text-success-500 mx-auto mb-2" />
-          <p className="font-semibold text-gray-700">Nenhuma dívida ativa!</p>
-          <p className="text-gray-500 text-sm mt-1">Parabéns pelo equilíbrio financeiro.</p>
-        </div>
+        <EmptyState icon={CheckCircle} title="Nenhuma dívida ativa!" description="Parabéns pelo equilíbrio financeiro." />
       ) : (
         <div className="space-y-3">
           {dividasAtivas.map((divida) => {

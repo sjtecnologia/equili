@@ -1,12 +1,16 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { TrendingUp, TrendingDown, Plus, Pencil, Trash2, X, Loader2, PieChart } from 'lucide-react'
+import { TrendingUp, TrendingDown, Pencil, Trash2, Loader2, PieChart } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'
+import { formatCurrency } from '@/utils/format'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
+import { ModalDialog } from '@/components/ui/ModalDialog'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -68,7 +72,7 @@ const TIPO_COLORS: Record<string, string> = {
 }
 
 function brl(v: number) {
-  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  return formatCurrency(v)
 }
 
 // ─── Modal de Formulário ──────────────────────────────────────────────────────
@@ -124,18 +128,12 @@ function InvestimentoModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 p-4">
-      <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-5 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-800">
-            {editando ? 'Editar investimento' : 'Novo investimento'}
-          </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X size={20} />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="p-5 space-y-4">
+    <ModalDialog
+      title={editando ? 'Editar investimento' : 'Novo investimento'}
+      onClose={onClose}
+      scrollable
+    >
+      <form onSubmit={handleSubmit(onSubmit)} className="p-5 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nome / Ticker *</label>
             <input type="text" placeholder="Ex: IVVB11, CDB XP, BTC" className="input-field" {...register('nome')} />
@@ -220,8 +218,7 @@ function InvestimentoModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </ModalDialog>
   )
 }
 
@@ -267,15 +264,11 @@ export default function InvestimentosPage() {
 
   return (
     <div className="p-4 space-y-6 max-w-2xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-800">Investimentos</h1>
-          <p className="text-sm text-gray-500">Acompanhe sua carteira</p>
-        </div>
-        <button onClick={() => { setEditando(null); setModal(true) }} className="btn-primary flex items-center gap-2">
-          <Plus size={16} /> Adicionar
-        </button>
-      </div>
+      <PageHeader
+        title="Investimentos"
+        subtitle="Acompanhe sua carteira"
+        action={{ label: 'Adicionar', onClick: () => { setEditando(null); setModal(true) } }}
+      />
 
       {/* Cards de resumo */}
       {resumo && (
@@ -334,11 +327,12 @@ export default function InvestimentosPage() {
           <Loader2 className="animate-spin text-indigo-500" size={24} />
         </div>
       ) : lista.length === 0 ? (
-        <div className="card p-8 text-center text-gray-400">
-          <TrendingUp size={32} className="mx-auto mb-2 opacity-40" />
-          <p>Nenhum investimento cadastrado ainda.</p>
-          <p className="text-sm mt-1">Adicione suas posições para acompanhar sua carteira.</p>
-        </div>
+        <EmptyState
+          icon={TrendingUp}
+          title="Nenhum investimento cadastrado ainda."
+          description="Adicione suas posições para acompanhar sua carteira."
+          action={{ label: 'Adicionar investimento', onClick: () => { setEditando(null); setModal(true) } }}
+        />
       ) : (
         <div className="space-y-3">
           {lista.map((inv) => {

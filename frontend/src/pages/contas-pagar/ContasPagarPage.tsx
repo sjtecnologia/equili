@@ -3,10 +3,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Trash2, Loader2, X, CheckCircle2, AlertCircle, RefreshCw, Layers, Pencil, CreditCard, Landmark } from 'lucide-react'
+import { Trash2, Loader2, X, CheckCircle2, AlertCircle, RefreshCw, Layers, Pencil, CreditCard, Landmark } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
+import { ModalDialog } from '@/components/ui/ModalDialog'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { SkeletonList } from '@/components/ui/SkeletonList'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 interface ContaAPagar {
   id: string
@@ -101,13 +105,8 @@ function EditarContaModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="font-semibold text-gray-800">Editar conta</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-        </div>
-        <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4">
+    <ModalDialog title="Editar conta" onClose={onClose} scrollable>
+      <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
             <input type="text" className={`input-field ${errors.descricao ? 'border-danger-500' : ''}`}
@@ -158,8 +157,7 @@ function EditarContaModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </ModalDialog>
   )
 }
 
@@ -208,12 +206,7 @@ function PagarContaModal({
      (meioPagamento === 'cartao' && !!cartaoSelecionado))
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="font-semibold text-gray-800">Confirmar pagamento</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-        </div>
+    <ModalDialog title="Confirmar pagamento" onClose={onClose} size="sm">
         <div className="p-4 space-y-4">
           <div className="bg-gray-50 rounded-xl p-3">
             <p className="font-semibold text-gray-800 truncate">{conta.descricao}</p>
@@ -277,8 +270,7 @@ function PagarContaModal({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </ModalDialog>
   )
 }
 
@@ -320,15 +312,8 @@ function ContaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (c
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="font-semibold text-gray-800">Nova conta a pagar</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X size={20} />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4">
+    <ModalDialog title="Nova conta a pagar" onClose={onClose} scrollable>
+      <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4">
           {/* Modalidade */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de lançamento</label>
@@ -462,8 +447,7 @@ function ContaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (c
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </ModalDialog>
   )
 }
 
@@ -514,17 +498,11 @@ export default function ContasPagarPage() {
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-800">Contas a Pagar</h1>
-          <p className="text-sm text-gray-500">{contas.filter((c) => c.status !== 'pago').length} conta(s) pendente(s)</p>
-        </div>
-        <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
-          <Plus size={16} />
-          <span className="hidden sm:inline">Adicionar</span>
-        </button>
-      </div>
+      <PageHeader
+        title="Contas a Pagar"
+        subtitle={`${contas.filter((c) => c.status !== 'pago').length} conta(s) pendente(s)`}
+        action={{ label: 'Adicionar', onClick: () => setShowModal(true) }}
+      />
 
       {/* Resumo */}
       <div className="grid grid-cols-2 gap-3">
@@ -557,26 +535,13 @@ export default function ContasPagarPage() {
 
       {/* Lista */}
       {isLoading ? (
-        <div className="space-y-3">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="card h-20 animate-pulse bg-gray-100" />
-          ))}
-        </div>
+        <SkeletonList count={3} height="h-20" />
       ) : contasFiltradas.length === 0 ? (
-        <div className="card p-8 text-center">
-          <CheckCircle2 size={32} className="text-success-500 mx-auto mb-2" />
-          <p className="font-semibold text-gray-700">
-            {filtroStatus === 'todos' ? 'Nenhuma conta cadastrada.' : `Nenhuma conta ${STATUS_LABELS[filtroStatus]?.label.toLowerCase()}.`}
-          </p>
-          {filtroStatus === 'todos' && (
-            <button
-              onClick={() => setShowModal(true)}
-              className="mt-3 text-primary-500 font-medium text-sm hover:underline"
-            >
-              Adicionar primeira conta
-            </button>
-          )}
-        </div>
+        <EmptyState
+          icon={CheckCircle2}
+          title={filtroStatus === 'todos' ? 'Nenhuma conta cadastrada.' : `Nenhuma conta ${STATUS_LABELS[filtroStatus]?.label.toLowerCase()}.`}
+          action={filtroStatus === 'todos' ? { label: 'Adicionar primeira conta', onClick: () => setShowModal(true) } : undefined}
+        />
       ) : (
         <div className="space-y-3">
           {contasFiltradas.map((conta) => {

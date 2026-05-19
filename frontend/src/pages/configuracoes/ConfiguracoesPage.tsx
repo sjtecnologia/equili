@@ -9,6 +9,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useNavStore } from '@/stores/navStore'
 import { ALL_NAV_ITEMS } from '@/config/navItems'
 import PushNotificationToggle from '@/components/pwa/PushNotificationToggle'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 // ─── Schema: editar perfil ────────────────────────────────────────────────────
 const perfilSchema = z.object({
@@ -295,10 +296,7 @@ export default function ConfiguracoesPage() {
 
   return (
     <div className="p-4 space-y-6 max-w-lg mx-auto">
-      <div>
-        <h1 className="text-xl font-bold text-gray-800">Configurações</h1>
-        <p className="text-sm text-gray-500">Gerencie seu perfil e preferências</p>
-      </div>
+      <PageHeader title="Configurações" subtitle="Gerencie seu perfil e preferências" />
 
       {/* Avatar + plano */}
       {user && (

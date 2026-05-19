@@ -3,6 +3,7 @@ import { TrendingUp, TrendingDown, CreditCard, Sparkles, AlertTriangle, Clock, W
 import { Link } from 'react-router-dom'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
+import { SkeletonList } from '@/components/ui/SkeletonList'
 
 interface DashboardResumo {
   renda_total: number
@@ -91,9 +92,7 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <div className="p-4 space-y-3">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="card h-20 animate-pulse bg-gray-100" />
-        ))}
+        <SkeletonList count={4} height="h-20" />
       </div>
     )
   }
