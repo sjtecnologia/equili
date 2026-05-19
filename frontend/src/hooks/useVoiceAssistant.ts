@@ -2,7 +2,7 @@
  * useVoiceAssistant — lógica completa do assistente de voz.
  * Extraído de VoiceButton para separar estado/lógica do JSX.
  */
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import api from '@/services/api'
@@ -106,6 +106,18 @@ interface SpeechRecognitionInstance {
   onend: (() => void) | null
 }
 
+function criarReconhecedor(win: AnyWindow): SpeechRecognitionInstance | null {
+  const SR = win.SpeechRecognition || win.webkitSpeechRecognition
+  if (!SR) return null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rec = new (SR as new () => SpeechRecognitionInstance)()
+  rec.lang = 'pt-BR'
+  rec.continuous = false
+  rec.interimResults = true
+  rec.maxAlternatives = 1
+  return rec
+}
+
 export function useVoiceAssistant() {
   const [estado, setEstado] = useState<EstadoVoz>('idle')
   const transcricaoRef = useRef('')
@@ -116,6 +128,7 @@ export function useVoiceAssistant() {
   const [erro, setErro] = useState('')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const reconhecimentoRef = useRef<SpeechRecognitionInstance | null>(null)
+  const processarTranscricaoRef = useRef<() => void>(() => {})
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
@@ -130,22 +143,14 @@ export function useVoiceAssistant() {
   }
 
   const iniciarEscuta = useCallback(() => {
-    const SR =
-      (window as AnyWindow).SpeechRecognition ||
-      (window as AnyWindow).webkitSpeechRecognition
+    const rec = criarReconhecedor(window as AnyWindow)
 
-    if (!SR) {
+    if (!rec) {
       setErro('Reconhecimento de voz não suportado neste dispositivo.')
       setEstado('erro')
       return
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rec = new (SR as new () => SpeechRecognitionInstance)()
-    rec.lang = 'pt-BR'
-    rec.continuous = false
-    rec.interimResults = true
-    rec.maxAlternatives = 1
     reconhecimentoRef.current = rec
 
     setTranscricao('')
@@ -167,7 +172,7 @@ export function useVoiceAssistant() {
       setEstado((s) => {
         if (s === 'ouvindo') {
           if (transcricaoRef.current.trim()) {
-            setTimeout(() => processarTranscricao(), 0)
+            setTimeout(() => processarTranscricaoRef.current(), 0)
           } else {
             return 'idle'
           }
@@ -177,19 +182,11 @@ export function useVoiceAssistant() {
     }
 
     rec.start()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   const ouvirDataPorVoz = useCallback(() => {
-    const SR =
-      (window as AnyWindow).SpeechRecognition ||
-      (window as AnyWindow).webkitSpeechRecognition
-    if (!SR) return
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rec = new (SR as new () => SpeechRecognitionInstance)()
-    rec.lang = 'pt-BR'
-    rec.continuous = false
-    rec.interimResults = true
-    rec.maxAlternatives = 1
+    const rec = criarReconhecedor(window as AnyWindow)
+    if (!rec) return
     setOuvinDataTranscricao('')
     setEstado('ouvindo_data')
     const textoRef = { current: '' }
@@ -252,6 +249,10 @@ export function useVoiceAssistant() {
     }
   }
 
+  useEffect(() => {
+    processarTranscricaoRef.current = processarTranscricao
+  })
+
   async function confirmarComData() {
     if (!acao || !dataSelecionada) return
     const tipoConta = acao.dados._tipo_conta as string
@@ -271,6 +272,63 @@ export function useVoiceAssistant() {
     }
   }
 
+  type DadosAcao = AcaoVoz['dados']
+
+  const ACTION_HANDLERS: Partial<Record<string, (dados: DadosAcao) => Promise<void>>> = {
+    atualizar_renda: async (dados) => {
+      const { data: rendas } = await withTimeout(api.get<{ id: string }[]>('/rendas'))
+      if (!rendas || rendas.length === 0) {
+        setErro('Nenhuma renda cadastrada para atualizar. Crie uma primeiro.')
+        setEstado('erro')
+        return
+      }
+      await withTimeout(api.patch(`/rendas/${rendas[0].id}`, { valor: dados.valor }))
+    },
+    excluir_renda: async (dados) => {
+      const { data: rendas } = await withTimeout(
+        api.get<{ id: string; descricao: string; valor: number }[]>('/rendas')
+      )
+      if (!rendas || rendas.length === 0) {
+        setErro('Nenhuma renda encontrada para excluir.')
+        setEstado('erro')
+        return
+      }
+      const busca = ((dados.descricao_busca as string) || '').toLowerCase()
+      const alvo = busca
+        ? rendas.find((r) => r.descricao.toLowerCase().includes(busca)) ?? rendas[0]
+        : rendas[0]
+      await withTimeout(api.delete(`/rendas/${alvo.id}`))
+    },
+    excluir_conta_pagar: async (dados) => {
+      const { data: contas } = await withTimeout(
+        api.get<{ id: string; descricao: string; status: string }[]>('/contas-pagar')
+      )
+      const busca = ((dados.descricao_busca as string) || '').toLowerCase()
+      const alvo =
+        contas.find((c) => c.status !== 'pago' && c.descricao.toLowerCase().includes(busca)) ??
+        contas.find((c) => c.descricao.toLowerCase().includes(busca))
+      if (!alvo) {
+        setErro(`Não encontrei conta com "${dados.descricao_busca}" para excluir.`)
+        setEstado('erro')
+        return
+      }
+      await withTimeout(api.delete(`/contas-pagar/${alvo.id}`))
+    },
+    excluir_conta_receber: async (dados) => {
+      const { data: contas } = await withTimeout(
+        api.get<{ id: string; descricao: string }[]>('/contas-receber')
+      )
+      const busca = ((dados.descricao_busca as string) || '').toLowerCase()
+      const alvo = contas.find((c) => c.descricao.toLowerCase().includes(busca))
+      if (!alvo) {
+        setErro(`Não encontrei conta a receber com "${dados.descricao_busca}" para excluir.`)
+        setEstado('erro')
+        return
+      }
+      await withTimeout(api.delete(`/contas-receber/${alvo.id}`))
+    },
+  }
+
   async function confirmar() {
     if (!acao) return
     const rota = ROTAS[acao.acao]
@@ -278,54 +336,10 @@ export function useVoiceAssistant() {
 
     setEstado('processando')
     try {
-      if (acao.acao === 'atualizar_renda') {
-        const { data: rendas } = await withTimeout(api.get<{ id: string }[]>('/rendas'))
-        if (!rendas || rendas.length === 0) {
-          setErro('Nenhuma renda cadastrada para atualizar. Crie uma primeiro.')
-          setEstado('erro')
-          return
-        }
-        await withTimeout(api.patch(`/rendas/${rendas[0].id}`, { valor: acao.dados.valor }))
-      } else if (acao.acao === 'excluir_renda') {
-        const { data: rendas } = await withTimeout(
-          api.get<{ id: string; descricao: string; valor: number }[]>('/rendas')
-        )
-        if (!rendas || rendas.length === 0) {
-          setErro('Nenhuma renda encontrada para excluir.')
-          setEstado('erro')
-          return
-        }
-        const busca = (acao.dados.descricao_busca as string || '').toLowerCase()
-        const alvo = busca
-          ? rendas.find((r) => r.descricao.toLowerCase().includes(busca)) ?? rendas[0]
-          : rendas[0]
-        await withTimeout(api.delete(`/rendas/${alvo.id}`))
-      } else if (acao.acao === 'excluir_conta_pagar') {
-        const { data: contas } = await withTimeout(
-          api.get<{ id: string; descricao: string; status: string }[]>('/contas-pagar')
-        )
-        const busca = (acao.dados.descricao_busca as string || '').toLowerCase()
-        const alvo =
-          contas.find((c) => c.status !== 'pago' && c.descricao.toLowerCase().includes(busca)) ??
-          contas.find((c) => c.descricao.toLowerCase().includes(busca))
-        if (!alvo) {
-          setErro(`Não encontrei conta com "${acao.dados.descricao_busca}" para excluir.`)
-          setEstado('erro')
-          return
-        }
-        await withTimeout(api.delete(`/contas-pagar/${alvo.id}`))
-      } else if (acao.acao === 'excluir_conta_receber') {
-        const { data: contas } = await withTimeout(
-          api.get<{ id: string; descricao: string }[]>('/contas-receber')
-        )
-        const busca = (acao.dados.descricao_busca as string || '').toLowerCase()
-        const alvo = contas.find((c) => c.descricao.toLowerCase().includes(busca))
-        if (!alvo) {
-          setErro(`Não encontrei conta a receber com "${acao.dados.descricao_busca}" para excluir.`)
-          setEstado('erro')
-          return
-        }
-        await withTimeout(api.delete(`/contas-receber/${alvo.id}`))
+      const handler = ACTION_HANDLERS[acao.acao]
+      if (handler) {
+        await handler(acao.dados)
+        if (estado === 'erro') return
       } else {
         await withTimeout(api.post(rota, prepararDados(acao.acao, acao.dados)))
       }

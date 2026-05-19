@@ -1,10 +1,9 @@
-import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import api from '@/services/api'
-import { parseApiError } from '@/utils/api'
 import { ModalDialog } from '@/components/ui/ModalDialog'
+import { useFormSubmit } from '@/hooks/useFormSubmit'
 import { cartaoCreditoSchema } from '@/lib/schemas/financeiro'
 import type { CartaoCreditoFormData } from '@/lib/schemas/financeiro'
 import type { CartaoCredito } from '@/types/financeiro'
@@ -50,11 +49,10 @@ export function CartaoModal({
   })
 
   const corAtual = watch('cor')
-  const [erro, setErro] = useState('')
+  const { submit, error: erro } = useFormSubmit()
 
   async function onSubmit(data: CartaoFormData) {
-    setErro('')
-    try {
+    await submit(async () => {
       if (isEdit) {
         await api.patch(`/cartoes-credito/${cartao!.id}`, data)
       } else {
@@ -62,9 +60,7 @@ export function CartaoModal({
       }
       onSuccess()
       onClose()
-    } catch (err) {
-      setErro(parseApiError(err) ?? 'Erro ao salvar. Tente novamente.')
-    }
+    })
   }
 
   return (

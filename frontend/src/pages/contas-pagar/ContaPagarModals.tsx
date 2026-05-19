@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useReducer } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -11,6 +11,38 @@ import { ModalDialog } from '@/components/ui/ModalDialog'
 import { contaPagarSchema, editarContaPagarSchema } from '@/lib/schemas/financeiro'
 import type { ContaPagarFormData, EditarContaPagarFormData } from '@/lib/schemas/financeiro'
 import type { ContaAPagar } from '@/types/financeiro'
+import { useFormSubmit } from '@/hooks/useFormSubmit'
+
+// ── PagarContaModal state ─────────────────────────────────────────────────────
+type PagarContaState = {
+  dataPagamento: string
+  meioPagamento: 'nenhum' | 'conta' | 'cartao'
+  contaSelecionada: string
+  cartaoSelecionado: string
+  status: 'idle' | 'submitting'
+  error: string
+}
+type PagarContaAction =
+  | { type: 'SET_DATA'; value: string }
+  | { type: 'SET_MEIO'; meio: 'nenhum' | 'conta' | 'cartao' }
+  | { type: 'SET_CONTA'; value: string }
+  | { type: 'SET_CARTAO'; value: string }
+  | { type: 'SUBMIT_START' }
+  | { type: 'SUBMIT_ERROR'; message: string }
+  | { type: 'SUBMIT_SUCCESS' }
+
+function pagarContaReducer(state: PagarContaState, action: PagarContaAction): PagarContaState {
+  switch (action.type) {
+    case 'SET_DATA': return { ...state, dataPagamento: action.value }
+    case 'SET_MEIO': return { ...state, meioPagamento: action.meio, contaSelecionada: '', cartaoSelecionado: '' }
+    case 'SET_CONTA': return { ...state, contaSelecionada: action.value }
+    case 'SET_CARTAO': return { ...state, cartaoSelecionado: action.value }
+    case 'SUBMIT_START': return { ...state, status: 'submitting', error: '' }
+    case 'SUBMIT_ERROR': return { ...state, status: 'idle', error: action.message }
+    case 'SUBMIT_SUCCESS': return { ...state, status: 'idle' }
+    default: return state
+  }
+}
 
 export const CATEGORIAS = [
   { value: 'moradia', label: 'Moradia' },
@@ -67,17 +99,14 @@ export function EditarContaModal({
     },
   })
 
-  const [erroEditar, setErroEditar] = useState('')
+  const { submit, error: erroEditar } = useFormSubmit()
 
   async function onSubmit(data: EditFormData) {
-    setErroEditar('')
-    try {
+    await submit(async () => {
       await api.patch(`/contas-pagar/${conta.id}`, data)
       onSuccess()
       onClose()
-    } catch (err) {
-      setErroEditar(parseApiError(err) ?? 'Erro ao salvar. Tente novamente.')
-    }
+    })
   }
 
   return (
@@ -143,12 +172,14 @@ export function PagarContaModal({
   onClose,
   onSuccess,
 }: ContaModalBaseProps) {
-  const [dataPagamento, setDataPagamento] = useState(new Date().toISOString().slice(0, 10))
-  const [meioPagamento, setMeioPagamento] = useState<'nenhum' | 'conta' | 'cartao'>('nenhum')
-  const [contaSelecionada, setContaSelecionada] = useState('')
-  const [cartaoSelecionado, setCartaoSelecionado] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [erroPagar, setErroPagar] = useState('')
+  const [s, dispatch] = useReducer(pagarContaReducer, {
+    dataPagamento: new Date().toISOString().slice(0, 10),
+    meioPagamento: 'nenhum',
+    contaSelecionada: '',
+    cartaoSelecionado: '',
+    status: 'idle',
+    error: '',
+  })
 
   const { data: contas } = useQuery<{ id: string; nome: string; banco: string }[]>({
     queryKey: ['contas-bancarias'],
@@ -160,27 +191,26 @@ export function PagarContaModal({
   })
 
   async function handleConfirmar() {
-    setIsSubmitting(true)
-    setErroPagar('')
+    dispatch({ type: 'SUBMIT_START' })
     try {
       await api.patch(`/contas-pagar/${conta.id}/pagar`, {
-        data_pagamento: dataPagamento || null,
-        conta_bancaria_id: meioPagamento === 'conta' && contaSelecionada ? contaSelecionada : null,
-        cartao_credito_id: meioPagamento === 'cartao' && cartaoSelecionado ? cartaoSelecionado : null,
+        data_pagamento: s.dataPagamento || null,
+        conta_bancaria_id: s.meioPagamento === 'conta' && s.contaSelecionada ? s.contaSelecionada : null,
+        cartao_credito_id: s.meioPagamento === 'cartao' && s.cartaoSelecionado ? s.cartaoSelecionado : null,
       })
+      dispatch({ type: 'SUBMIT_SUCCESS' })
       onSuccess()
       onClose()
     } catch (err) {
-      setErroPagar(parseApiError(err) ?? 'Erro ao registrar pagamento. Tente novamente.')
-    } finally {
-      setIsSubmitting(false)
+      dispatch({ type: 'SUBMIT_ERROR', message: parseApiError(err) ?? 'Erro ao registrar pagamento. Tente novamente.' })
     }
   }
 
-  const podeConfirmar = !isSubmitting && !!dataPagamento &&
-    (meioPagamento === 'nenhum' ||
-     (meioPagamento === 'conta' && !!contaSelecionada) ||
-     (meioPagamento === 'cartao' && !!cartaoSelecionado))
+  const isSubmitting = s.status === 'submitting'
+  const podeConfirmar = !isSubmitting && !!s.dataPagamento &&
+    (s.meioPagamento === 'nenhum' ||
+     (s.meioPagamento === 'conta' && !!s.contaSelecionada) ||
+     (s.meioPagamento === 'cartao' && !!s.cartaoSelecionado))
 
   return (
     <ModalDialog title="Confirmar pagamento" onClose={onClose} size="sm">
@@ -191,8 +221,8 @@ export function PagarContaModal({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Data do pagamento</label>
-            <input type="date" className="input-field" value={dataPagamento}
-              onChange={(e) => setDataPagamento(e.target.value)} />
+            <input type="date" className="input-field" value={s.dataPagamento}
+              onChange={(e) => dispatch({ type: 'SET_DATA', value: e.target.value })} />
           </div>
           {/* Meio de pagamento */}
           <div>
@@ -204,9 +234,9 @@ export function PagarContaModal({
                 { value: 'cartao', label: 'Cartão', icon: <CreditCard size={16} /> },
               ].map((opt) => (
                 <button key={opt.value} type="button"
-                  onClick={() => setMeioPagamento(opt.value as typeof meioPagamento)}
+                  onClick={() => dispatch({ type: 'SET_MEIO', meio: opt.value as PagarContaState['meioPagamento'] })}
                   className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-xs font-medium transition-all ${
-                    meioPagamento === opt.value
+                    s.meioPagamento === opt.value
                       ? 'border-primary-500 bg-primary-50 text-primary-700'
                       : 'border-gray-200 text-gray-500'
                   }`}>
@@ -216,10 +246,10 @@ export function PagarContaModal({
               ))}
             </div>
           </div>
-          {meioPagamento === 'conta' && (
+          {s.meioPagamento === 'conta' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Conta bancária</label>
-              <select className="input-field" value={contaSelecionada} onChange={(e) => setContaSelecionada(e.target.value)}>
+              <select className="input-field" value={s.contaSelecionada} onChange={(e) => dispatch({ type: 'SET_CONTA', value: e.target.value })}>
                 <option value="">Selecione...</option>
                 {contas?.map((c) => (
                   <option key={c.id} value={c.id}>{c.nome} — {c.banco}</option>
@@ -227,10 +257,10 @@ export function PagarContaModal({
               </select>
             </div>
           )}
-          {meioPagamento === 'cartao' && (
+          {s.meioPagamento === 'cartao' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Cartão de crédito</label>
-              <select className="input-field" value={cartaoSelecionado} onChange={(e) => setCartaoSelecionado(e.target.value)}>
+              <select className="input-field" value={s.cartaoSelecionado} onChange={(e) => dispatch({ type: 'SET_CARTAO', value: e.target.value })}>
                 <option value="">Selecione...</option>
                 {cartoes?.map((c) => (
                   <option key={c.id} value={c.id}>{c.nome} — {c.bandeira}</option>
@@ -238,7 +268,7 @@ export function PagarContaModal({
               </select>
             </div>
           )}
-          {erroPagar && <p className="text-sm text-danger-600 bg-danger-50 rounded-lg px-3 py-2">{erroPagar}</p>}
+          {s.error && <p className="text-sm text-danger-600 bg-danger-50 rounded-lg px-3 py-2">{s.error}</p>}
           <div className="flex gap-3">
             <button onClick={onClose} className="btn-ghost flex-1">Cancelar</button>
             <button onClick={handleConfirmar} disabled={!podeConfirmar}
@@ -253,7 +283,7 @@ export function PagarContaModal({
 }
 
 export function ContaModal({ onClose, onSuccess }: ContaModalProps) {
-  const [serverError, setServerError] = useState<string | null>(null)
+  const { submit, error: serverError } = useFormSubmit()
   const {
     register,
     handleSubmit,
@@ -278,15 +308,12 @@ export function ContaModal({ onClose, onSuccess }: ContaModalProps) {
   }
 
   async function onSubmit(data: FormData) {
-    setServerError(null)
-    try {
+    await submit(async () => {
       const res = await api.post('/contas-pagar', data)
       const count = Array.isArray(res.data) ? res.data.length : 1
       onSuccess(count)
       onClose()
-    } catch {
-      setServerError('Erro ao salvar conta. Verifique os dados e tente novamente.')
-    }
+    })
   }
 
   return (

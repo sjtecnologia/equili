@@ -1,10 +1,9 @@
-import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import api from '@/services/api'
-import { parseApiError } from '@/utils/api'
 import { ModalDialog } from '@/components/ui/ModalDialog'
+import { useFormSubmit } from '@/hooks/useFormSubmit'
 import { contaBancariaSchema } from '@/lib/schemas/financeiro'
 import type { ContaBancariaFormData } from '@/lib/schemas/financeiro'
 import type { ContaBancaria } from '@/types/financeiro'
@@ -34,7 +33,7 @@ export function ContaBancariaModal({
   onSuccess: () => void
 }) {
   const isEdit = !!conta
-  const [erro, setErro] = useState('')
+  const { submit, error: erro } = useFormSubmit()
   const {
     register,
     handleSubmit,
@@ -51,8 +50,7 @@ export function ContaBancariaModal({
   const corAtual = watch('cor')
 
   async function onSubmit(data: ContaFormData) {
-    try {
-      setErro('')
+    await submit(async () => {
       if (isEdit) {
         await api.patch(`/contas-bancarias/${conta!.id}`, data)
       } else {
@@ -60,9 +58,7 @@ export function ContaBancariaModal({
       }
       onSuccess()
       onClose()
-    } catch (e: unknown) {
-      setErro(parseApiError(e) ?? 'Erro ao salvar. Tente novamente.')
-    }
+    })
   }
 
   return (

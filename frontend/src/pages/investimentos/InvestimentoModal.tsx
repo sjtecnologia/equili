@@ -1,10 +1,9 @@
-import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import api from '@/services/api'
-import { parseApiError } from '@/utils/api'
+import { useFormSubmit } from '@/hooks/useFormSubmit'
 import { useAuthStore } from '@/stores/authStore'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
 import { ModalDialog } from '@/components/ui/ModalDialog'
@@ -42,6 +41,7 @@ export function InvestimentoModal({
 }) {
   const token = useAuthStore((s) => s.accessToken)
   const qc = useQueryClient()
+  const { submit, error: erroForm } = useFormSubmit()
 
   const {
     register,
@@ -71,11 +71,8 @@ export function InvestimentoModal({
         },
   })
 
-  const [erroForm, setErroForm] = useState('')
-
   const onSubmit = async (data: FormData) => {
-    setErroForm('')
-    try {
+    await submit(async () => {
       const headers = { Authorization: `Bearer ${token}` }
       if (editando) {
         await api.patch(`/investimentos/${editando.id}`, data, { headers })
@@ -85,9 +82,7 @@ export function InvestimentoModal({
       qc.invalidateQueries({ queryKey: ['investimentos'] })
       qc.invalidateQueries({ queryKey: ['investimentos-resumo'] })
       onClose()
-    } catch (err) {
-      setErroForm(parseApiError(err) ?? 'Erro ao salvar. Tente novamente.')
-    }
+    })
   }
 
   return (

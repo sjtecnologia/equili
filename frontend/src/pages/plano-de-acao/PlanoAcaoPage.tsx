@@ -30,7 +30,6 @@ export default function PlanoAcaoPage() {
   const {
     plano,
     isLoading,
-    isGenerating,
     limitError,
     erroGerar,
     contasPagar,
@@ -41,7 +40,7 @@ export default function PlanoAcaoPage() {
   } = usePlanoAcao()
 
   if (isLoading) return <LoadingState />
-  if (isGenerating) return <LoadingState />
+  if (isGerando) return <LoadingState />
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto">

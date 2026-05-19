@@ -11,6 +11,7 @@ import { ModalDialog } from '@/components/ui/ModalDialog'
 import { contaReceberSchema, editarContaReceberSchema } from '@/lib/schemas/financeiro'
 import type { ContaReceberFormData, EditarContaReceberFormData } from '@/lib/schemas/financeiro'
 import type { ContaAReceber } from '@/types/financeiro'
+import { useFormSubmit } from '@/hooks/useFormSubmit'
 
 export const ORIGENS = [
   { value: 'salario', label: 'Salário' },
@@ -66,17 +67,14 @@ export function EditarContaReceberModal({
     },
   })
 
-  const [erroEditar, setErroEditar] = useState('')
+  const { submit, error: erroEditar } = useFormSubmit()
 
   async function onSubmit(data: EditFormData) {
-    setErroEditar('')
-    try {
+    await submit(async () => {
       await api.patch(`/contas-receber/${conta.id}`, data)
       onSuccess()
       onClose()
-    } catch (err) {
-      setErroEditar(parseApiError(err) ?? 'Erro ao salvar. Tente novamente.')
-    }
+    })
   }
 
   return (
@@ -224,7 +222,7 @@ export function ReceberContaModal({
 }
 
 export function ContaModal({ onClose, onSuccess }: ContaReceberModalProps) {
-  const [serverError, setServerError] = useState<string | null>(null)
+  const { submit, error: serverError } = useFormSubmit()
   const {
     register,
     handleSubmit,
@@ -249,15 +247,12 @@ export function ContaModal({ onClose, onSuccess }: ContaReceberModalProps) {
   }
 
   async function onSubmit(data: ContaFormData) {
-    setServerError(null)
-    try {
+    await submit(async () => {
       const res = await api.post('/contas-receber', data)
       const count = Array.isArray(res.data) ? res.data.length : 1
       onSuccess(count)
       onClose()
-    } catch {
-      setServerError('Erro ao salvar conta. Verifique os dados e tente novamente.')
-    }
+    })
   }
 
   return (
