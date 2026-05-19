@@ -700,6 +700,7 @@ export default function DividasPage() {
   const { data: dividas = [], isLoading } = useQuery<Divida[]>({
     queryKey: ['dividas'],
     queryFn: () => api.get('/dividas').then((r) => r.data),
+    staleTime: 5 * 60_000,
   })
 
   const { data: contasFixasAtrasadas = [] } = useQuery<ContaFixaAtrasada[]>({

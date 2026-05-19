@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import {
@@ -250,6 +250,7 @@ export default function RelatoriosPage() {
   const { data: fluxoData, isLoading: loadingFluxo } = useQuery<FluxoMes[]>({
     queryKey: ['fluxo-caixa', anoFluxo],
     queryFn: () => api.get(`/relatorio/fluxo-caixa?ano=${anoFluxo}`).then((r) => r.data),
+    staleTime: 5 * 60_000,
   })
 
   const { data: detalhado, isLoading: loadingDetalhado } = useQuery<RelatorioDetalhado>({
@@ -257,6 +258,7 @@ export default function RelatoriosPage() {
     queryFn: () =>
       api.get(`/relatorio/detalhado?mes=${mesDetalhe}&ano=${anoDetalhe}`).then((r) => r.data),
     enabled: tab === 'detalhado',
+    staleTime: 5 * 60_000,
   })
 
   // Query aba Por Dia
@@ -350,10 +352,16 @@ export default function RelatoriosPage() {
     }
   }, [tab, tipoExtrato, cartaoExtratoId, cartoes])
 
-  const chartData = fluxoData?.map((d) => ({ ...d, nome: MESES_ABR[d.mes - 1] })) ?? []
-  const totalEntradas = fluxoData?.reduce((acc, d) => acc + d.entradas, 0) ?? 0
-  const totalSaidas = fluxoData?.reduce((acc, d) => acc + d.saidas, 0) ?? 0
-  const saldoAnual = totalEntradas - totalSaidas
+  const { chartData, totalEntradas, totalSaidas, saldoAnual } = useMemo(() => {
+    const e = fluxoData?.reduce((acc, d) => acc + d.entradas, 0) ?? 0
+    const s = fluxoData?.reduce((acc, d) => acc + d.saidas, 0) ?? 0
+    return {
+      chartData: fluxoData?.map((d) => ({ ...d, nome: MESES_ABR[d.mes - 1] })) ?? [],
+      totalEntradas: e,
+      totalSaidas: s,
+      saldoAnual: e - s,
+    }
+  }, [fluxoData])
 
   function handleTabChange(nextTab: 'fluxo' | 'detalhado' | 'extrato' | 'dia') {
     if (nextTab === tab) return

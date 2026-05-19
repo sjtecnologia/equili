@@ -1,3 +1,4 @@
+import React from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { TrendingUp, TrendingDown, CreditCard, Sparkles, AlertTriangle, Clock, Wallet, Calendar, Landmark } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -40,7 +41,7 @@ interface CartaoCredito {
   cor: string
 }
 
-function MetricCard({
+const MetricCard = React.memo(function MetricCard({
   title,
   value,
   subtitle,
@@ -70,13 +71,13 @@ function MetricCard({
     </div>
   )
   return to ? <Link to={to}>{content}</Link> : content
-}
+})
 
 export default function DashboardPage() {
   const { data, isLoading } = useQuery<DashboardResumo>({
     queryKey: ['dashboard'],
     queryFn: () => api.get('/dashboard/resumo').then((r) => r.data),
-    staleTime: 0,
+    staleTime: 30_000,
   })
 
   const { data: contas = [] } = useQuery<ContaBancaria[]>({

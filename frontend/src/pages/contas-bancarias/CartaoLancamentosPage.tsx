@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
@@ -145,8 +145,13 @@ function ExtratoCartaoModal({
   diaFechamento: number
   onClose: () => void
 }) {
-  const mesesDisponiveis = [...new Set(lancamentos.map((l) => l.data.slice(0, 7)))].sort().reverse()
-  const [mesFiltro, setMesFiltro] = useState(mesesDisponiveis[0] ?? '')
+  const mesesDisponiveis = useMemo(
+    () => [...new Set(lancamentos.map((l) => l.data.slice(0, 7)))].sort().reverse(),
+    [lancamentos]
+  )
+  const [mesFiltro, setMesFiltro] = useState(() =>
+    [...new Set(lancamentos.map((l) => l.data.slice(0, 7)))].sort().reverse()[0] ?? ''
+  )
   const [copiado, setCopiado] = useState(false)
 
   const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
@@ -155,22 +160,27 @@ function ExtratoCartaoModal({
     return `${MESES[parseInt(m) - 1]}/${y}`
   }
 
-  const doMes = lancamentos
-    .filter((l) => l.data.slice(0, 7) === mesFiltro)
-    .sort((a, b) => a.data.localeCompare(b.data))
+  const doMes = useMemo(
+    () => lancamentos
+      .filter((l) => l.data.slice(0, 7) === mesFiltro)
+      .sort((a, b) => a.data.localeCompare(b.data)),
+    [lancamentos, mesFiltro]
+  )
 
-  const totalCompras = doMes.filter((l) => l.tipo === 'compra').reduce((s, l) => s + l.valor, 0)
-  const totalPagamentos = doMes.filter((l) => l.tipo === 'pagamento').reduce((s, l) => s + l.valor, 0)
-  const saldoFatura = totalCompras - totalPagamentos
+  const { totalCompras, totalPagamentos } = useMemo(() => ({
+    totalCompras: doMes.filter((l) => l.tipo === 'compra').reduce((s, l) => s + l.valor, 0),
+    totalPagamentos: doMes.filter((l) => l.tipo === 'pagamento').reduce((s, l) => s + l.valor, 0),
+  }), [doMes])
+  const saldoFatura = useMemo(() => totalCompras - totalPagamentos, [totalCompras, totalPagamentos])
 
   // Dia de fechamento da fatura
-  const fechamentoLabel = (() => {
+  const fechamentoLabel = useMemo(() => {
     if (!mesFiltro) return ''
     const [y, m] = mesFiltro.split('-').map(Number)
     const dia = String(diaFechamento).padStart(2, '0')
     const mes = String(m).padStart(2, '0')
     return `Fecha dia ${dia}/${mes}/${y}`
-  })()
+  }, [mesFiltro, diaFechamento])
 
   function copiarCSV() {
     const header = 'Data;Descrição;Tipo;Valor;Categoria'
@@ -290,6 +300,7 @@ export default function CartaoLancamentosPage() {
     queryFn: () => api.get(`/cartoes-credito/${cartaoId}/lancamentos`).then((r) => r.data),
     enabled: !!cartaoId,
     retry: 1,
+    staleTime: 5 * 60_000,
   })
 
   const deletar = useMutation({
@@ -308,16 +319,19 @@ export default function CartaoLancamentosPage() {
   }
 
   const lancamentos = data?.lancamentos ?? []
-  const percentUsado = data ? Math.min(100, (data.limite_usado / data.limite_total) * 100) : 0
+  const percentUsado = useMemo(
+    () => data ? Math.min(100, (data.limite_usado / data.limite_total) * 100) : 0,
+    [data]
+  )
 
   // Agrupar por mês
-  const porMes = lancamentos.reduce<Record<string, Lancamento[]>>((acc, l) => {
+  const porMes = useMemo(() => lancamentos.reduce<Record<string, Lancamento[]>>((acc, l) => {
     const mes = l.data.slice(0, 7)
     if (!acc[mes]) acc[mes] = []
     acc[mes].push(l)
     return acc
-  }, {})
-  const mesesOrdenados = Object.keys(porMes).sort().reverse()
+  }, {}), [lancamentos])
+  const mesesOrdenados = useMemo(() => Object.keys(porMes).sort().reverse(), [porMes])
 
   function formatMes(yyyyMm: string) {
     const [y, m] = yyyyMm.split('-')

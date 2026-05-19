@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -177,11 +177,11 @@ function PagarContaModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const { data: contas } = useQuery<{ id: string; nome: string; banco: string }[]>({
-    queryKey: ['contas-bancarias-select'],
+    queryKey: ['contas-bancarias'],
     queryFn: () => api.get('/contas-bancarias').then((r) => r.data),
   })
   const { data: cartoes } = useQuery<{ id: string; nome: string; bandeira: string }[]>({
-    queryKey: ['cartoes-credito-select'],
+    queryKey: ['cartoes-credito'],
     queryFn: () => api.get('/cartoes-credito').then((r) => r.data),
   })
 
@@ -462,6 +462,7 @@ export default function ContasPagarPage() {
   const { data: contas = [], isLoading } = useQuery<ContaAPagar[]>({
     queryKey: ['contas-pagar'],
     queryFn: () => api.get('/contas-pagar').then((r) => r.data),
+    staleTime: 5 * 60_000,
   })
 
   const deleteMutation = useMutation({
@@ -480,21 +481,20 @@ export default function ContasPagarPage() {
     },
   })
 
-  const contasFiltradas =
-    filtroStatus === 'todos' ? contas : contas.filter((c) => c.status === filtroStatus)
+  const contasFiltradas = useMemo(
+    () => filtroStatus === 'todos' ? contas : contas.filter((c) => c.status === filtroStatus),
+    [contas, filtroStatus]
+  )
 
-  const totalPendente = contas
-    .filter((c) => c.status !== 'pago')
-    .reduce((acc, c) => acc + c.valor, 0)
+  const { totalPendente, totalPago } = useMemo(() => ({
+    totalPendente: contas.filter((c) => c.status !== 'pago').reduce((acc, c) => acc + c.valor, 0),
+    totalPago: contas.filter((c) => c.status === 'pago').reduce((acc, c) => acc + c.valor, 0),
+  }), [contas])
 
-  const totalPago = contas
-    .filter((c) => c.status === 'pago')
-    .reduce((acc, c) => acc + c.valor, 0)
-
-  const invalidate = () => {
+  const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['contas-pagar'] })
     queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-  }
+  }, [queryClient])
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto">

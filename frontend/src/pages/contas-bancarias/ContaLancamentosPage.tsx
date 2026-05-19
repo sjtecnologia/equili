@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
@@ -229,8 +229,13 @@ function ExtratoContaModal({
   nomeConta: string
   onClose: () => void
 }) {
-  const mesesDisponiveis = [...new Set(lancamentos.map((l) => l.data.slice(0, 7)))].sort().reverse()
-  const [mesFiltro, setMesFiltro] = useState(mesesDisponiveis[0] ?? '')
+  const mesesDisponiveis = useMemo(
+    () => [...new Set(lancamentos.map((l) => l.data.slice(0, 7)))].sort().reverse(),
+    [lancamentos]
+  )
+  const [mesFiltro, setMesFiltro] = useState(() =>
+    [...new Set(lancamentos.map((l) => l.data.slice(0, 7)))].sort().reverse()[0] ?? ''
+  )
   const [copiado, setCopiado] = useState(false)
 
   const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
@@ -240,24 +245,35 @@ function ExtratoContaModal({
   }
 
   // Lançamentos do mês filtrado, ordem cronológica
-  const doMes = lancamentos
-    .filter((l) => l.data.slice(0, 7) === mesFiltro)
-    .sort((a, b) => a.data.localeCompare(b.data))
+  const doMes = useMemo(
+    () => lancamentos
+      .filter((l) => l.data.slice(0, 7) === mesFiltro)
+      .sort((a, b) => a.data.localeCompare(b.data)),
+    [lancamentos, mesFiltro]
+  )
 
   // Saldo acumulado até o início do mês filtrado (todos os lançamentos anteriores)
-  const saldoAntesDoMes = lancamentos
-    .filter((l) => l.data.slice(0, 7) < mesFiltro)
-    .reduce((acc, l) => acc + (l.tipo === 'entrada' ? l.valor : -l.valor), saldoInicial)
+  const saldoAntesDoMes = useMemo(
+    () => lancamentos
+      .filter((l) => l.data.slice(0, 7) < mesFiltro)
+      .reduce((acc, l) => acc + (l.tipo === 'entrada' ? l.valor : -l.valor), saldoInicial),
+    [lancamentos, mesFiltro, saldoInicial]
+  )
 
   // Saldo acumulado linha a linha
-  const linhas = doMes.reduce<{ lancamento: Lancamento; saldo: number }[]>((acc, l) => {
-    const anterior = acc.length > 0 ? acc[acc.length - 1].saldo : saldoAntesDoMes
-    acc.push({ lancamento: l, saldo: anterior + (l.tipo === 'entrada' ? l.valor : -l.valor) })
-    return acc
-  }, [])
+  const linhas = useMemo(
+    () => doMes.reduce<{ lancamento: Lancamento; saldo: number }[]>((acc, l) => {
+      const anterior = acc.length > 0 ? acc[acc.length - 1].saldo : saldoAntesDoMes
+      acc.push({ lancamento: l, saldo: anterior + (l.tipo === 'entrada' ? l.valor : -l.valor) })
+      return acc
+    }, []),
+    [doMes, saldoAntesDoMes]
+  )
 
-  const totalEntradas = doMes.filter((l) => l.tipo === 'entrada').reduce((s, l) => s + l.valor, 0)
-  const totalSaidas = doMes.filter((l) => l.tipo === 'saida').reduce((s, l) => s + l.valor, 0)
+  const { totalEntradas, totalSaidas } = useMemo(() => ({
+    totalEntradas: doMes.filter((l) => l.tipo === 'entrada').reduce((s, l) => s + l.valor, 0),
+    totalSaidas: doMes.filter((l) => l.tipo === 'saida').reduce((s, l) => s + l.valor, 0),
+  }), [doMes])
 
   function copiarCSV() {
     const header = 'Data;Descrição;Tipo;Valor;Categoria;Saldo'
@@ -390,6 +406,7 @@ export default function ContaLancamentosPage() {
     queryFn: () => api.get(`/contas-bancarias/${contaId}/lancamentos`).then((r) => r.data),
     enabled: !!contaId,
     retry: 1,
+    staleTime: 5 * 60_000,
   })
 
   const deletar = useMutation({
@@ -411,14 +428,14 @@ export default function ContaLancamentosPage() {
   const saldoPositivo = (data?.saldo_atual ?? 0) >= 0
 
   // Agrupar por mês
-  const porMes = lancamentos.reduce<Record<string, Lancamento[]>>((acc, l) => {
+  const porMes = useMemo(() => lancamentos.reduce<Record<string, Lancamento[]>>((acc, l) => {
     const mes = l.data.slice(0, 7) // YYYY-MM
     if (!acc[mes]) acc[mes] = []
     acc[mes].push(l)
     return acc
-  }, {})
+  }, {}), [lancamentos])
 
-  const mesesOrdenados = Object.keys(porMes).sort().reverse()
+  const mesesOrdenados = useMemo(() => Object.keys(porMes).sort().reverse(), [porMes])
 
   function formatMes(yyyyMm: string) {
     const [y, m] = yyyyMm.split('-')
