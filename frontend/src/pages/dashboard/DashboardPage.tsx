@@ -5,6 +5,16 @@ import { useDashboard } from '@/hooks/useDashboard'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 
+interface MetricCardProps {
+  title: string
+  value: string
+  subtitle?: string
+  icon: React.ElementType
+  colorClass?: string
+  bgClass?: string
+  to?: string
+}
+
 const MetricCard = React.memo(function MetricCard({
   title,
   value,
@@ -13,15 +23,7 @@ const MetricCard = React.memo(function MetricCard({
   colorClass = 'text-gray-700',
   bgClass = 'bg-white',
   to,
-}: {
-  title: string
-  value: string
-  subtitle?: string
-  icon: React.ElementType
-  colorClass?: string
-  bgClass?: string
-  to?: string
-}) {
+}: MetricCardProps) {
   const content = (
     <div className={`card ${bgClass} flex items-center gap-3 p-3 ${to ? 'hover:bg-gray-50 transition-colors' : ''}`}>
       <div className={`p-1.5 rounded-lg bg-gray-100 ${colorClass}`}>

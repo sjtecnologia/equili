@@ -1,10 +1,26 @@
+// ─── Union Types (domínio fixo) ───────────────────────────────────────────────
+
+export type TipoConta = 'corrente' | 'poupanca' | 'investimento' | 'digital'
+export type BandeiraCartao = 'visa' | 'mastercard' | 'elo' | 'amex' | 'hipercard' | 'outro'
+export type CategoriaGasto = 'moradia' | 'transporte' | 'saude' | 'educacao' | 'alimentacao' | 'lazer' | 'outro'
+export type OrigemRenda = 'salario' | 'freela' | 'venda' | 'emprestimo' | 'outro'
+export type ModalidadeConta = 'avulsa' | 'recorrente' | 'parcelada'
+export type StatusContaPagar = 'pendente' | 'pago' | 'vencido'
+export type StatusContaReceber = 'pendente' | 'recebido' | 'atrasado'
+export type FrequenciaRenda = 'mensal' | 'quinzenal' | 'semanal'
+export type TipoRenda = 'salario' | 'freela' | 'aluguel' | 'outro'
+export type TipoInvestimento = 'acoes' | 'fii' | 'renda_fixa' | 'criptomoeda' | 'tesouro' | 'outro'
+export type TipoDivida = 'emprestimo' | 'financiamento' | 'cartao_parcelado' | 'cheque_pre' | 'outro'
+export type TipoContaPagar = 'avulsa' | 'fixa' | 'variavel'
+export type TipoContaReceber = 'avulsa' | 'recorrente' | 'parcelada'
+
 // ─── Contas Bancárias ─────────────────────────────────────────────────────────
 
 export interface ContaBancaria {
   id: string
   nome: string
   banco: string
-  tipo: string
+  tipo: TipoConta
   saldo_inicial: number
   cor: string
 }
@@ -12,7 +28,7 @@ export interface ContaBancaria {
 export interface CartaoCredito {
   id: string
   nome: string
-  bandeira: string
+  bandeira: BandeiraCartao
   limite: number
   limite_disponivel?: number
   dia_fechamento: number
@@ -49,7 +65,7 @@ export interface ContaLancamentosData {
   nome: string
   banco: string
   cor: string
-  tipo: string
+  tipo: TipoConta
 }
 
 export interface CartaoLancamentosData {
@@ -69,22 +85,22 @@ export interface CartaoLancamentosData {
 export interface ContaAPagar {
   id: string
   descricao: string
-  categoria: string
+  categoria: CategoriaGasto
   valor: number
   data_vencimento: string
-  status: 'pendente' | 'pago' | 'vencido'
-  tipo: string
+  status: StatusContaPagar
+  tipo: TipoContaPagar
   observacao: string | null
 }
 
 export interface ContaAReceber {
   id: string
   descricao: string
-  origem: string
+  origem: OrigemRenda
   valor: number
   data_prevista: string
-  status: 'pendente' | 'recebido' | 'atrasado'
-  tipo: string
+  status: StatusContaReceber
+  tipo: TipoContaReceber
   devedor: string | null
   observacao: string | null
 }
@@ -95,7 +111,7 @@ export interface Divida {
   id: string
   descricao: string
   credor: string | null
-  tipo: string
+  tipo: TipoDivida
   valor_total: number
   valor_parcela: number
   parcelas_totais: number | null
@@ -120,7 +136,7 @@ export interface DividaPagamento {
 
 export interface ContaFixaAtrasada {
   descricao: string
-  categoria: string
+  categoria: CategoriaGasto
   meses_atrasados: number
   total: number
   primeira_data: string
@@ -132,7 +148,7 @@ export interface ContaFixaAtrasada {
 export interface Investimento {
   id: string
   nome: string
-  tipo: string
+  tipo: TipoInvestimento
   instituicao: string | null
   quantidade: number | null
   preco_medio: number | null
@@ -156,8 +172,8 @@ export interface Renda {
   id: string
   descricao: string
   valor: number
-  frequencia: string
-  tipo: string
+  frequencia: FrequenciaRenda
+  tipo: TipoRenda
   ativo: boolean
 }
 
@@ -235,10 +251,10 @@ export interface RelatorioDetalhado {
 export interface ContaPagarDiaItem {
   id: string
   descricao: string
-  categoria: string
+  categoria: CategoriaGasto
   valor: number
-  status: string
-  tipo: string
+  status: StatusContaPagar
+  tipo: TipoContaPagar
   observacao: string | null
 }
 
@@ -246,4 +262,18 @@ export interface ContasPagarDiaData {
   data: string
   total: number
   contas: ContaPagarDiaItem[]
+}
+
+// ─── Baixas de Dívidas ────────────────────────────────────────────────────────
+
+export interface Baixa {
+  id: string
+  divida_id: string
+  divida_descricao: string
+  divida_credor: string | null
+  data_referencia: string
+  data_pagamento: string | null
+  valor_pago: number
+  valor_parcela_original: number
+  observacao: string | null
 }

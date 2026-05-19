@@ -6,6 +6,14 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
+interface CapacitorWindow extends Window {
+  Capacitor?: { isNativePlatform?: () => boolean }
+}
+
+interface IOSNavigator extends Navigator {
+  standalone?: boolean
+}
+
 export default function InstallBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [visible, setVisible] = useState(false)
@@ -13,11 +21,11 @@ export default function InstallBanner() {
 
   useEffect(() => {
     // Nunca mostrar dentro do app nativo Capacitor
-    const isNativeApp = (window as any).Capacitor?.isNativePlatform?.() === true
+    const isNativeApp = (window as CapacitorWindow).Capacitor?.isNativePlatform?.() === true
     if (isNativeApp) return
 
     // Detecta iOS (Safari não dispara beforeinstallprompt)
-    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window.navigator as any).standalone
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !(navigator as IOSNavigator).standalone
     setIsIOS(ios)
     if (ios) {
       const dismissed = localStorage.getItem('pwa-install-dismissed')

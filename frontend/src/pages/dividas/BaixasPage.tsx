@@ -5,18 +5,7 @@ import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { EmptyState } from '@/components/ui/EmptyState'
-
-interface Baixa {
-  id: string
-  divida_id: string
-  divida_descricao: string
-  divida_credor: string | null
-  data_referencia: string
-  data_pagamento: string | null
-  valor_pago: number
-  valor_parcela_original: number
-  observacao: string | null
-}
+import type { Baixa } from '@/types/financeiro'
 
 export default function BaixasPage() {
   const queryClient = useQueryClient()

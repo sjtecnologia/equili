@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2, X, CreditCard, Landmark, RefreshCw } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency } from '@/utils/format'
+import { parseApiError } from '@/utils/api'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
 import { ModalDialog } from '@/components/ui/ModalDialog'
 import { contaPagarSchema, editarContaPagarSchema } from '@/lib/schemas/financeiro'
@@ -33,15 +34,22 @@ type FormData = ContaPagarFormData
 const editSchema = editarContaPagarSchema
 type EditFormData = EditarContaPagarFormData
 
+interface ContaModalBaseProps {
+  conta: ContaAPagar
+  onClose: () => void
+  onSuccess: () => void
+}
+
+interface ContaModalProps {
+  onClose: () => void
+  onSuccess: (count: number) => void
+}
+
 export function EditarContaModal({
   conta,
   onClose,
   onSuccess,
-}: {
-  conta: ContaAPagar
-  onClose: () => void
-  onSuccess: () => void
-}) {
+}: ContaModalBaseProps) {
   const {
     register,
     control,
@@ -68,8 +76,7 @@ export function EditarContaModal({
       onSuccess()
       onClose()
     } catch (err) {
-      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setErroEditar(detail ?? 'Erro ao salvar. Tente novamente.')
+      setErroEditar(parseApiError(err) ?? 'Erro ao salvar. Tente novamente.')
     }
   }
 
@@ -135,11 +142,7 @@ export function PagarContaModal({
   conta,
   onClose,
   onSuccess,
-}: {
-  conta: ContaAPagar
-  onClose: () => void
-  onSuccess: () => void
-}) {
+}: ContaModalBaseProps) {
   const [dataPagamento, setDataPagamento] = useState(new Date().toISOString().slice(0, 10))
   const [meioPagamento, setMeioPagamento] = useState<'nenhum' | 'conta' | 'cartao'>('nenhum')
   const [contaSelecionada, setContaSelecionada] = useState('')
@@ -168,8 +171,7 @@ export function PagarContaModal({
       onSuccess()
       onClose()
     } catch (err) {
-      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setErroPagar(detail ?? 'Erro ao registrar pagamento. Tente novamente.')
+      setErroPagar(parseApiError(err) ?? 'Erro ao registrar pagamento. Tente novamente.')
     } finally {
       setIsSubmitting(false)
     }
@@ -250,7 +252,7 @@ export function PagarContaModal({
   )
 }
 
-export function ContaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (count: number) => void }) {
+export function ContaModal({ onClose, onSuccess }: ContaModalProps) {
   const [serverError, setServerError] = useState<string | null>(null)
   const {
     register,

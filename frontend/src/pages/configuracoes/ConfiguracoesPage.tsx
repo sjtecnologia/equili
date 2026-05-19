@@ -11,6 +11,7 @@ import { ALL_NAV_ITEMS } from '@/config/navItems'
 import PushNotificationToggle from '@/components/pwa/PushNotificationToggle'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { usePerfil } from '@/hooks/usePerfil'
+import { parseApiError } from '@/utils/api'
 
 // ─── Schema: editar perfil ────────────────────────────────────────────────────
 const perfilSchema = z.object({
@@ -60,8 +61,7 @@ function SecaoPerfil() {
       await salvarPerfil(data)
       setSuccess(true)
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } }
-      setServerError(e.response?.data?.detail ?? 'Erro ao salvar. Tente novamente.')
+      setServerError(parseApiError(err) ?? 'Erro ao salvar. Tente novamente.')
     }
   }
 
@@ -142,8 +142,7 @@ function SecaoSenha() {
       setSuccess(true)
       reset()
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } }
-      setServerError(e.response?.data?.detail ?? 'Erro ao alterar senha. Tente novamente.')
+      setServerError(parseApiError(err) ?? 'Erro ao alterar senha. Tente novamente.')
     }
   }
 
@@ -373,8 +372,7 @@ function SecaoPrivacidade() {
       logout()
       navigate('/login', { replace: true })
     } catch (e: unknown) {
-      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setErro(detail ?? 'Erro ao excluir conta.')
+      setErro(parseApiError(e) ?? 'Erro ao excluir conta.')
     } finally {
       setExcluindo(false)
     }

@@ -87,7 +87,24 @@ const NAVEGACAO: Record<string, string> = {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyWindow = Window & typeof globalThis & Record<string, any>
+type AnyWindow = Window & typeof globalThis & Record<string, unknown>
+
+interface SpeechRecognitionEvent {
+  results: ArrayLike<{ 0: { transcript: string } }>
+}
+
+interface SpeechRecognitionInstance {
+  lang: string
+  continuous: boolean
+  interimResults: boolean
+  maxAlternatives: number
+  start(): void
+  stop(): void
+  abort(): void
+  onresult: ((event: SpeechRecognitionEvent) => void) | null
+  onerror: (() => void) | null
+  onend: (() => void) | null
+}
 
 export function useVoiceAssistant() {
   const [estado, setEstado] = useState<EstadoVoz>('idle')
@@ -98,7 +115,7 @@ export function useVoiceAssistant() {
   const [ouvinDataTranscricao, setOuvinDataTranscricao] = useState('')
   const [erro, setErro] = useState('')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const reconhecimentoRef = useRef<any>(null)
+  const reconhecimentoRef = useRef<SpeechRecognitionInstance | null>(null)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
@@ -124,7 +141,7 @@ export function useVoiceAssistant() {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rec = new SR() as any
+    const rec = new (SR as new () => SpeechRecognitionInstance)()
     rec.lang = 'pt-BR'
     rec.continuous = false
     rec.interimResults = true
@@ -134,8 +151,7 @@ export function useVoiceAssistant() {
     setTranscricao('')
     setEstado('ouvindo')
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    rec.onresult = (event: any) => {
+    rec.onresult = (event: SpeechRecognitionEvent) => {
       const texto = Array.from(event.results as ArrayLike<{ 0: { transcript: string } }>)
         .map((r) => r[0].transcript)
         .join('')
@@ -169,7 +185,7 @@ export function useVoiceAssistant() {
       (window as AnyWindow).webkitSpeechRecognition
     if (!SR) return
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rec = new SR() as any
+    const rec = new (SR as new () => SpeechRecognitionInstance)()
     rec.lang = 'pt-BR'
     rec.continuous = false
     rec.interimResults = true
@@ -177,8 +193,7 @@ export function useVoiceAssistant() {
     setOuvinDataTranscricao('')
     setEstado('ouvindo_data')
     const textoRef = { current: '' }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    rec.onresult = (event: any) => {
+    rec.onresult = (event: SpeechRecognitionEvent) => {
       const t = Array.from(event.results as ArrayLike<{ 0: { transcript: string } }>)
         .map((r) => r[0].transcript)
         .join('')

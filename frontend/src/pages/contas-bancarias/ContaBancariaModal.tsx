@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import api from '@/services/api'
+import { parseApiError } from '@/utils/api'
 import { ModalDialog } from '@/components/ui/ModalDialog'
 import { contaBancariaSchema } from '@/lib/schemas/financeiro'
 import type { ContaBancariaFormData } from '@/lib/schemas/financeiro'
@@ -60,8 +61,7 @@ export function ContaBancariaModal({
       onSuccess()
       onClose()
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setErro(msg ?? 'Erro ao salvar. Tente novamente.')
+      setErro(parseApiError(e) ?? 'Erro ao salvar. Tente novamente.')
     }
   }
 
