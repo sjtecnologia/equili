@@ -5,6 +5,7 @@ import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
 import DrawerNav from './DrawerNav'
 import VoiceButton from '@/components/shared/VoiceButton'
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { useAuthStore } from '@/stores/authStore'
 import logo from '@/assets/logo.png'
 
@@ -61,7 +62,9 @@ export default function AppLayout() {
         {/* min-h-0 aqui é essencial: permite que o flex-1 encolha no iOS WebKit */}
         <main className="flex-1 min-h-0 overflow-y-auto">
           <div className="lg:max-w-5xl lg:mx-auto lg:p-8">
-            <Outlet />
+            <ErrorBoundary>
+              <Outlet />
+            </ErrorBoundary>
           </div>
         </main>
 

@@ -115,16 +115,24 @@ function InvestimentoModal({
         },
   })
 
+  const [erroForm, setErroForm] = useState('')
+
   const onSubmit = async (data: FormData) => {
-    const headers = { Authorization: `Bearer ${token}` }
-    if (editando) {
-      await api.patch(`/investimentos/${editando.id}`, data, { headers })
-    } else {
-      await api.post('/investimentos', data, { headers })
+    setErroForm('')
+    try {
+      const headers = { Authorization: `Bearer ${token}` }
+      if (editando) {
+        await api.patch(`/investimentos/${editando.id}`, data, { headers })
+      } else {
+        await api.post('/investimentos', data, { headers })
+      }
+      qc.invalidateQueries({ queryKey: ['investimentos'] })
+      qc.invalidateQueries({ queryKey: ['investimentos-resumo'] })
+      onClose()
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setErroForm(detail ?? 'Erro ao salvar. Tente novamente.')
     }
-    qc.invalidateQueries({ queryKey: ['investimentos'] })
-    qc.invalidateQueries({ queryKey: ['investimentos-resumo'] })
-    onClose()
   }
 
   return (
@@ -210,6 +218,7 @@ function InvestimentoModal({
             <textarea rows={2} className="input-field resize-none" placeholder="Vencimento, estratégia..." {...register('observacao')} />
           </div>
 
+          {erroForm && <p className="text-sm text-danger-600 bg-danger-50 rounded-lg px-3 py-2">{erroForm}</p>}
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 btn-secondary">Cancelar</button>
             <button type="submit" disabled={isSubmitting} className="flex-1 btn-primary flex items-center justify-center gap-2">

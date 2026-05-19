@@ -99,10 +99,18 @@ function EditarContaReceberModal({
     },
   })
 
+  const [erroEditar, setErroEditar] = useState('')
+
   async function onSubmit(data: EditFormData) {
-    await api.patch(`/contas-receber/${conta.id}`, data)
-    onSuccess()
-    onClose()
+    setErroEditar('')
+    try {
+      await api.patch(`/contas-receber/${conta.id}`, data)
+      onSuccess()
+      onClose()
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setErroEditar(detail ?? 'Erro ao salvar. Tente novamente.')
+    }
   }
 
   return (
@@ -152,6 +160,7 @@ function EditarContaReceberModal({
             <label className="block text-sm font-medium text-gray-700 mb-1">Observação</label>
             <input type="text" className="input-field" {...register('observacao')} />
           </div>
+          {erroEditar && <p className="text-sm text-danger-600 bg-danger-50 rounded-lg px-3 py-2">{erroEditar}</p>}
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-ghost flex-1">Cancelar</button>
             <button type="submit" disabled={isSubmitting}
@@ -178,6 +187,7 @@ function ReceberContaModal({
   const [registrarNaConta, setRegistrarNaConta] = useState(false)
   const [contaSelecionada, setContaSelecionada] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [erroReceber, setErroReceber] = useState('')
 
   const { data: contas } = useQuery<{ id: string; nome: string; banco: string }[]>({
     queryKey: ['contas-bancarias'],
@@ -186,6 +196,7 @@ function ReceberContaModal({
 
   async function handleConfirmar() {
     setIsSubmitting(true)
+    setErroReceber('')
     try {
       await api.patch(`/contas-receber/${conta.id}/receber`, {
         data_recebimento: dataRecebimento || null,
@@ -193,6 +204,9 @@ function ReceberContaModal({
       })
       onSuccess()
       onClose()
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setErroReceber(detail ?? 'Erro ao registrar recebimento. Tente novamente.')
     } finally {
       setIsSubmitting(false)
     }
@@ -234,6 +248,7 @@ function ReceberContaModal({
               </select>
             </div>
           )}
+          {erroReceber && <p className="text-sm text-danger-600 bg-danger-50 rounded-lg px-3 py-2">{erroReceber}</p>}
           <div className="flex gap-3">
             <button onClick={onClose} className="btn-ghost flex-1">Cancelar</button>
             <button onClick={handleConfirmar} disabled={!podeConfirmar}

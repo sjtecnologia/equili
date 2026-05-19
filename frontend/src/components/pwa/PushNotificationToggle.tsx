@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Bell, BellOff } from 'lucide-react'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'
+import { notify } from '@/utils/notify'
 
 // Converte a VAPID public key de base64url para Uint8Array
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
@@ -53,6 +54,7 @@ export default function PushNotificationToggle() {
         { headers: { Authorization: `Bearer ${token}` } }
       )
     } catch (err) {
+      notify.error('Erro ao ativar notificações. Tente novamente.')
       console.error('Erro ao ativar notificações:', err)
     } finally {
       setLoading(false)
@@ -75,6 +77,7 @@ export default function PushNotificationToggle() {
       }
       setPermission('default')
     } catch (err) {
+      notify.error('Erro ao desativar notificações. Tente novamente.')
       console.error('Erro ao desativar notificações:', err)
     } finally {
       setLoading(false)

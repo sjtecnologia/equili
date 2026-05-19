@@ -64,14 +64,22 @@ function RendaModal({
       : { frequencia: 'mensal', tipo: 'salario' },
   })
 
+  const [erroForm, setErroForm] = useState('')
+
   async function onSubmit(data: FormData) {
-    if (renda) {
-      await api.patch(`/rendas/${renda.id}`, data)
-    } else {
-      await api.post('/rendas', data)
+    setErroForm('')
+    try {
+      if (renda) {
+        await api.patch(`/rendas/${renda.id}`, data)
+      } else {
+        await api.post('/rendas', data)
+      }
+      onSuccess()
+      onClose()
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setErroForm(detail ?? 'Erro ao salvar. Tente novamente.')
     }
-    onSuccess()
-    onClose()
   }
 
   return (
@@ -124,6 +132,7 @@ function RendaModal({
             </select>
           </div>
         </div>
+        {erroForm && <p className="text-sm text-danger-600 bg-danger-50 rounded-lg px-3 py-2">{erroForm}</p>}
         <div className="flex gap-3 pt-2">
           <button type="button" onClick={onClose} className="btn-ghost flex-1">
             Cancelar

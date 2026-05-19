@@ -74,7 +74,7 @@ const MetricCard = React.memo(function MetricCard({
 })
 
 export default function DashboardPage() {
-  const { data, isLoading } = useQuery<DashboardResumo>({
+  const { data, isLoading, isError } = useQuery<DashboardResumo>({
     queryKey: ['dashboard'],
     queryFn: () => api.get('/dashboard/resumo').then((r) => r.data),
     staleTime: 30_000,
@@ -94,6 +94,21 @@ export default function DashboardPage() {
     return (
       <div className="p-4 space-y-3">
         <SkeletonList count={4} height="h-20" />
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] p-8 text-center">
+        <p className="text-gray-600 font-medium mb-1">Não foi possível carregar o resumo</p>
+        <p className="text-sm text-gray-400 mb-4">Verifique sua conexão e tente novamente.</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="btn-primary px-6"
+        >
+          Recarregar
+        </button>
       </div>
     )
   }
