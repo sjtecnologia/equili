@@ -2,56 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Calendar, Lightbulb, Loader2, RefreshCw, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react'
 import api from '@/services/api'
-
-
-interface ContaAPagar {
-  id: string
-  descricao: string
-  categoria: string
-  valor: number
-  data_vencimento: string
-  status: string
-}
-
-interface ContaAReceber {
-  id: string
-  descricao: string
-  origem: string
-  valor: number
-  data_prevista: string
-  status: string
-  devedor?: string
-}
-
-
-interface OrdemQuitacao {
-  ordem: number
-  descricao: string
-  data_quitacao_estimada: string
-  motivo_prioridade: string
-}
-
-interface PlanoConteudo {
-  resumo_situacao: string
-  estrategia: string
-  justificativa_estrategia?: string
-  valor_mensal_para_dividas?: number
-  ordem_quitacao: OrdemQuitacao[]
-  data_livre_prevista: string
-  meses_ate_liberdade?: number
-  sugestoes_economia: string[]
-  mensagem_motivacional: string
-  alerta_fluxo_caixa?: string | null
-}
-
-interface PlanoAcao {
-  id: string
-  criado_em: string
-  conteudo: PlanoConteudo
-  estrategia: string | null
-  data_livre_prevista: string | null
-  feedback: number | null  // 1 | -1
-}
+import type { ContaAPagar, ContaAReceber, PlanoAcao } from '@/types/financeiro'
 
 const mensagensCarregando = [
   'Analisando sua situação financeira...',

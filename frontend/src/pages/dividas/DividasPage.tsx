@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { Trash2, Loader2, CheckCircle, Lock, Pencil, AlertTriangle, History, CalendarClock } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
@@ -11,61 +10,17 @@ import { ModalDialog } from '@/components/ui/ModalDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { PageHeader } from '@/components/ui/PageHeader'
-
-interface Divida {
-  id: string
-  descricao: string
-  credor: string | null
-  tipo: string
-  valor_total: number
-  valor_parcela: number
-  parcelas_totais: number | null
-  parcelas_restantes: number
-  parcelas_atrasadas: number
-  data_primeira_atrasada: string | null
-  taxa_juros_mensal: number | null
-  data_prox_vencimento: string
-  data_inicio_contrato: string | null
-  data_primeira_parcela: string | null
-  quitada: boolean
-}
-
-interface DividaPagamento {
-  id: string
-  data_referencia: string
-  data_pagamento: string
-  valor_pago: number
-  valor_parcela_original: number
-  observacao: string | null
-}
-
-interface ContaFixaAtrasada {
-  descricao: string
-  categoria: string
-  meses_atrasados: number
-  total: number
-  primeira_data: string
-  ultima_data: string
-}
+import { useDividas } from '@/hooks/useDividas'
+import { dividaSchema } from '@/lib/schemas/financeiro'
+import type { DividaFormData } from '@/lib/schemas/financeiro'
+import type { Divida, DividaPagamento } from '@/types/financeiro'
 
 interface LimiteError {
   response?: { status: number; data?: { detail?: string } }
 }
 
-const schema = z.object({
-  descricao: z.string().min(1, 'Descrição obrigatória'),
-  credor: z.string().optional(),
-  tipo: z.string().min(1, 'Tipo obrigatório'),
-  valor_total: z.coerce.number().positive('Valor deve ser positivo'),
-  valor_parcela: z.coerce.number().positive('Valor da parcela deve ser positivo'),
-  parcelas_totais: z.coerce.number().int().min(1).optional().nullable(),
-  parcelas_restantes: z.coerce.number().int().min(1, 'Mínimo 1 parcela'),
-  taxa_juros_mensal: z.coerce.number().min(0).optional().nullable(),
-  data_inicio_contrato: z.string().optional(),
-  data_primeira_parcela: z.string().min(1, 'Data da primeira parcela obrigatória'),
-})
-
-type FormData = z.infer<typeof schema>
+const schema = dividaSchema
+type FormData = DividaFormData
 
 // Formulário compartilhado entre criação e edição
 function DividaForm({
@@ -695,23 +650,8 @@ export default function DividasPage() {
   const [editando, setEditando] = useState<Divida | null>(null)
   const [pagando, setPagando] = useState<Divida | null>(null)
   const [historico, setHistorico] = useState<Divida | null>(null)
-  const queryClient = useQueryClient()
 
-  const { data: dividas = [], isLoading } = useQuery<Divida[]>({
-    queryKey: ['dividas'],
-    queryFn: () => api.get('/dividas').then((r) => r.data),
-    staleTime: 5 * 60_000,
-  })
-
-  const { data: contasFixasAtrasadas = [] } = useQuery<ContaFixaAtrasada[]>({
-    queryKey: ['contas-fixas-atrasadas'],
-    queryFn: () => api.get('/contas-pagar/fixas-atrasadas').then((r) => r.data),
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/dividas/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['dividas'] }),
-  })
+  const { data: dividas = [], isLoading, contasFixasAtrasadas, deletar: deleteMutation, invalidate } = useDividas()
 
   const dividasAtivas = dividas.filter((d) => !d.quitada)
   const totalDevido = dividasAtivas.reduce(
@@ -727,8 +667,6 @@ export default function DividasPage() {
     (acc, d) => acc + d.parcelas_atrasadas * d.valor_parcela,
     0
   )
-
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['dividas'] })
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto">

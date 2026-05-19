@@ -1,9 +1,8 @@
 import { useState, useMemo } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { TrendingUp, TrendingDown, Pencil, Trash2, Loader2, PieChart } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'
 import { formatCurrency } from '@/utils/format'
@@ -11,45 +10,15 @@ import { CurrencyInput } from '@/components/ui/CurrencyInput'
 import { ModalDialog } from '@/components/ui/ModalDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PageHeader } from '@/components/ui/PageHeader'
-
-// ─── Tipos ───────────────────────────────────────────────────────────────────
-
-interface Investimento {
-  id: string
-  nome: string
-  tipo: string
-  instituicao: string | null
-  quantidade: number | null
-  preco_medio: number | null
-  valor_investido: number
-  valor_atual: number
-  rentabilidade_pct: number
-  data_aplicacao: string
-  observacao: string | null
-}
-
-interface CarteiraResumo {
-  total_investido: number
-  total_atual: number
-  rentabilidade_pct: number
-  por_tipo: Record<string, number>
-}
+import { useInvestimentos } from '@/hooks/useInvestimentos'
+import { investimentoSchema } from '@/lib/schemas/financeiro'
+import type { InvestimentoFormData } from '@/lib/schemas/financeiro'
+import type { Investimento } from '@/types/financeiro'
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 
-const schema = z.object({
-  nome: z.string().min(1, 'Informe o nome'),
-  tipo: z.enum(['acoes', 'fii', 'renda_fixa', 'criptomoeda', 'tesouro', 'outro']),
-  instituicao: z.string().optional(),
-  quantidade: z.number().optional(),
-  preco_medio: z.number().optional(),
-  valor_investido: z.number({ invalid_type_error: 'Informe o valor' }).positive('Deve ser maior que zero'),
-  valor_atual: z.number({ invalid_type_error: 'Informe o valor' }).min(0),
-  data_aplicacao: z.string().min(1, 'Informe a data'),
-  observacao: z.string().optional(),
-})
-
-type FormData = z.infer<typeof schema>
+const schema = investimentoSchema
+type FormData = InvestimentoFormData
 
 // ─── Labels ──────────────────────────────────────────────────────────────────
 
@@ -234,32 +203,10 @@ function InvestimentoModal({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function InvestimentosPage() {
-  const token = useAuthStore((s) => s.accessToken)
-  const qc = useQueryClient()
   const [modal, setModal] = useState(false)
   const [editando, setEditando] = useState<Investimento | null>(null)
 
-  const headers = { Authorization: `Bearer ${token}` }
-
-  const { data: resumo } = useQuery<CarteiraResumo>({
-    queryKey: ['investimentos-resumo'],
-    queryFn: () => api.get('/investimentos/resumo', { headers }).then((r) => r.data),
-    staleTime: 5 * 60_000,
-  })
-
-  const { data: lista = [], isLoading } = useQuery<Investimento[]>({
-    queryKey: ['investimentos'],
-    queryFn: () => api.get('/investimentos', { headers }).then((r) => r.data),
-    staleTime: 5 * 60_000,
-  })
-
-  const deletar = useMutation({
-    mutationFn: (id: string) => api.delete(`/investimentos/${id}`, { headers }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['investimentos'] })
-      qc.invalidateQueries({ queryKey: ['investimentos-resumo'] })
-    },
-  })
+  const { lista, resumo, isLoading, deletar } = useInvestimentos()
 
   const abrirEdicao = (inv: Investimento) => {
     setEditando(inv)

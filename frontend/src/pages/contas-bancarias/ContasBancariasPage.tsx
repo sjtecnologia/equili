@@ -1,38 +1,20 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import {
   Trash2, Loader2, Pencil, Landmark, CreditCard, ArrowRight,
 } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency } from '@/utils/format'
 import { useNavigate } from 'react-router-dom'
+import { useContas } from '@/hooks/useContas'
+import { contaBancariaSchema, cartaoCreditoSchema } from '@/lib/schemas/financeiro'
+import type { ContaBancariaFormData, CartaoCreditoFormData } from '@/lib/schemas/financeiro'
+import type { ContaBancaria, CartaoCredito } from '@/types/financeiro'
 import { ModalDialog } from '@/components/ui/ModalDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PageHeader } from '@/components/ui/PageHeader'
-
-/* ─────────────── TIPOS ─────────────── */
-
-interface ContaBancaria {
-  id: string
-  nome: string
-  banco: string
-  tipo: string
-  saldo_inicial: number
-  cor: string
-}
-
-interface CartaoCredito {
-  id: string
-  nome: string
-  bandeira: string
-  limite: number
-  dia_fechamento: number
-  dia_vencimento: number
-  cor: string
-}
 
 /* ─────────────── CONSTANTES ─────────────── */
 
@@ -67,24 +49,11 @@ const BANDEIRA_LABELS: Record<string, string> = {
 
 /* ─────────────── SCHEMAS ─────────────── */
 
-const contaSchema = z.object({
-  nome: z.string().min(1, 'Nome obrigatório'),
-  banco: z.string().min(1, 'Banco obrigatório'),
-  tipo: z.enum(['corrente', 'poupanca', 'investimento', 'digital']),
-  saldo_inicial: z.coerce.number().min(0, 'Saldo não pode ser negativo'),
-  cor: z.string().default('#2E7D5E'),
-})
-type ContaFormData = z.infer<typeof contaSchema>
+const contaSchema = contaBancariaSchema
+type ContaFormData = ContaBancariaFormData
 
-const cartaoSchema = z.object({
-  nome: z.string().min(1, 'Nome obrigatório'),
-  bandeira: z.enum(['visa', 'mastercard', 'elo', 'amex', 'hipercard', 'outro']),
-  limite: z.coerce.number().positive('Limite deve ser positivo'),
-  dia_fechamento: z.coerce.number().int().min(1).max(31),
-  dia_vencimento: z.coerce.number().int().min(1).max(31),
-  cor: z.string().default('#1A3C5E'),
-})
-type CartaoFormData = z.infer<typeof cartaoSchema>
+const cartaoSchema = cartaoCreditoSchema
+type CartaoFormData = CartaoCreditoFormData
 
 /* ─────────────── MODAL CONTA BANCÁRIA ─────────────── */
 
@@ -468,33 +437,15 @@ function CartaoCreditoCard({
 type Tab = 'contas' | 'cartoes'
 
 export default function ContasBancariasPage() {
+  const queryClient = useQueryClient()
   const [tab, setTab] = useState<Tab>('contas')
   const [showContaModal, setShowContaModal] = useState(false)
   const [showCartaoModal, setShowCartaoModal] = useState(false)
   const [editingConta, setEditingConta] = useState<ContaBancaria | null>(null)
   const [editingCartao, setEditingCartao] = useState<CartaoCredito | null>(null)
 
-  const queryClient = useQueryClient()
-
-  const { data: contas = [], isLoading: loadingContas } = useQuery<ContaBancaria[]>({
-    queryKey: ['contas-bancarias'],
-    queryFn: () => api.get('/contas-bancarias').then((r) => r.data),
-  })
-
-  const { data: cartoes = [], isLoading: loadingCartoes } = useQuery<CartaoCredito[]>({
-    queryKey: ['cartoes-credito'],
-    queryFn: () => api.get('/cartoes-credito').then((r) => r.data),
-  })
-
-  const deletarConta = useMutation({
-    mutationFn: (id: string) => api.delete(`/contas-bancarias/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contas-bancarias'] }),
-  })
-
-  const deletarCartao = useMutation({
-    mutationFn: (id: string) => api.delete(`/cartoes-credito/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cartoes-credito'] }),
-  })
+  const { contas, cartoes, isLoading: loadingContas, deletarConta, deletarCartao } = useContas()
+  const loadingCartoes = false // incluído no isLoading acima
 
   function handleDeleteConta(id: string) {
     if (confirm('Remover esta conta bancária?')) deletarConta.mutate(id)

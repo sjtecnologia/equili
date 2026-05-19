@@ -1,8 +1,7 @@
-import { useState, useMemo, useCallback } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { Trash2, Loader2, X, CheckCircle2, RefreshCw, Layers, Pencil, Landmark } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
@@ -11,18 +10,10 @@ import { ModalDialog } from '@/components/ui/ModalDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { PageHeader } from '@/components/ui/PageHeader'
-
-interface ContaAReceber {
-  id: string
-  descricao: string
-  origem: string
-  valor: number
-  data_prevista: string
-  status: 'pendente' | 'recebido' | 'atrasado'
-  tipo: string
-  devedor: string | null
-  observacao: string | null
-}
+import { useContasReceber } from '@/hooks/useContasReceber'
+import { contaReceberSchema, editarContaReceberSchema } from '@/lib/schemas/financeiro'
+import type { ContaReceberFormData, EditarContaReceberFormData } from '@/lib/schemas/financeiro'
+import type { ContaAReceber } from '@/types/financeiro'
 
 const ORIGENS = [
   { value: 'salario', label: 'Salário' },
@@ -44,33 +35,11 @@ const STATUS_LABELS: Record<string, { label: string; classes: string }> = {
   atrasado: { label: 'Atrasado', classes: 'bg-red-100 text-red-700' },
 }
 
-const schema = z
-  .object({
-    descricao: z.string().min(1, 'Descrição obrigatória'),
-    origem: z.string().min(1, 'Selecione a origem'),
-    valor: z.coerce.number().positive('Valor deve ser positivo'),
-    data_prevista: z.string().min(1, 'Data obrigatória'),
-    modalidade: z.enum(['avulsa', 'recorrente', 'parcelada']),
-    numero_parcelas: z.coerce.number().int().min(2).optional().nullable(),
-    devedor: z.string().optional(),
-    observacao: z.string().optional(),
-  })
-  .refine(
-    (d) => d.modalidade !== 'parcelada' || (d.numero_parcelas != null && d.numero_parcelas >= 2),
-    { message: 'Informe ao menos 2 parcelas', path: ['numero_parcelas'] },
-  )
+const schema = contaReceberSchema
+type ContaFormData = ContaReceberFormData
 
-const editSchema = z.object({
-  descricao: z.string().min(1, 'Descrição obrigatória'),
-  origem: z.string().min(1),
-  valor: z.coerce.number().positive('Valor deve ser positivo'),
-  data_prevista: z.string().min(1, 'Data obrigatória'),
-  tipo: z.enum(['avulsa', 'recorrente', 'parcelada']),
-  devedor: z.string().optional(),
-  observacao: z.string().optional(),
-})
-type ContaFormData = z.infer<typeof schema>
-type EditFormData = z.infer<typeof editSchema>
+const editSchema = editarContaReceberSchema
+type EditFormData = EditarContaReceberFormData
 
 function EditarContaReceberModal({
   conta,
@@ -457,21 +426,8 @@ export default function ContasReceberPage() {
   const [recebendo, setRecebendo] = useState<ContaAReceber | null>(null)
   const [filtroStatus, setFiltroStatus] = useState<string>('todos')
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
-  const queryClient = useQueryClient()
 
-  const { data: contas = [], isLoading } = useQuery<ContaAReceber[]>({
-    queryKey: ['contas-receber'],
-    queryFn: () => api.get('/contas-receber').then((r) => r.data),
-    staleTime: 5 * 60_000,
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/contas-receber/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contas-receber'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-    },
-  })
+  const { data: contas = [], isLoading, deletar: deleteMutation, invalidate } = useContasReceber()
 
   const contasFiltradas = useMemo(
     () => filtroStatus === 'todos' ? contas : contas.filter((c) => c.status === filtroStatus),
@@ -482,11 +438,6 @@ export default function ContasReceberPage() {
     totalPendente: contas.filter((c) => c.status !== 'recebido').reduce((acc, c) => acc + c.valor, 0),
     totalRecebido: contas.filter((c) => c.status === 'recebido').reduce((acc, c) => acc + c.valor, 0),
   }), [contas])
-
-  const invalidate = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['contas-receber'] })
-    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-  }, [queryClient])
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto">
