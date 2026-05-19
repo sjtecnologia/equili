@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency } from '@/utils/format'
+import { parseApiError } from '@/utils/api'
 import { ModalDialog } from '@/components/ui/ModalDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { lancamentoCartaoSchema } from '@/lib/schemas/financeiro'
@@ -54,8 +55,7 @@ function LancamentoCartaoModal({
       onSuccess()
       onClose()
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setErro(msg ?? 'Erro ao salvar. Tente novamente.')
+      setErro(parseApiError(e) ?? 'Erro ao salvar. Tente novamente.')
     }
   }
 

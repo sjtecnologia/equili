@@ -1,4 +1,11 @@
-export const CATEGORIAS_LABEL: Record<string, string> = {
+import type {
+  CategoriaGasto,
+  OrigemRenda,
+  StatusContaPagar,
+  StatusContaReceber,
+} from '@/types/financeiro'
+
+export const CATEGORIAS_LABEL: Record<CategoriaGasto, string> = {
   moradia: 'Moradia',
   transporte: 'Transporte',
   saude: 'Saúde',
@@ -8,7 +15,7 @@ export const CATEGORIAS_LABEL: Record<string, string> = {
   outro: 'Outro',
 }
 
-export const ORIGENS_LABEL: Record<string, string> = {
+export const ORIGENS_LABEL: Record<OrigemRenda, string> = {
   salario: 'Salário',
   freela: 'Freelance',
   venda: 'Venda',
@@ -16,13 +23,13 @@ export const ORIGENS_LABEL: Record<string, string> = {
   outro: 'Outro',
 }
 
-export const STATUS_PAGAR: Record<string, { label: string; classes: string }> = {
+export const STATUS_PAGAR: Record<StatusContaPagar, { label: string; classes: string }> = {
   pendente: { label: 'Pendente', classes: 'bg-amber-100 text-amber-700' },
   pago: { label: 'Pago', classes: 'bg-green-100 text-green-700' },
   vencido: { label: 'Vencido', classes: 'bg-red-100 text-red-700' },
 }
 
-export const STATUS_RECEBER: Record<string, { label: string; classes: string }> = {
+export const STATUS_RECEBER: Record<StatusContaReceber, { label: string; classes: string }> = {
   pendente: { label: 'Pendente', classes: 'bg-amber-100 text-amber-700' },
   recebido: { label: 'Recebido', classes: 'bg-green-100 text-green-700' },
   atrasado: { label: 'Atrasado', classes: 'bg-red-100 text-red-700' },

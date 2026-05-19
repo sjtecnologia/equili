@@ -3,6 +3,7 @@ import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import api from '@/services/api'
+import { parseApiError } from '@/utils/api'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
 import { ModalDialog } from '@/components/ui/ModalDialog'
 import { rendaSchema } from '@/lib/schemas/financeiro'
@@ -59,8 +60,7 @@ export function RendaModal({
       onSuccess()
       onClose()
     } catch (err) {
-      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setErroForm(detail ?? 'Erro ao salvar. Tente novamente.')
+      setErroForm(parseApiError(err) ?? 'Erro ao salvar. Tente novamente.')
     }
   }
 

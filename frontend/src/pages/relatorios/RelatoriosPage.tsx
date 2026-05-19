@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts'
+import type { TooltipProps } from 'recharts'
 import { Download, TrendingUp, TrendingDown, Scale, Loader2, FileText, Copy, Check, Printer } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { formatCurrency, formatDate } from '@/utils/format'
@@ -23,14 +24,14 @@ const MESES_FULL = [
 
 // ---------- Tooltip customizado ----------
 
-function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: { dataKey: string; name: string; value: number; color: string }[]; label?: string }) {
+function CustomTooltip({ active, payload, label }: TooltipProps<number, string>) {
   if (!active || !payload?.length) return null
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-lg text-sm">
       <p className="font-semibold text-gray-700 mb-2">{label}</p>
       {payload.map((p) => (
         <p key={p.dataKey} style={{ color: p.color }}>
-          {p.name}: {formatCurrency(p.value)}
+          {p.name}: {formatCurrency(p.value ?? 0)}
         </p>
       ))}
     </div>

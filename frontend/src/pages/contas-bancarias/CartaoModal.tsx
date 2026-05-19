@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import api from '@/services/api'
+import { parseApiError } from '@/utils/api'
 import { ModalDialog } from '@/components/ui/ModalDialog'
 import { cartaoCreditoSchema } from '@/lib/schemas/financeiro'
 import type { CartaoCreditoFormData } from '@/lib/schemas/financeiro'
@@ -62,8 +63,7 @@ export function CartaoModal({
       onSuccess()
       onClose()
     } catch (err) {
-      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setErro(detail ?? 'Erro ao salvar. Tente novamente.')
+      setErro(parseApiError(err) ?? 'Erro ao salvar. Tente novamente.')
     }
   }
 

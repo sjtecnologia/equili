@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2, Landmark, RefreshCw } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency } from '@/utils/format'
+import { parseApiError } from '@/utils/api'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
 import { ModalDialog } from '@/components/ui/ModalDialog'
 import { contaReceberSchema, editarContaReceberSchema } from '@/lib/schemas/financeiro'
@@ -31,15 +32,22 @@ type ContaFormData = ContaReceberFormData
 const editSchema = editarContaReceberSchema
 type EditFormData = EditarContaReceberFormData
 
+interface ContaReceberModalBaseProps {
+  conta: ContaAReceber
+  onClose: () => void
+  onSuccess: () => void
+}
+
+interface ContaReceberModalProps {
+  onClose: () => void
+  onSuccess: (count: number) => void
+}
+
 export function EditarContaReceberModal({
   conta,
   onClose,
   onSuccess,
-}: {
-  conta: ContaAReceber
-  onClose: () => void
-  onSuccess: () => void
-}) {
+}: ContaReceberModalBaseProps) {
   const {
     register,
     control,
@@ -67,8 +75,7 @@ export function EditarContaReceberModal({
       onSuccess()
       onClose()
     } catch (err) {
-      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setErroEditar(detail ?? 'Erro ao salvar. Tente novamente.')
+      setErroEditar(parseApiError(err) ?? 'Erro ao salvar. Tente novamente.')
     }
   }
 
@@ -137,11 +144,7 @@ export function ReceberContaModal({
   conta,
   onClose,
   onSuccess,
-}: {
-  conta: ContaAReceber
-  onClose: () => void
-  onSuccess: () => void
-}) {
+}: ContaReceberModalBaseProps) {
   const [dataRecebimento, setDataRecebimento] = useState(new Date().toISOString().slice(0, 10))
   const [registrarNaConta, setRegistrarNaConta] = useState(false)
   const [contaSelecionada, setContaSelecionada] = useState('')
@@ -164,8 +167,7 @@ export function ReceberContaModal({
       onSuccess()
       onClose()
     } catch (err) {
-      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setErroReceber(detail ?? 'Erro ao registrar recebimento. Tente novamente.')
+      setErroReceber(parseApiError(err) ?? 'Erro ao registrar recebimento. Tente novamente.')
     } finally {
       setIsSubmitting(false)
     }
@@ -221,7 +223,7 @@ export function ReceberContaModal({
   )
 }
 
-export function ContaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (count: number) => void }) {
+export function ContaModal({ onClose, onSuccess }: ContaReceberModalProps) {
   const [serverError, setServerError] = useState<string | null>(null)
   const {
     register,

@@ -22,15 +22,23 @@ const BANDEIRA_LABELS: Record<string, string> = {
   visa: 'Visa', mastercard: 'Mastercard', elo: 'Elo', amex: 'Amex', hipercard: 'Hipercard', outro: 'Outro',
 }
 
+interface ContaBancariaCardProps {
+  conta: ContaBancaria
+  onEdit: () => void
+  onDelete: () => void
+}
+
+interface CartaoCreditoCardProps {
+  cartao: CartaoCredito
+  onEdit: () => void
+  onDelete: () => void
+}
+
 function ContaBancariaCard({
   conta,
   onEdit,
   onDelete,
-}: {
-  conta: ContaBancaria
-  onEdit: () => void
-  onDelete: () => void
-}) {
+}: ContaBancariaCardProps) {
   const navigate = useNavigate()
   return (
     <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100">
@@ -88,11 +96,7 @@ function CartaoCreditoCard({
   cartao,
   onEdit,
   onDelete,
-}: {
-  cartao: CartaoCredito
-  onEdit: () => void
-  onDelete: () => void
-}) {
+}: CartaoCreditoCardProps) {
   const navigate = useNavigate()
   return (
     <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100">

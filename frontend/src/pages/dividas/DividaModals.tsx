@@ -17,6 +17,35 @@ interface LimiteError {
   response?: { status: number; data?: { detail?: string } }
 }
 
+interface DividaFormProps {
+  defaultValues?: Partial<FormData>
+  onSubmit: (data: FormData) => Promise<void>
+  isSubmitting: boolean
+  serverError: string | null
+  onClose: () => void
+  submitLabel: string
+}
+
+interface ModalBaseProps {
+  onClose: () => void
+  onSuccess: () => void
+}
+
+interface DividaModalProps extends ModalBaseProps {}
+
+interface EditarDividaModalProps extends ModalBaseProps {
+  divida: Divida
+}
+
+interface PagarParcelaModalProps extends ModalBaseProps {
+  divida: Divida
+}
+
+interface HistoricoPagamentosModalProps {
+  divida: Divida
+  onClose: () => void
+}
+
 const schema = dividaSchema
 type FormData = DividaFormData
 
@@ -28,14 +57,7 @@ export function DividaForm({
   serverError,
   onClose,
   submitLabel,
-}: {
-  defaultValues?: Partial<FormData>
-  onSubmit: (data: FormData) => Promise<void>
-  isSubmitting: boolean
-  serverError: string | null
-  onClose: () => void
-  submitLabel: string
-}) {
+}: DividaFormProps) {
   const {
     register,
     control,
@@ -217,7 +239,7 @@ export function DividaForm({
   )
 }
 
-export function DividaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+export function DividaModal({ onClose, onSuccess }: DividaModalProps) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -260,11 +282,7 @@ export function EditarDividaModal({
   divida,
   onClose,
   onSuccess,
-}: {
-  divida: Divida
-  onClose: () => void
-  onSuccess: () => void
-}) {
+}: EditarDividaModalProps) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -313,11 +331,7 @@ export function PagarParcelaModal({
   divida,
   onClose,
   onSuccess,
-}: {
-  divida: Divida
-  onClose: () => void
-  onSuccess: () => void
-}) {
+}: PagarParcelaModalProps) {
   const hoje = new Date()
   const vencimento = new Date(divida.data_prox_vencimento + 'T00:00:00')
   const atrasada = vencimento < hoje
@@ -473,10 +487,7 @@ export function PagarParcelaModal({
 export function HistoricoPagamentosModal({
   divida,
   onClose,
-}: {
-  divida: Divida
-  onClose: () => void
-}) {
+}: HistoricoPagamentosModalProps) {
   const queryClient = useQueryClient()
   const queryKey = ['divida-pagamentos', divida.id]
 
