@@ -3,7 +3,6 @@ import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import {
   ArrowLeft, Plus, Trash2, Loader2, Upload,
   TrendingUp, TrendingDown, ArrowUpCircle, ArrowDownCircle, FileText, Copy, Check, X,
@@ -12,38 +11,13 @@ import api from '@/services/api'
 import { formatCurrency } from '@/utils/format'
 import { ModalDialog } from '@/components/ui/ModalDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
-
-/* ─── Tipos ─── */
-interface Lancamento {
-  id: string
-  descricao: string
-  valor: number
-  tipo: 'entrada' | 'saida'
-  data: string
-  categoria: string | null
-  origem: string
-  ofx_id: string | null
-}
-
-interface ContaLancamentosData {
-  lancamentos: Lancamento[]
-  saldo_inicial: number
-  saldo_atual: number
-  nome: string
-  banco: string
-  cor: string
-  tipo: string
-}
+import { lancamentoContaSchema } from '@/lib/schemas/financeiro'
+import type { LancamentoContaFormData } from '@/lib/schemas/financeiro'
+import type { Lancamento, ContaLancamentosData } from '@/types/financeiro'
 
 /* ─── Schema ─── */
-const lancamentoSchema = z.object({
-  descricao: z.string().min(1, 'Descrição obrigatória'),
-  valor: z.coerce.number().positive('Valor deve ser positivo'),
-  tipo: z.enum(['entrada', 'saida']),
-  data: z.string().min(1, 'Data obrigatória'),
-  categoria: z.string().optional(),
-})
-type LancamentoForm = z.infer<typeof lancamentoSchema>
+const lancamentoSchema = lancamentoContaSchema
+type LancamentoForm = LancamentoContaFormData
 
 const CATEGORIAS_CONTA = [
   'Alimentação', 'Transporte', 'Moradia', 'Saúde', 'Educação',

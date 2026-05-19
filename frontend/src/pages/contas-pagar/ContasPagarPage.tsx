@@ -1,8 +1,7 @@
-import { useState, useMemo, useCallback } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { Trash2, Loader2, X, CheckCircle2, AlertCircle, RefreshCw, Layers, Pencil, CreditCard, Landmark } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
@@ -11,17 +10,10 @@ import { ModalDialog } from '@/components/ui/ModalDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { PageHeader } from '@/components/ui/PageHeader'
-
-interface ContaAPagar {
-  id: string
-  descricao: string
-  categoria: string
-  valor: number
-  data_vencimento: string
-  status: 'pendente' | 'pago' | 'vencido'
-  tipo: string
-  observacao: string | null
-}
+import { useContasPagar } from '@/hooks/useContasPagar'
+import { contaPagarSchema, editarContaPagarSchema } from '@/lib/schemas/financeiro'
+import type { ContaPagarFormData, EditarContaPagarFormData } from '@/lib/schemas/financeiro'
+import type { ContaAPagar } from '@/types/financeiro'
 
 const CATEGORIAS = [
   { value: 'moradia', label: 'Moradia' },
@@ -45,32 +37,11 @@ const STATUS_LABELS: Record<string, { label: string; classes: string }> = {
   vencido: { label: 'Vencido', classes: 'bg-red-100 text-red-700' },
 }
 
-const schema = z
-  .object({
-    descricao: z.string().min(1, 'Descrição obrigatória'),
-    categoria: z.string().min(1, 'Selecione a categoria'),
-    valor: z.coerce.number().positive('Valor deve ser positivo'),
-    data_vencimento: z.string().min(1, 'Data obrigatória'),
-    modalidade: z.enum(['avulsa', 'recorrente', 'parcelada']),
-    numero_parcelas: z.coerce.number().int().min(2).optional().nullable(),
-    observacao: z.string().optional(),
-  })
-  .refine(
-    (d) => d.modalidade !== 'parcelada' || (d.numero_parcelas != null && d.numero_parcelas >= 2),
-    { message: 'Informe ao menos 2 parcelas', path: ['numero_parcelas'] },
-  )
+const schema = contaPagarSchema
+type FormData = ContaPagarFormData
 
-type FormData = z.infer<typeof schema>
-
-const editSchema = z.object({
-  descricao: z.string().min(1, 'Descrição obrigatória'),
-  categoria: z.string().min(1),
-  valor: z.coerce.number().positive('Valor deve ser positivo'),
-  data_vencimento: z.string().min(1, 'Data obrigatória'),
-  tipo: z.enum(['avulsa', 'fixa', 'variavel']),
-  observacao: z.string().optional(),
-})
-type EditFormData = z.infer<typeof editSchema>
+const editSchema = editarContaPagarSchema
+type EditFormData = EditarContaPagarFormData
 
 function EditarContaModal({
   conta,
@@ -472,29 +443,8 @@ export default function ContasPagarPage() {
   const [pagando, setPagando] = useState<ContaAPagar | null>(null)
   const [filtroStatus, setFiltroStatus] = useState<string>('todos')
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
-  const queryClient = useQueryClient()
 
-  const { data: contas = [], isLoading } = useQuery<ContaAPagar[]>({
-    queryKey: ['contas-pagar'],
-    queryFn: () => api.get('/contas-pagar').then((r) => r.data),
-    staleTime: 5 * 60_000,
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/contas-pagar/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contas-pagar'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-    },
-  })
-
-  const pagarMutation = useMutation({
-    mutationFn: (id: string) => api.patch(`/contas-pagar/${id}/pagar`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contas-pagar'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-    },
-  })
+  const { data: contas = [], isLoading, deletar: deleteMutation, pagar: pagarMutation, invalidate } = useContasPagar()
 
   const contasFiltradas = useMemo(
     () => filtroStatus === 'todos' ? contas : contas.filter((c) => c.status === filtroStatus),
@@ -505,11 +455,6 @@ export default function ContasPagarPage() {
     totalPendente: contas.filter((c) => c.status !== 'pago').reduce((acc, c) => acc + c.valor, 0),
     totalPago: contas.filter((c) => c.status === 'pago').reduce((acc, c) => acc + c.valor, 0),
   }), [contas])
-
-  const invalidate = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['contas-pagar'] })
-    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-  }, [queryClient])
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto">

@@ -1,8 +1,7 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { Trash2, Loader2, Pencil, TrendingUp } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency } from '@/utils/format'
@@ -11,6 +10,10 @@ import { ModalDialog } from '@/components/ui/ModalDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { useRendas } from '@/hooks/useRendas'
+import { rendaSchema } from '@/lib/schemas/financeiro'
+import type { RendaFormData } from '@/lib/schemas/financeiro'
+import type { Renda } from '@/types/financeiro'
 
 const FREQUENCIAS = [
   { value: 'mensal', label: 'Mensal' },
@@ -25,23 +28,8 @@ const TIPOS = [
   { value: 'outro', label: 'Outro' },
 ]
 
-interface Renda {
-  id: string
-  descricao: string
-  valor: number
-  frequencia: string
-  tipo: string
-  ativo: boolean
-}
-
-const schema = z.object({
-  descricao: z.string().min(1, 'Descrição obrigatória'),
-  valor: z.coerce.number().positive('Valor deve ser positivo'),
-  frequencia: z.string().min(1, 'Selecione a frequência'),
-  tipo: z.string().min(1, 'Selecione o tipo'),
-})
-
-type FormData = z.infer<typeof schema>
+const schema = rendaSchema
+type FormData = RendaFormData
 
 function RendaModal({
   renda,
@@ -152,23 +140,11 @@ function RendaModal({
 }
 
 export default function RendaPage() {
+  const queryClient = useQueryClient()
   const [showModal, setShowModal] = useState(false)
   const [editando, setEditando] = useState<Renda | null>(null)
-  const queryClient = useQueryClient()
 
-  const { data: rendas = [], isLoading } = useQuery<Renda[]>({
-    queryKey: ['rendas'],
-    queryFn: () => api.get('/rendas').then((r) => r.data),
-    staleTime: 5 * 60_000,
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/rendas/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rendas'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-    },
-  })
+  const { data: rendas = [], isLoading, deletar: deleteMutation } = useRendas()
 
   const total = rendas.reduce((acc, r) => acc + r.valor, 0)
 

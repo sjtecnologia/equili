@@ -16,6 +16,7 @@ import { Download, TrendingUp, TrendingDown, Scale, Loader2, FileText, Copy, Che
 import * as XLSX from 'xlsx'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
+import type { ContaAPagar as ContaPagarItem, ContaAReceber as ContaReceberItem } from '@/types/financeiro'
 
 // ---------- Tipos ----------
 
@@ -26,29 +27,6 @@ interface FluxoMes {
   entradas: number
   saidas: number
   saldo: number
-}
-
-interface ContaPagarItem {
-  id: string
-  descricao: string
-  categoria: string
-  valor: number
-  data_vencimento: string
-  status: string
-  tipo: string
-  observacao: string | null
-}
-
-interface ContaReceberItem {
-  id: string
-  descricao: string
-  origem: string
-  valor: number
-  data_prevista: string
-  status: string
-  tipo: string
-  devedor: string | null
-  observacao: string | null
 }
 
 interface RelatorioDetalhado {

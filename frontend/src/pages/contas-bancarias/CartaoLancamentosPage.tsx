@@ -3,7 +3,6 @@ import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import {
   ArrowLeft, Trash2, Loader2, X, ShoppingCart, Wallet, FileText, Copy, Check,
 } from 'lucide-react'
@@ -11,38 +10,13 @@ import api from '@/services/api'
 import { formatCurrency } from '@/utils/format'
 import { ModalDialog } from '@/components/ui/ModalDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
-
-/* ─── Tipos ─── */
-interface Lancamento {
-  id: string
-  descricao: string
-  valor: number
-  tipo: 'compra' | 'pagamento'
-  data: string
-  categoria: string | null
-}
-
-interface CartaoLancamentosData {
-  lancamentos: Lancamento[]
-  limite_total: number
-  limite_disponivel: number
-  limite_usado: number
-  nome: string
-  bandeira: string
-  cor: string
-  dia_fechamento: number
-  dia_vencimento: number
-}
+import { lancamentoCartaoSchema } from '@/lib/schemas/financeiro'
+import type { LancamentoCartaoFormData } from '@/lib/schemas/financeiro'
+import type { CartaoLancamento as Lancamento, CartaoLancamentosData } from '@/types/financeiro'
 
 /* ─── Schema ─── */
-const lancamentoSchema = z.object({
-  descricao: z.string().min(1, 'Descrição obrigatória'),
-  valor: z.coerce.number().positive('Valor deve ser positivo'),
-  tipo: z.enum(['compra', 'pagamento']),
-  data: z.string().min(1, 'Data obrigatória'),
-  categoria: z.string().optional(),
-})
-type LancamentoForm = z.infer<typeof lancamentoSchema>
+const lancamentoSchema = lancamentoCartaoSchema
+type LancamentoForm = LancamentoCartaoFormData
 
 const CATEGORIAS = [
   'Alimentação', 'Transporte', 'Moradia', 'Saúde', 'Educação',

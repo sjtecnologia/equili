@@ -1,45 +1,9 @@
 import React from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { TrendingUp, TrendingDown, CreditCard, Sparkles, AlertTriangle, Clock, Wallet, Calendar, Landmark } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import api from '@/services/api'
+import { useDashboard } from '@/hooks/useDashboard'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { SkeletonList } from '@/components/ui/SkeletonList'
-
-interface DashboardResumo {
-  renda_total: number
-  total_despesas_fixas: number
-  total_dividas: number
-  total_dividas_ativas: number
-  saldo_disponivel: number
-  saldo_projetado_30d: number
-  total_a_pagar_30d: number
-  total_a_receber_30d: number
-  proxima_conta_vencimento: string | null
-  dias_proxima_conta: number | null
-  plano_gerado: boolean
-  parcelas_atrasadas_total: number
-  valor_parcelas_atrasadas: number
-  dividas_com_atraso: number
-}
-
-interface ContaBancaria {
-  id: string
-  nome: string
-  banco: string
-  tipo: string
-  saldo_inicial: number
-  cor: string
-}
-
-interface CartaoCredito {
-  id: string
-  nome: string
-  bandeira: string
-  limite: number
-  limite_disponivel?: number
-  cor: string
-}
 
 const MetricCard = React.memo(function MetricCard({
   title,
@@ -74,21 +38,10 @@ const MetricCard = React.memo(function MetricCard({
 })
 
 export default function DashboardPage() {
-  const { data, isLoading, isError } = useQuery<DashboardResumo>({
-    queryKey: ['dashboard'],
-    queryFn: () => api.get('/dashboard/resumo').then((r) => r.data),
-    staleTime: 30_000,
-  })
-
-  const { data: contas = [] } = useQuery<ContaBancaria[]>({
-    queryKey: ['contas-bancarias'],
-    queryFn: () => api.get('/contas-bancarias').then((r) => r.data),
-  })
-
-  const { data: cartoes = [] } = useQuery<CartaoCredito[]>({
-    queryKey: ['cartoes-credito'],
-    queryFn: () => api.get('/cartoes-credito').then((r) => r.data),
-  })
+  const { resumo, contas: contasQuery, cartoes: cartoesQuery } = useDashboard()
+  const { data, isLoading, isError } = resumo
+  const contas = contasQuery.data ?? []
+  const cartoes = cartoesQuery.data ?? []
 
   if (isLoading) {
     return (
