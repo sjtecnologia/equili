@@ -1,6 +1,3 @@
-import { useEffect, useState, useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router-dom'
 import {
   BarChart,
   Bar,
@@ -14,121 +11,15 @@ import {
 } from 'recharts'
 import { Download, TrendingUp, TrendingDown, Scale, Loader2, FileText, Copy, Check, Printer } from 'lucide-react'
 import * as XLSX from 'xlsx'
-import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
-import type { ContaAPagar as ContaPagarItem, ContaAReceber as ContaReceberItem } from '@/types/financeiro'
+import { CATEGORIAS_LABEL, ORIGENS_LABEL, STATUS_PAGAR, STATUS_RECEBER } from '@/utils/labels'
+import type { FluxoMes, RelatorioDetalhado, CartaoLancamento } from '@/types/financeiro'
+import { useRelatorios } from '@/hooks/useRelatorios'
 
-// ---------- Tipos ----------
-
-interface FluxoMes {
-  mes: number
-  mes_nome: string
-  ano: number
-  entradas: number
-  saidas: number
-  saldo: number
-}
-
-interface RelatorioDetalhado {
-  contas_pagar: ContaPagarItem[]
-  contas_receber: ContaReceberItem[]
-  totais: {
-    total_pagar: number
-    total_receber: number
-    saldo: number
-  }
-}
-
-interface LancamentoConta {
-  id: string
-  descricao: string
-  valor: number
-  tipo: 'entrada' | 'saida'
-  data: string
-  categoria: string | null
-  origem: string
-}
-
-interface ContaLancamentosData {
-  lancamentos: LancamentoConta[]
-  saldo_inicial: number
-  saldo_atual: number
-  nome: string
-  banco: string
-  cor: string
-}
-
-interface LancamentoCartao {
-  id: string
-  descricao: string
-  valor: number
-  tipo: 'compra' | 'pagamento'
-  data: string
-  categoria: string | null
-}
-
-interface CartaoLancamentosData {
-  lancamentos: LancamentoCartao[]
-  limite_total: number
-  limite_usado: number
-  nome: string
-  bandeira: string
-  cor: string
-  dia_fechamento: number
-  dia_vencimento: number
-}
-
-interface ContaBancariaItem {
-  id: string
-  nome: string
-  banco: string
-  cor: string
-}
-
-interface CartaoCreditoItem {
-  id: string
-  nome: string
-  bandeira: string
-  cor: string
-}
-
-// ---------- Constantes ----------
-
-const MESES_ABR = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 const MESES_FULL = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ]
-
-const CATEGORIAS_LABEL: Record<string, string> = {
-  moradia: 'Moradia',
-  transporte: 'Transporte',
-  saude: 'Saúde',
-  educacao: 'Educação',
-  alimentacao: 'Alimentação',
-  lazer: 'Lazer',
-  outro: 'Outro',
-}
-
-const ORIGENS_LABEL: Record<string, string> = {
-  salario: 'Salário',
-  freela: 'Freelance',
-  venda: 'Venda',
-  emprestimo: 'Empréstimo',
-  outro: 'Outro',
-}
-
-const STATUS_PAGAR: Record<string, { label: string; classes: string }> = {
-  pendente: { label: 'Pendente', classes: 'bg-amber-100 text-amber-700' },
-  pago: { label: 'Pago', classes: 'bg-green-100 text-green-700' },
-  vencido: { label: 'Vencido', classes: 'bg-red-100 text-red-700' },
-}
-
-const STATUS_RECEBER: Record<string, { label: string; classes: string }> = {
-  pendente: { label: 'Pendente', classes: 'bg-amber-100 text-amber-700' },
-  recebido: { label: 'Recebido', classes: 'bg-green-100 text-green-700' },
-  atrasado: { label: 'Atrasado', classes: 'bg-red-100 text-red-700' },
-}
 
 // ---------- Tooltip customizado ----------
 
@@ -200,156 +91,26 @@ function exportDetalhadoExcel(data: RelatorioDetalhado, mes: number, ano: number
 // ---------- Componente principal ----------
 
 export default function RelatoriosPage() {
-  const [searchParams, setSearchParams] = useSearchParams()
-
-  const tabFromQuery = searchParams.get('tab')
-  const tab: 'fluxo' | 'detalhado' | 'extrato' | 'dia' =
-    tabFromQuery === 'detalhado' || tabFromQuery === 'extrato' || tabFromQuery === 'dia' ? tabFromQuery : 'fluxo'
-  const currentYear = new Date().getFullYear()
-  const currentMonth = new Date().getMonth() + 1
-
-  const [anoFluxo, setAnoFluxo] = useState(currentYear)
-  const [mesDetalhe, setMesDetalhe] = useState(currentMonth)
-  const [anoDetalhe, setAnoDetalhe] = useState(currentYear)
-
-  // Estado aba Por Dia
-  const todayStr = new Date().toISOString().slice(0, 10)
-  const [dataDia, setDataDia] = useState(todayStr)
-
-  // Estado aba Extrato
-  const [tipoExtrato, setTipoExtrato] = useState<'conta' | 'cartao'>('conta')
-  const [contaExtratoId, setContaExtratoId] = useState('')
-  const [cartaoExtratoId, setCartaoExtratoId] = useState('')
-  const [mesExtrato, setMesExtrato] = useState(String(currentYear) + '-' + String(currentMonth).padStart(2, '0'))
-  const [copiadoExtrato, setCopiadoExtrato] = useState(false)
-
-  const years = [currentYear - 1, currentYear, currentYear + 1]
-
-  const { data: fluxoData, isLoading: loadingFluxo } = useQuery<FluxoMes[]>({
-    queryKey: ['fluxo-caixa', anoFluxo],
-    queryFn: () => api.get(`/relatorio/fluxo-caixa?ano=${anoFluxo}`).then((r) => r.data),
-    staleTime: 5 * 60_000,
-  })
-
-  const { data: detalhado, isLoading: loadingDetalhado } = useQuery<RelatorioDetalhado>({
-    queryKey: ['relatorio-detalhado', mesDetalhe, anoDetalhe],
-    queryFn: () =>
-      api.get(`/relatorio/detalhado?mes=${mesDetalhe}&ano=${anoDetalhe}`).then((r) => r.data),
-    enabled: tab === 'detalhado',
-    staleTime: 5 * 60_000,
-  })
-
-  // Query aba Por Dia
-  interface ContaPagarDiaItem {
-    id: string
-    descricao: string
-    categoria: string
-    valor: number
-    status: string
-    tipo: string
-    observacao: string | null
-  }
-  interface ContasPagarDiaData {
-    data: string
-    total: number
-    contas: ContaPagarDiaItem[]
-  }
-  const { data: contasDia, isLoading: loadingDia } = useQuery<ContasPagarDiaData>({
-    queryKey: ['contas-pagar-dia', dataDia],
-    queryFn: () => api.get(`/relatorio/contas-pagar-dia?data=${dataDia}`).then((r) => r.data),
-    enabled: tab === 'dia',
-  })
-
-  // Queries aba Extrato
   const {
-    data: contasBancarias,
-    isLoading: loadingContas,
-    isError: contasError,
-  } = useQuery<ContaBancariaItem[]>({
-    queryKey: ['contas-bancarias'],
-    queryFn: () => api.get('/contas-bancarias').then((r) => r.data),
-    enabled: tab === 'extrato',
-  })
-  const {
-    data: cartoes,
-    isLoading: loadingCartoes,
-    isError: cartoesError,
-  } = useQuery<CartaoCreditoItem[]>({
-    queryKey: ['cartoes-credito'],
-    queryFn: () => api.get('/cartoes-credito').then((r) => r.data),
-    enabled: tab === 'extrato',
-  })
-  const {
-    data: dadosConta,
-    isLoading: loadingConta,
-    isError: contaLancamentosError,
-  } = useQuery<ContaLancamentosData>({
-    queryKey: ['conta-lancamentos', contaExtratoId],
-    queryFn: () => api.get(`/contas-bancarias/${contaExtratoId}/lancamentos`).then((r) => r.data),
-    enabled: tab === 'extrato' && tipoExtrato === 'conta' && !!contaExtratoId,
-  })
-  const {
-    data: dadosCartao,
-    isLoading: loadingCartao,
-    isError: cartaoLancamentosError,
-  } = useQuery<CartaoLancamentosData>({
-    queryKey: ['cartao-lancamentos', cartaoExtratoId],
-    queryFn: () => api.get(`/cartoes-credito/${cartaoExtratoId}/lancamentos`).then((r) => r.data),
-    enabled: tab === 'extrato' && tipoExtrato === 'cartao' && !!cartaoExtratoId,
-  })
-
-  useEffect(() => {
-    if (tab !== 'extrato') return
-
-    const hasContas = (contasBancarias?.length ?? 0) > 0
-    const hasCartoes = (cartoes?.length ?? 0) > 0
-
-    if (tipoExtrato === 'conta' && !hasContas && hasCartoes) {
-      setTipoExtrato('cartao')
-      return
-    }
-
-    if (tipoExtrato === 'cartao' && !hasCartoes && hasContas) {
-      setTipoExtrato('conta')
-    }
-  }, [tab, tipoExtrato, contasBancarias, cartoes])
-
-  useEffect(() => {
-    if (tab !== 'extrato' || tipoExtrato !== 'conta') return
-    if (contaExtratoId) return
-    if ((contasBancarias?.length ?? 0) > 0) {
-      setContaExtratoId(contasBancarias![0].id)
-    }
-  }, [tab, tipoExtrato, contaExtratoId, contasBancarias])
-
-  useEffect(() => {
-    if (tab !== 'extrato' || tipoExtrato !== 'cartao') return
-    if (cartaoExtratoId) return
-    if ((cartoes?.length ?? 0) > 0) {
-      setCartaoExtratoId(cartoes![0].id)
-    }
-  }, [tab, tipoExtrato, cartaoExtratoId, cartoes])
-
-  const { chartData, totalEntradas, totalSaidas, saldoAnual } = useMemo(() => {
-    const e = fluxoData?.reduce((acc, d) => acc + d.entradas, 0) ?? 0
-    const s = fluxoData?.reduce((acc, d) => acc + d.saidas, 0) ?? 0
-    return {
-      chartData: fluxoData?.map((d) => ({ ...d, nome: MESES_ABR[d.mes - 1] })) ?? [],
-      totalEntradas: e,
-      totalSaidas: s,
-      saldoAnual: e - s,
-    }
-  }, [fluxoData])
-
-  function handleTabChange(nextTab: 'fluxo' | 'detalhado' | 'extrato' | 'dia') {
-    if (nextTab === tab) return
-
-    const next = new URLSearchParams(searchParams)
-    if (nextTab === 'fluxo') next.delete('tab')
-    else next.set('tab', nextTab)
-
-    setSearchParams(next, { replace: true })
-  }
+    tab, handleTabChange, years,
+    anoFluxo, setAnoFluxo,
+    fluxoData, loadingFluxo,
+    chartData, totalEntradas, totalSaidas, saldoAnual,
+    mesDetalhe, setMesDetalhe, anoDetalhe, setAnoDetalhe,
+    detalhado, loadingDetalhado,
+    dataDia, setDataDia, contasDia, loadingDia,
+    tipoExtrato, trocarTipoExtrato,
+    contaExtratoId, setContaExtratoId,
+    cartaoExtratoId, setCartaoExtratoId,
+    setMesExtrato, mesEfetivo,
+    copiadoExtrato, setCopiadoExtrato,
+    contasBancarias, cartoes,
+    loadingContas, loadingCartoes, contasError, cartoesError,
+    loadingConta, loadingCartao, contaLancamentosError, cartaoLancamentosError,
+    lancamentosExtrato, lancamentosDoMes, mesesDisponiveisExtrato,
+    saldoAntesDoMes, linhasConta,
+    totalEntC, totalSaiC, totalCompras, totalPagamentosCartao,
+  } = useRelatorios()
 
   return (
     <div className="p-4 space-y-4 max-w-3xl mx-auto">
@@ -733,51 +494,17 @@ export default function RelatoriosPage() {
       {/* ===== Tab: Extrato Bancário ===== */}
       {tab === 'extrato' && (() => {
         const MESES_LABEL = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
-        const hasContas = (contasBancarias?.length ?? 0) > 0
-        const hasCartoes = (cartoes?.length ?? 0) > 0
+        const hasContas = contasBancarias.length > 0
+        const hasCartoes = cartoes.length > 0
         const loadingListas = loadingContas || loadingCartoes
         const erroListas = contasError || cartoesError
-
-        // Monta lista de meses disponíveis a partir dos lançamentos
-        const lancamentos = tipoExtrato === 'conta'
-          ? (dadosConta?.lancamentos ?? [])
-          : (dadosCartao?.lancamentos ?? [])
-
-        const mesesDisponiveis = [...new Set(lancamentos.map((l) => l.data.slice(0, 7)))].sort().reverse()
-
-        // Sincroniza mesExtrato quando muda de conta/cartão
-        const mesEfetivo = mesesDisponiveis.includes(mesExtrato) ? mesExtrato : (mesesDisponiveis[0] ?? mesExtrato)
-
-        const doMes = lancamentos
-          .filter((l) => l.data.slice(0, 7) === mesEfetivo)
-          .sort((a, b) => a.data.localeCompare(b.data))
-
-        // Saldo acumulado (só para conta bancária)
-        const saldoInicial = dadosConta?.saldo_inicial ?? 0
-        const saldoAntesDoMes = tipoExtrato === 'conta'
-          ? lancamentos
-              .filter((l) => l.data.slice(0, 7) < mesEfetivo)
-              .reduce((acc, l) => acc + ((l as LancamentoConta).tipo === 'entrada' ? l.valor : -l.valor), saldoInicial)
-          : 0
-
-        const linhasConta = tipoExtrato === 'conta'
-          ? (doMes as LancamentoConta[]).reduce<{ lancamento: LancamentoConta; saldo: number }[]>((acc, l) => {
-              const anterior = acc.length > 0 ? acc[acc.length - 1].saldo : saldoAntesDoMes
-              acc.push({ lancamento: l, saldo: anterior + (l.tipo === 'entrada' ? l.valor : -l.valor) })
-              return acc
-            }, [])
-          : []
-
-        const totalEntC = (doMes as LancamentoConta[]).filter((l) => l.tipo === 'entrada').reduce((s, l) => s + l.valor, 0)
-        const totalSaiC = (doMes as LancamentoConta[]).filter((l) => l.tipo === 'saida').reduce((s, l) => s + l.valor, 0)
-        const totalCompras = (doMes as LancamentoCartao[]).filter((l) => l.tipo === 'compra').reduce((s, l) => s + l.valor, 0)
-        const totalPagamentos = (doMes as LancamentoCartao[]).filter((l) => l.tipo === 'pagamento').reduce((s, l) => s + l.valor, 0)
+        const isLoadingLancamentos = tipoExtrato === 'conta' ? loadingConta : loadingCartao
+        const erroLancamentos = tipoExtrato === 'conta' ? contaLancamentosError : cartaoLancamentosError
 
         function copiarCSV() {
-          let rows: string[]
           if (tipoExtrato === 'conta') {
             const header = 'Data;Descrição;Tipo;Valor;Categoria;Saldo'
-            rows = linhasConta.map(({ lancamento: l, saldo }) =>
+            const rows = linhasConta.map(({ lancamento: l, saldo }) =>
               [l.data.split('-').reverse().join('/'), l.descricao,
                l.tipo === 'entrada' ? 'Entrada' : 'Saída',
                (l.tipo === 'entrada' ? l.valor : -l.valor).toFixed(2).replace('.', ','),
@@ -786,7 +513,7 @@ export default function RelatoriosPage() {
             navigator.clipboard.writeText([header, ...rows].join('\n'))
           } else {
             const header = 'Data;Descrição;Tipo;Valor;Categoria'
-            rows = (doMes as LancamentoCartao[]).map((l) =>
+            const rows = (lancamentosDoMes as CartaoLancamento[]).map((l) =>
               [l.data.split('-').reverse().join('/'), l.descricao,
                l.tipo === 'compra' ? 'Compra' : 'Pagamento',
                (l.tipo === 'compra' ? l.valor : -l.valor).toFixed(2).replace('.', ','),
@@ -798,24 +525,21 @@ export default function RelatoriosPage() {
           setTimeout(() => setCopiadoExtrato(false), 2000)
         }
 
-        const isLoadingLancamentos = tipoExtrato === 'conta' ? loadingConta : loadingCartao
-        const erroLancamentos = tipoExtrato === 'conta' ? contaLancamentosError : cartaoLancamentosError
-
         return (
           <div className="space-y-4">
             {/* Info de impressão: conta/cartão e mês selecionados */}
             <div className="hidden print:block text-sm text-gray-500 -mt-2 mb-1">
               {tipoExtrato === 'conta'
-                ? contasBancarias?.find((c) => c.id === contaExtratoId)?.nome ?? ''
-                : cartoes?.find((c) => c.id === cartaoExtratoId)?.nome ?? ''}
+                ? contasBancarias.find((c) => c.id === contaExtratoId)?.nome ?? ''
+                : cartoes.find((c) => c.id === cartaoExtratoId)?.nome ?? ''}
               {' · '}
-              {mesEfetivo ? (() => { const [y, mo] = mesEfetivo.split('-'); return `${['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][parseInt(mo)-1]}/${y}` })() : ''}
+              {mesEfetivo ? (() => { const [y, mo] = mesEfetivo.split('-'); return `${MESES_LABEL[parseInt(mo)-1]}/${y}` })() : ''}
             </div>
             {/* Tipo conta/cartão */}
             <div className="flex gap-2 print:hidden">
               {(['conta', 'cartao'] as const).map((t) => (
                 <button key={t}
-                  onClick={() => { setTipoExtrato(t); setContaExtratoId(''); setCartaoExtratoId('') }}
+                  onClick={() => trocarTipoExtrato(t)}
                   className={`flex-1 py-2 rounded-xl border-2 text-sm font-medium transition-all ${
                     tipoExtrato === t
                       ? 'border-primary-500 bg-primary-50 text-primary-700'
@@ -832,7 +556,7 @@ export default function RelatoriosPage() {
               <select className="input-field" value={contaExtratoId}
                 onChange={(e) => setContaExtratoId(e.target.value)}>
                 <option value="">Selecione uma conta...</option>
-                {(contasBancarias ?? []).map((c) => (
+                {contasBancarias.map((c) => (
                   <option key={c.id} value={c.id}>{c.nome} — {c.banco}</option>
                 ))}
               </select>
@@ -840,7 +564,7 @@ export default function RelatoriosPage() {
               <select className="input-field" value={cartaoExtratoId}
                 onChange={(e) => setCartaoExtratoId(e.target.value)}>
                 <option value="">Selecione um cartão...</option>
-                {(cartoes ?? []).map((c) => (
+                {cartoes.map((c) => (
                   <option key={c.id} value={c.id}>{c.nome} — {c.bandeira}</option>
                 ))}
               </select>
@@ -873,19 +597,19 @@ export default function RelatoriosPage() {
               <div className="card p-8 text-center text-red-500">
                 <p className="text-sm">Não foi possível carregar os lançamentos do extrato.</p>
               </div>
-            ) : lancamentos.length === 0 && (contaExtratoId || cartaoExtratoId) ? (
+            ) : lancamentosExtrato.length === 0 && (contaExtratoId || cartaoExtratoId) ? (
               <div className="card p-8 text-center text-gray-400">
                 <FileText size={36} className="mx-auto mb-2 opacity-30" />
                 <p className="text-sm">Nenhum lançamento encontrado</p>
               </div>
-            ) : lancamentos.length > 0 ? (
+            ) : lancamentosExtrato.length > 0 ? (
               <div className="card overflow-hidden">
                 {/* Filtro mês + CSV */}
                 <div className="flex items-center gap-3 p-4 border-b print:hidden">
                   <label className="text-sm font-medium text-gray-600 shrink-0">Mês:</label>
                   <select className="input-field flex-1 text-sm py-1.5" value={mesEfetivo}
                     onChange={(e) => setMesExtrato(e.target.value)}>
-                    {mesesDisponiveis.map((m) => {
+                    {mesesDisponiveisExtrato.map((m) => {
                       const [y, mo] = m.split('-')
                       return <option key={m} value={m}>{MESES_LABEL[parseInt(mo) - 1]}/{y}</option>
                     })}
@@ -921,10 +645,10 @@ export default function RelatoriosPage() {
                       <div><p className="text-xs text-red-500">Compras</p>
                         <p className="text-sm font-bold text-red-600">{formatCurrency(totalCompras)}</p></div>
                       <div><p className="text-xs text-green-600">Pagamentos</p>
-                        <p className="text-sm font-bold text-green-600">{formatCurrency(totalPagamentos)}</p></div>
+                        <p className="text-sm font-bold text-green-600">{formatCurrency(totalPagamentosCartao)}</p></div>
                       <div><p className="text-xs text-gray-500">Fatura</p>
-                        <p className={`text-sm font-bold ${totalCompras - totalPagamentos > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                          {formatCurrency(Math.abs(totalCompras - totalPagamentos))}</p></div>
+                        <p className={`text-sm font-bold ${totalCompras - totalPagamentosCartao > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {formatCurrency(Math.abs(totalCompras - totalPagamentosCartao))}</p></div>
                     </>
                   )}
                 </div>
@@ -955,7 +679,7 @@ export default function RelatoriosPage() {
                           </div>
                         </div>
                       ))
-                    : (doMes as LancamentoCartao[]).map((l) => (
+                    : (lancamentosDoMes as CartaoLancamento[]).map((l) => (
                         <div key={l.id} className="flex items-center gap-2 px-4 py-2.5">
                           <div className={`w-1 h-8 rounded-full shrink-0 ${l.tipo === 'pagamento' ? 'bg-green-400' : 'bg-red-400'}`} />
                           <div className="flex-1 min-w-0">

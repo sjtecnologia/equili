@@ -10,6 +10,7 @@ import { useNavStore } from '@/stores/navStore'
 import { ALL_NAV_ITEMS } from '@/config/navItems'
 import PushNotificationToggle from '@/components/pwa/PushNotificationToggle'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { usePerfil } from '@/hooks/usePerfil'
 
 // ─── Schema: editar perfil ────────────────────────────────────────────────────
 const perfilSchema = z.object({
@@ -39,7 +40,7 @@ type SenhaForm = z.infer<typeof senhaSchema>
 // ─── Seção: editar perfil ─────────────────────────────────────────────────────
 function SecaoPerfil() {
   const user = useAuthStore((s) => s.user)
-  const setUser = useAuthStore((s) => s.setUser)
+  const { salvarPerfil } = usePerfil()
   const [success, setSuccess] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
 
@@ -56,8 +57,7 @@ function SecaoPerfil() {
     setServerError(null)
     setSuccess(false)
     try {
-      const res = await api.put('/usuarios/me', data)
-      setUser(res.data)
+      await salvarPerfil(data)
       setSuccess(true)
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } }
@@ -123,6 +123,7 @@ function SecaoPerfil() {
 
 // ─── Seção: trocar senha ──────────────────────────────────────────────────────
 function SecaoSenha() {
+  const { alterarSenha } = usePerfil()
   const [success, setSuccess] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
 
@@ -137,10 +138,7 @@ function SecaoSenha() {
     setServerError(null)
     setSuccess(false)
     try {
-      await api.put('/usuarios/me', {
-        senha_atual: data.senha_atual,
-        nova_senha: data.nova_senha,
-      })
+      await alterarSenha({ senha_atual: data.senha_atual, nova_senha: data.nova_senha })
       setSuccess(true)
       reset()
     } catch (err: unknown) {
@@ -348,6 +346,7 @@ export default function ConfiguracoesPage() {
 function SecaoPrivacidade() {
   const navigate = useNavigate()
   const logout = useAuthStore((s) => s.logout)
+  const { exportarDados, excluirConta } = usePerfil()
   const [exportando, setExportando] = useState(false)
   const [excluindo, setExcluindo] = useState(false)
   const [confirmarExclusao, setConfirmarExclusao] = useState(false)
@@ -358,14 +357,7 @@ function SecaoPrivacidade() {
   async function handleExportar() {
     setExportando(true)
     try {
-      const { data } = await api.get('/usuarios/me/exportar-dados')
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `equili-meus-dados-${new Date().toISOString().slice(0, 10)}.json`
-      a.click()
-      URL.revokeObjectURL(url)
+      await exportarDados()
     } catch {
       setErro('Erro ao exportar dados. Tente novamente.')
     } finally {
@@ -377,9 +369,7 @@ function SecaoPrivacidade() {
     setErro(null)
     setExcluindo(true)
     try {
-      await api.delete('/usuarios/me', {
-        data: { senha, confirmacao: confirmacaoTexto },
-      })
+      await excluirConta(senha, confirmacaoTexto)
       logout()
       navigate('/login', { replace: true })
     } catch (e: unknown) {

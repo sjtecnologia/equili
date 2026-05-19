@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
@@ -12,7 +11,8 @@ import { ModalDialog } from '@/components/ui/ModalDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { lancamentoCartaoSchema } from '@/lib/schemas/financeiro'
 import type { LancamentoCartaoFormData } from '@/lib/schemas/financeiro'
-import type { CartaoLancamento as Lancamento, CartaoLancamentosData } from '@/types/financeiro'
+import type { CartaoLancamento as Lancamento } from '@/types/financeiro'
+import { useCartaoLancamentos } from '@/hooks/useCartaoLancamentos'
 
 /* ─── Schema ─── */
 const lancamentoSchema = lancamentoCartaoSchema
@@ -264,32 +264,16 @@ function ExtratoCartaoModal({
 /* ─── Página principal ─── */
 export default function CartaoLancamentosPage() {
   const { cartaoId } = useParams<{ cartaoId: string }>()
-  const queryClient = useQueryClient()
+  const { data, isLoading, isError, deletar, invalidate } = useCartaoLancamentos(cartaoId)
   const [modalTipo, setModalTipo] = useState<'compra' | 'pagamento' | null>(null)
   const [showExtrato, setShowExtrato] = useState(false)
 
-  const queryKey = ['cartao-lancamentos', cartaoId]
-  const { data, isLoading, isError } = useQuery<CartaoLancamentosData>({
-    queryKey,
-    queryFn: () => api.get(`/cartoes-credito/${cartaoId}/lancamentos`).then((r) => r.data),
-    enabled: !!cartaoId,
-    retry: 1,
-    staleTime: 5 * 60_000,
-  })
-
-  const deletar = useMutation({
-    mutationFn: (lancamentoId: string) =>
-      api.delete(`/cartoes-credito/${cartaoId}/lancamentos/${lancamentoId}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
-  })
-
   function handleDelete(id: string) {
-    if (confirm('Remover este lançamento?')) deletar.mutate(id)
+    if (confirm('Remover este lançamento?')) deletar(id)
   }
 
   function onRefresh() {
-    queryClient.invalidateQueries({ queryKey })
-    queryClient.invalidateQueries({ queryKey: ['cartoes-credito'] })
+    invalidate()
   }
 
   const lancamentos = data?.lancamentos ?? []
@@ -388,7 +372,7 @@ export default function CartaoLancamentosPage() {
           <p className="font-medium">Erro ao carregar lançamentos</p>
           <p className="text-sm mt-1">Verifique sua conexão e tente novamente</p>
           <button
-            onClick={() => queryClient.invalidateQueries({ queryKey })}
+            onClick={invalidate}
             className="mt-3 text-sm text-primary-600 underline"
           >
             Tentar novamente
