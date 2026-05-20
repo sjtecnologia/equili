@@ -30,6 +30,7 @@ export default function BaixasPage() {
         }))
       }),
     staleTime: 5 * 60_000,
+    refetchOnMount: 'always',
   })
 
   const [busca, setBusca] = useState('')
