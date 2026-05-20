@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/services/api'
+import { invalidateContasReceberAndDashboard } from '@/lib/queryInvalidation'
 import type { ContaAReceber } from '@/types/financeiro'
 
 export function useContasReceber() {
@@ -14,15 +15,11 @@ export function useContasReceber() {
 
   const deletar = useMutation({
     mutationFn: (id: string) => api.delete(`/contas-receber/${id}`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['contas-receber'] })
-      qc.invalidateQueries({ queryKey: ['dashboard'] })
-    },
+    onSuccess: () => invalidateContasReceberAndDashboard(qc),
   })
 
   const invalidate = useCallback(() => {
-    qc.invalidateQueries({ queryKey: ['contas-receber'] })
-    qc.invalidateQueries({ queryKey: ['dashboard'] })
+    invalidateContasReceberAndDashboard(qc)
   }, [qc])
 
   return { ...query, deletar, invalidate }
