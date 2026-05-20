@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useReducer } from 'react'
 import { Trash2, CheckCircle, Lock, Pencil, AlertTriangle, CalendarClock, History } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -8,12 +8,56 @@ import { useDividas } from '@/hooks/useDividas'
 import type { Divida } from '@/types/financeiro'
 import { DividaModal, EditarDividaModal, PagarParcelaModal, HistoricoPagamentosModal } from './DividaModals'
 
+type ModalState = {
+  showCreate: boolean
+  editando: Divida | null
+  pagando: Divida | null
+  historico: Divida | null
+}
+
+type ModalAction =
+  | { type: 'OPEN_CREATE' }
+  | { type: 'CLOSE_CREATE' }
+  | { type: 'OPEN_EDIT'; divida: Divida }
+  | { type: 'CLOSE_EDIT' }
+  | { type: 'OPEN_PAY'; divida: Divida }
+  | { type: 'CLOSE_PAY' }
+  | { type: 'OPEN_HISTORY'; divida: Divida }
+  | { type: 'CLOSE_HISTORY' }
+
+const initialModalState: ModalState = {
+  showCreate: false,
+  editando: null,
+  pagando: null,
+  historico: null,
+}
+
+function modalReducer(state: ModalState, action: ModalAction): ModalState {
+  switch (action.type) {
+    case 'OPEN_CREATE':
+      return { ...state, showCreate: true }
+    case 'CLOSE_CREATE':
+      return { ...state, showCreate: false }
+    case 'OPEN_EDIT':
+      return { ...state, editando: action.divida }
+    case 'CLOSE_EDIT':
+      return { ...state, editando: null }
+    case 'OPEN_PAY':
+      return { ...state, pagando: action.divida }
+    case 'CLOSE_PAY':
+      return { ...state, pagando: null }
+    case 'OPEN_HISTORY':
+      return { ...state, historico: action.divida }
+    case 'CLOSE_HISTORY':
+      return { ...state, historico: null }
+    default:
+      return state
+  }
+}
+
 
 export default function DividasPage() {
-  const [showModal, setShowModal] = useState(false)
-  const [editando, setEditando] = useState<Divida | null>(null)
-  const [pagando, setPagando] = useState<Divida | null>(null)
-  const [historico, setHistorico] = useState<Divida | null>(null)
+  const [modals, dispatchModal] = useReducer(modalReducer, initialModalState)
 
   const { data: dividas = [], isLoading, contasFixasAtrasadas, deletar: deleteMutation } = useDividas()
 
@@ -37,7 +81,7 @@ export default function DividasPage() {
       <PageHeader
         title="Dívidas"
         subtitle={`${dividasAtivas.length} dívida(s) ativa(s)`}
-        action={{ label: 'Adicionar', onClick: () => setShowModal(true), disabled: isLoading }}
+        action={{ label: 'Adicionar', onClick: () => dispatchModal({ type: 'OPEN_CREATE' }), disabled: isLoading }}
       />
 
       {/* Limite freemium */}
@@ -176,20 +220,20 @@ export default function DividasPage() {
                 {/* Ações */}
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setPagando(divida)}
+                    onClick={() => dispatchModal({ type: 'OPEN_PAY', divida })}
                     className="btn-secondary text-xs flex-1"
                   >
                     Registrar pagamento
                   </button>
                   <button
-                    onClick={() => setHistorico(divida)}
+                    onClick={() => dispatchModal({ type: 'OPEN_HISTORY', divida })}
                     className="text-gray-300 hover:text-primary-500 transition-colors p-1"
                     aria-label="Histórico de pagamentos"
                   >
                     <History size={16} />
                   </button>
                   <button
-                    onClick={() => setEditando(divida)}
+                    onClick={() => dispatchModal({ type: 'OPEN_EDIT', divida })}
                     className="text-gray-300 hover:text-primary-500 transition-colors p-1"
                     aria-label="Editar dívida"
                   >
@@ -210,23 +254,23 @@ export default function DividasPage() {
         </div>
       )}
 
-      {showModal && <DividaModal onClose={() => setShowModal(false)} />}
-      {editando && (
+      {modals.showCreate && <DividaModal onClose={() => dispatchModal({ type: 'CLOSE_CREATE' })} />}
+      {modals.editando && (
         <EditarDividaModal
-          divida={editando}
-          onClose={() => setEditando(null)}
+          divida={modals.editando}
+          onClose={() => dispatchModal({ type: 'CLOSE_EDIT' })}
         />
       )}
-      {pagando && (
+      {modals.pagando && (
         <PagarParcelaModal
-          divida={pagando}
-          onClose={() => setPagando(null)}
+          divida={modals.pagando}
+          onClose={() => dispatchModal({ type: 'CLOSE_PAY' })}
         />
       )}
-      {historico && (
+      {modals.historico && (
         <HistoricoPagamentosModal
-          divida={historico}
-          onClose={() => setHistorico(null)}
+          divida={modals.historico}
+          onClose={() => dispatchModal({ type: 'CLOSE_HISTORY' })}
         />
       )}
     </div>

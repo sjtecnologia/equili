@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useMemo, useReducer, useState } from 'react'
 import { Trash2, CheckCircle2, AlertCircle, RefreshCw, Layers, Pencil } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -8,6 +8,45 @@ import { useContasPagar } from '@/hooks/useContasPagar'
 import type { ContaAPagar } from '@/types/financeiro'
 import { CATEGORIAS, EditarContaModal, PagarContaModal, ContaModal } from './ContaPagarModals'
 
+type ModalState = {
+  showCreate: boolean
+  editando: ContaAPagar | null
+  pagando: ContaAPagar | null
+}
+
+type ModalAction =
+  | { type: 'OPEN_CREATE' }
+  | { type: 'CLOSE_CREATE' }
+  | { type: 'OPEN_EDIT'; conta: ContaAPagar }
+  | { type: 'CLOSE_EDIT' }
+  | { type: 'OPEN_PAY'; conta: ContaAPagar }
+  | { type: 'CLOSE_PAY' }
+
+const initialModalState: ModalState = {
+  showCreate: false,
+  editando: null,
+  pagando: null,
+}
+
+function modalReducer(state: ModalState, action: ModalAction): ModalState {
+  switch (action.type) {
+    case 'OPEN_CREATE':
+      return { ...state, showCreate: true }
+    case 'CLOSE_CREATE':
+      return { ...state, showCreate: false }
+    case 'OPEN_EDIT':
+      return { ...state, editando: action.conta }
+    case 'CLOSE_EDIT':
+      return { ...state, editando: null }
+    case 'OPEN_PAY':
+      return { ...state, pagando: action.conta }
+    case 'CLOSE_PAY':
+      return { ...state, pagando: null }
+    default:
+      return state
+  }
+}
+
 const STATUS_LABELS: Record<string, { label: string; classes: string }> = {
   pendente: { label: 'Pendente', classes: 'bg-amber-100 text-amber-700' },
   pago: { label: 'Pago', classes: 'bg-green-100 text-green-700' },
@@ -15,9 +54,7 @@ const STATUS_LABELS: Record<string, { label: string; classes: string }> = {
 }
 
 export default function ContasPagarPage() {
-  const [showModal, setShowModal] = useState(false)
-  const [editando, setEditando] = useState<ContaAPagar | null>(null)
-  const [pagando, setPagando] = useState<ContaAPagar | null>(null)
+  const [modals, dispatchModal] = useReducer(modalReducer, initialModalState)
   const [filtroStatus, setFiltroStatus] = useState<string>('todos')
 
   const { data: contas = [], isLoading, deletar: deleteMutation, pagar: pagarMutation } = useContasPagar()
@@ -37,7 +74,7 @@ export default function ContasPagarPage() {
       <PageHeader
         title="Contas a Pagar"
         subtitle={`${contas.filter((c) => c.status !== 'pago').length} conta(s) pendente(s)`}
-        action={{ label: 'Adicionar', onClick: () => setShowModal(true) }}
+        action={{ label: 'Adicionar', onClick: () => dispatchModal({ type: 'OPEN_CREATE' }) }}
       />
 
       {/* Resumo */}
@@ -76,7 +113,7 @@ export default function ContasPagarPage() {
         <EmptyState
           icon={CheckCircle2}
           title={filtroStatus === 'todos' ? 'Nenhuma conta cadastrada.' : `Nenhuma conta ${STATUS_LABELS[filtroStatus]?.label.toLowerCase()}.`}
-          action={filtroStatus === 'todos' ? { label: 'Adicionar primeira conta', onClick: () => setShowModal(true) } : undefined}
+          action={filtroStatus === 'todos' ? { label: 'Adicionar primeira conta', onClick: () => dispatchModal({ type: 'OPEN_CREATE' }) } : undefined}
         />
       ) : (
         <div className="space-y-3">
@@ -129,7 +166,7 @@ export default function ContasPagarPage() {
                 <div className="flex gap-2">
                   {conta.status !== 'pago' && (
                     <button
-                      onClick={() => setPagando(conta)}
+                      onClick={() => dispatchModal({ type: 'OPEN_PAY', conta })}
                       disabled={pagarMutation.isPending}
                       className="btn-secondary text-xs flex-1 flex items-center justify-center gap-1"
                     >
@@ -138,7 +175,7 @@ export default function ContasPagarPage() {
                     </button>
                   )}
                   <button
-                    onClick={() => setEditando(conta)}
+                    onClick={() => dispatchModal({ type: 'OPEN_EDIT', conta })}
                     className="text-gray-300 hover:text-primary-500 transition-colors p-1"
                     aria-label="Editar conta"
                   >
@@ -159,21 +196,21 @@ export default function ContasPagarPage() {
         </div>
       )}
 
-      {showModal && (
+      {modals.showCreate && (
         <ContaModal
-          onClose={() => setShowModal(false)}
+          onClose={() => dispatchModal({ type: 'CLOSE_CREATE' })}
         />
       )}
-      {editando && (
+      {modals.editando && (
         <EditarContaModal
-          conta={editando}
-          onClose={() => setEditando(null)}
+          conta={modals.editando}
+          onClose={() => dispatchModal({ type: 'CLOSE_EDIT' })}
         />
       )}
-      {pagando && (
+      {modals.pagando && (
         <PagarContaModal
-          conta={pagando}
-          onClose={() => setPagando(null)}
+          conta={modals.pagando}
+          onClose={() => dispatchModal({ type: 'CLOSE_PAY' })}
         />
       )}
 
