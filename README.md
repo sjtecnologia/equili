@@ -37,6 +37,7 @@ cp frontend/.env.example frontend/.env
 Edite `backend/.env` com seus valores reais (especialmente `DATABASE_URL`, `SECRET_KEY` e `GITHUB_TOKEN`).
 No frontend, mantenha apenas variáveis `VITE_` (públicas por definição do Vite).
 Se usar login social, configure também `GOOGLE_CLIENT_ID` e `APPLE_ALLOWED_AUDIENCES` no backend.
+Para rate limiting distribuído (multi-instância), configure também `REDIS_URL` no backend.
 
 ### 2 · Criar o banco de dados
 
