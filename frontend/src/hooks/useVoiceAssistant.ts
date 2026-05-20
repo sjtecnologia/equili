@@ -92,6 +92,12 @@ const ROTAS: Record<string, string> = {
   excluir_conta_pagar: '/contas-pagar',
   excluir_conta_receber: '/contas-receber',
   excluir_renda: '/rendas',
+  criar_divida: '/dividas',
+  registrar_pagamento_divida: '/dividas',
+  excluir_divida: '/dividas',
+  criar_investimento: '/investimentos',
+  atualizar_investimento: '/investimentos',
+  excluir_investimento: '/investimentos',
 }
 
 export const LABELS_MODALIDADE: Record<string, string> = {
@@ -125,17 +131,42 @@ function prepararDados(acao: string, dados: Record<string, unknown>, dataExtra?:
       frequencia: dados.frequencia || 'mensal',
     }
   }
+  if (acao === 'criar_divida') {
+    return {
+      descricao: dados.descricao,
+      valor_total: dados.valor_total,
+      valor_parcela: dados.valor_parcela,
+      parcelas_restantes: dados.parcelas_restantes || 1,
+      tipo: dados.tipo || 'emprestimo',
+      credor: dados.credor || '',
+      data_primeira_parcela: dataExtra || dados.data_primeira_parcela,
+    }
+  }
+  if (acao === 'criar_investimento') {
+    return {
+      nome: dados.nome,
+      tipo: dados.tipo || 'acoes',
+      valor_investido: dados.valor_investido,
+      data_investimento: dataExtra || dados.data_investimento,
+    }
+  }
   return dados
 }
 
 const NAVEGACAO: Record<string, string> = {
   criar_conta_pagar: '/contas-pagar',
   criar_conta_receber: '/contas-receber',
-  criar_renda: '/renda',
-  atualizar_renda: '/renda',
+  criar_renda: '/rendas',
+  atualizar_renda: '/rendas',
   excluir_conta_pagar: '/contas-pagar',
   excluir_conta_receber: '/contas-receber',
-  excluir_renda: '/renda',
+  excluir_renda: '/rendas',
+  criar_divida: '/dividas',
+  registrar_pagamento_divida: '/dividas',
+  excluir_divida: '/dividas',
+  criar_investimento: '/investimentos',
+  atualizar_investimento: '/investimentos',
+  excluir_investimento: '/investimentos',
 }
 
 type AnyWindow = Window & typeof globalThis & Record<string, unknown>
@@ -314,7 +345,20 @@ export function useVoiceAssistant() {
   async function confirmarComData() {
     if (!state.acao || !state.dataSelecionada) return
     const tipoConta = state.acao.dados._tipo_conta as string
-    const acaoReal = tipoConta === 'receber' ? 'criar_conta_receber' : 'criar_conta_pagar'
+    let acaoReal = ''
+    
+    if (tipoConta === 'receber') {
+      acaoReal = 'criar_conta_receber'
+    } else if (tipoConta === 'pagar') {
+      acaoReal = 'criar_conta_pagar'
+    } else if (tipoConta === 'divida') {
+      acaoReal = 'criar_divida'
+    } else if (tipoConta === 'pagamento_divida') {
+      acaoReal = 'registrar_pagamento_divida'
+    } else {
+      acaoReal = 'criar_conta_pagar'
+    }
+    
     const rota = ROTAS[acaoReal]
     setEstado('processando')
     try {
@@ -375,10 +419,84 @@ export function useVoiceAssistant() {
       }
       await withTimeout(api.delete(`/contas-receber/${alvo.id}`))
     },
+    excluir_divida: async (dados) => {
+      const { data: dividas } = await withTimeout(
+        api.get<{ id: string; descricao: string }[]>('/dividas')
+      )
+      const busca = ((dados.descricao_busca as string) || '').toLowerCase()
+      const alvo = dividas.find((d) => d.descricao.toLowerCase().includes(busca))
+      if (!alvo) {
+        throw new Error(`Não encontrei dívida com "${dados.descricao_busca}" para excluir.`)
+      }
+      await withTimeout(api.delete(`/dividas/${alvo.id}`))
+    },
+    registrar_pagamento_divida: async (dados) => {
+      const { data: dividas } = await withTimeout(
+        api.get<{ id: string; descricao: string }[]>('/dividas')
+      )
+      const busca = ((dados.descricao_busca as string) || '').toLowerCase()
+      const alvo = dividas.find((d) => d.descricao.toLowerCase().includes(busca))
+      if (!alvo) {
+        throw new Error(`Não encontrei dívida com "${dados.descricao_busca}" para registrar pagamento.`)
+      }
+      await withTimeout(api.post(`/dividas/${alvo.id}/pagar-parcela`, {
+        valor_pago: dados.valor_pago,
+        data_pagamento: dados.data_pagamento,
+      }))
+    },
+    atualizar_investimento: async (dados) => {
+      const { data: investimentos } = await withTimeout(
+        api.get<{ id: string; nome: string }[]>('/investimentos')
+      )
+      const busca = ((dados.nome_busca as string) || '').toLowerCase()
+      const alvo = investimentos.find((i) => i.nome.toLowerCase().includes(busca))
+      if (!alvo) {
+        throw new Error(`Não encontrei investimento com "${dados.nome_busca}" para atualizar.`)
+      }
+      await withTimeout(api.patch(`/investimentos/${alvo.id}`, { valor_atual: dados.valor_atual }))
+    },
+    excluir_investimento: async (dados) => {
+      const { data: investimentos } = await withTimeout(
+        api.get<{ id: string; nome: string }[]>('/investimentos')
+      )
+      const busca = ((dados.nome_busca as string) || '').toLowerCase()
+      const alvo = investimentos.find((i) => i.nome.toLowerCase().includes(busca))
+      if (!alvo) {
+        throw new Error(`Não encontrei investimento com "${dados.nome_busca}" para excluir.`)
+      }
+      await withTimeout(api.delete(`/investimentos/${alvo.id}`))
+    },
+    navegar: async (dados) => {
+      const destino = dados.destino as string
+      resetar()
+      navigate(destino || '/dashboard')
+    },
   }
 
   async function confirmar() {
     if (!state.acao) return
+    
+    // Ações que não precisam de rota (como navegação)
+    if (state.acao.acao === 'navegar') {
+      const handler = ACTION_HANDLERS[state.acao.acao]
+      setEstado('processando')
+      try {
+        if (handler) {
+          await handler(state.acao.dados)
+        }
+      } catch (e) {
+        const msg =
+          e instanceof Error && e.message.startsWith('Timeout')
+            ? 'Servidor demorou demais. Verifique sua conexão e tente novamente.'
+            : e instanceof Error && e.message
+            ? e.message
+            : 'Erro ao executar. Tente novamente.'
+        setErro(msg)
+        setEstado('erro')
+      }
+      return
+    }
+    
     const rota = ROTAS[state.acao.acao]
     if (!rota) return
 

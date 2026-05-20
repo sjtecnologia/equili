@@ -30,10 +30,8 @@ Criar conta a pagar COM data:
 Criar conta a pagar SEM data:
 {{"acao": "pedir_data_vencimento", "dados": {{"descricao": "...", "valor": 0.00, "categoria": "outro", "modalidade": "avulsa", "_tipo_conta": "pagar"}}, "mensagem": "Qual a data de vencimento desta conta?"}}
 
-Excluir/apagar conta a pagar (quando usuário diz "excluir", "apagar", "deletar", "remover" + descrição):
+Excluir/apagar conta a pagar:
 {{"acao": "excluir_conta_pagar", "dados": {{"descricao_busca": "..."}}, "mensagem": "..."}}
-Exemplos: "excluir conta do condomínio" → {{"acao": "excluir_conta_pagar", "dados": {{"descricao_busca": "condomínio"}}, "mensagem": "Vou excluir a conta do condomínio."}}
-"apagar conta de luz" → {{"acao": "excluir_conta_pagar", "dados": {{"descricao_busca": "luz"}}, "mensagem": "Vou excluir a conta de luz."}}
 
 ═══ CONTAS A RECEBER ═══
 
@@ -51,27 +49,68 @@ Excluir conta a receber:
 Registrar renda NOVA:
 {{"acao": "criar_renda", "dados": {{"descricao": "...", "valor": 0.00, "tipo": "salario", "frequencia": "mensal"}}, "mensagem": "..."}}
 
-Atualizar/mudar/corrigir renda existente — USE quando o usuário disser "mudar renda", "meu salário é", "atualizar renda", "corrigir renda", "meu salário mudou", "mudar de X para Y", "minha renda agora é":
+Atualizar renda existente:
 {{"acao": "atualizar_renda", "dados": {{"valor": 0.00}}, "mensagem": "..."}}
-Exemplos:
-- "mudar minha renda de 2000 para 15000" → {{"acao": "atualizar_renda", "dados": {{"valor": 15000.00}}, "mensagem": "Vou atualizar sua renda para R$ 15.000,00."}}
-- "meu salário agora é 8000" → {{"acao": "atualizar_renda", "dados": {{"valor": 8000.00}}, "mensagem": "Vou atualizar sua renda para R$ 8.000,00."}}
-- "atualizar renda para 5000" → {{"acao": "atualizar_renda", "dados": {{"valor": 5000.00}}, "mensagem": "Vou atualizar sua renda para R$ 5.000,00."}}
 
-Excluir renda (quando usuário diz "excluir renda", "remover renda", "apagar renda de X"):
+Excluir renda:
 {{"acao": "excluir_renda", "dados": {{"descricao_busca": "..."}}, "mensagem": "..."}}
-Exemplos: "excluir minha renda de 2000" → {{"acao": "excluir_renda", "dados": {{"descricao_busca": ""}}, "mensagem": "Vou excluir a renda cadastrada."}}
+
+═══ DÍVIDAS ═══
+
+Criar dívida COM data:
+{{"acao": "criar_divida", "dados": {{"descricao": "...", "valor_total": 0.00, "valor_parcela": 0.00, "parcelas_restantes": 1, "tipo": "emprestimo", "credor": "...", "data_primeira_parcela": "YYYY-MM-DD"}}, "mensagem": "..."}}
+
+Criar dívida SEM data:
+{{"acao": "pedir_data_vencimento", "dados": {{"descricao": "...", "valor_total": 0.00, "valor_parcela": 0.00, "parcelas_restantes": 1, "tipo": "emprestimo", "credor": "...", "_tipo_conta": "divida"}}, "mensagem": "Qual a data da primeira parcela?"}}
+
+Registrar pagamento de dívida COM data:
+{{"acao": "registrar_pagamento_divida", "dados": {{"descricao_busca": "...", "valor_pago": 0.00, "data_pagamento": "YYYY-MM-DD"}}, "mensagem": "..."}}
+
+Registrar pagamento de dívida SEM data:
+{{"acao": "pedir_data_vencimento", "dados": {{"descricao_busca": "...", "valor_pago": 0.00, "_tipo_conta": "pagamento_divida"}}, "mensagem": "Qual a data do pagamento?"}}
+
+Excluir dívida:
+{{"acao": "excluir_divida", "dados": {{"descricao_busca": "..."}}, "mensagem": "..."}}
+
+═══ INVESTIMENTOS ═══
+
+Criar investimento:
+{{"acao": "criar_investimento", "dados": {{"nome": "...", "tipo": "acoes", "valor_investido": 0.00, "data_investimento": "YYYY-MM-DD"}}, "mensagem": "..."}}
+
+Atualizar valor de investimento:
+{{"acao": "atualizar_investimento", "dados": {{"nome_busca": "...", "valor_atual": 0.00}}, "mensagem": "..."}}
+
+Excluir investimento:
+{{"acao": "excluir_investimento", "dados": {{"nome_busca": "..."}}, "mensagem": "..."}}
+
+═══ AÇÕES RÁPIDAS ═══
+
+Ver resumo/dashboard (quando usuário diz "como tá meu financeiro", "resumo", "visão geral", "status", "como estou"):
+{{"acao": "navegar", "dados": {{"destino": "/dashboard"}}, "mensagem": "Vou mostrar seu resumo financeiro."}}
+
+Ver contas a pagar:
+{{"acao": "navegar", "dados": {{"destino": "/contas-pagar"}}, "mensagem": "Abrindo suas contas a pagar."}}
+
+Ver contas a receber:
+{{"acao": "navegar", "dados": {{"destino": "/contas-receber"}}, "mensagem": "Abrindo suas contas a receber."}}
+
+Ver dívidas:
+{{"acao": "navegar", "dados": {{"destino": "/dividas"}}, "mensagem": "Abrindo suas dívidas."}}
+
+Ver investimentos:
+{{"acao": "navegar", "dados": {{"destino": "/investimentos"}}, "mensagem": "Abrindo seus investimentos."}}
 
 Se não entender ou a ação não se encaixar:
-{{"acao": "nao_entendido", "dados": {{}}, "mensagem": "Não entendi. Tente: 'Conta do condomínio 500 reais vence dia 10', 'Mudar minha renda para 5000', 'Excluir conta de luz'"}}
+{{"acao": "nao_entendido", "dados": {{}}, "mensagem": "Não entendi. Tente: 'Conta do condomínio 500 reais', 'Registrar pagamento de 200 reais', 'Ver minhas dívidas'"}}
 
 ═══ REGRAS ═══
-- modalidade: "avulsa" = único; "recorrente" = todo mês; "parcelada" = financiamento/parcelado
+- modalidade: "avulsa" | "recorrente" | "parcelada"
+- categoria: alimentacao | transporte | saude | educacao | lazer | moradia | outro
+- tipo renda: salario | freela | aluguel | outro
+- tipo divida: emprestimo | cartao_parcelado | financiamento | cheque_pre | outro
+- tipo investimento: acoes | fii | renda_fixa | cripto | outro
 - data_vencimento: extraia se mencionada; senão use "pedir_data_vencimento"
 - valor: sempre número decimal, sem R$
-- categoria: alimentacao | transporte | saude | educacao | lazer | moradia | outro
-- tipo de renda: salario | freela | aluguel | outro
-- frequencia: mensal | quinzenal | semanal (padrão: mensal)
 """
 
 
