@@ -7,7 +7,7 @@ from datetime import date
 
 import httpx
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.config import settings
 from app.core.dependencies import CurrentUserID
@@ -76,7 +76,7 @@ Se não entender ou a ação não se encaixar:
 
 
 class VozComandoRequest(BaseModel):
-    transcricao: str
+    transcricao: str = Field(min_length=1, max_length=1500)
 
 
 class VozComandoResponse(BaseModel):
@@ -86,7 +86,7 @@ class VozComandoResponse(BaseModel):
 
 
 class InterpretarDataRequest(BaseModel):
-    texto: str
+    texto: str = Field(min_length=1, max_length=120)
 
 
 class InterpretarDataResponse(BaseModel):
