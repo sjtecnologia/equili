@@ -67,7 +67,7 @@ export default function LoginPage() {
 
       if (isNative && bioDisponivel && !bioHabilitado) {
         const ok = window.confirm('Deseja habilitar o login com Face ID / biometria?')
-        if (ok) await bio.salvarCredenciais(data.email, data.senha)
+        if (ok) await bio.habilitar()
       }
 
       await finalizarLogin(res.data.access_token)
@@ -85,16 +85,17 @@ export default function LoginPage() {
 
   async function loginComBiometria() {
     setServerError(null)
-    const creds = await bio.autenticarComBiometria()
-    if (!creds) {
+    const ok = await bio.autenticarComBiometria()
+    if (!ok) {
       setServerError('Biometria cancelada ou falhou.')
       return
     }
     try {
-      const res = await api.post<{ access_token: string }>('/auth/login', creds)
-      await finalizarLogin(res.data.access_token)
+      const me = await api.get('/usuarios/me')
+      setUser(me.data)
+      navigate('/dashboard', { replace: true })
     } catch {
-      setServerError('Falha ao fazer login. Tente com e-mail e senha.')
+      setServerError('Sessão expirada. Faça login com e-mail e senha novamente.')
     }
   }
 

@@ -30,11 +30,12 @@
 ### 1 · Variáveis de ambiente
 
 ```bash
-cp .env.example backend/.env
-cp .env.example frontend/.env
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
 ```
 
 Edite `backend/.env` com seus valores reais (especialmente `DATABASE_URL`, `SECRET_KEY` e `GITHUB_TOKEN`).
+No frontend, mantenha apenas variáveis `VITE_` (públicas por definição do Vite).
 
 ### 2 · Criar o banco de dados
 
@@ -89,6 +90,7 @@ chmod +x run_dev.sh
 ```
 equili/
 ├── backend/
+│   ├── .env.example
 │   ├── app/
 │   │   ├── api/v1/routes/      # auth, rendas, dividas, plano_acao, dashboard
 │   │   ├── core/               # config, security, dependencies
@@ -113,6 +115,7 @@ equili/
 │   ├── architecture.md
 │   └── backlog.md
 ├── .env.example
+├── frontend/.env.example
 ├── .gitignore
 └── run_dev.sh
 ```
