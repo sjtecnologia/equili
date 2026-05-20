@@ -6,6 +6,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import api from '@/services/api'
+import { invalidateFinanceiroBase } from '@/lib/queryInvalidation'
 
 // Helper para requisições com timeout de 12s
 function withTimeout<T>(promise: Promise<T>, ms = 12000): Promise<T> {
@@ -261,9 +262,7 @@ export function useVoiceAssistant() {
     setEstado('processando')
     try {
       await withTimeout(api.post(rota, prepararDados(acaoReal, acao.dados, dataSelecionada)))
-      queryClient.invalidateQueries({ queryKey: ['contas-pagar'] })
-      queryClient.invalidateQueries({ queryKey: ['contas-receber'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      invalidateFinanceiroBase(queryClient)
       resetar()
       navigate(NAVEGACAO[acaoReal] || '/dashboard')
     } catch {
@@ -344,10 +343,7 @@ export function useVoiceAssistant() {
         await withTimeout(api.post(rota, prepararDados(acao.acao, acao.dados)))
       }
 
-      queryClient.invalidateQueries({ queryKey: ['contas-pagar'] })
-      queryClient.invalidateQueries({ queryKey: ['contas-receber'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['rendas'] })
+      invalidateFinanceiroBase(queryClient, true)
       resetar()
       navigate(NAVEGACAO[acao.acao] || '/dashboard')
     } catch (e) {
