@@ -43,5 +43,9 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str = ""  # ex: 123456789-xxx.apps.googleusercontent.com
     APPLE_ALLOWED_AUDIENCES: str = "com.equili.app"  # CSV: com.equili.app,com.equili.web
 
+    # Rate limiting de IA
+    RATE_LIMIT_AI_REQUESTS: int = 20
+    RATE_LIMIT_AI_WINDOW_SECONDS: int = 60
+
 
 settings = Settings()
