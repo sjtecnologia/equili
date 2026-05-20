@@ -381,7 +381,7 @@ export function PagarParcelaModal({
         observacao: s.observacao.trim() || null,
       })
       dispatch({ type: 'SUBMIT_SUCCESS' })
-      invalidateDividasAndAtrasos(queryClient)
+      invalidateDividasAtrasosAndBaixas(queryClient)
       onClose()
     } catch {
       dispatch({ type: 'SUBMIT_ERROR', message: 'Erro ao registrar pagamento. Tente novamente.' })
