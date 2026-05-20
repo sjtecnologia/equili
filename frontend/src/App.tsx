@@ -76,9 +76,10 @@ export default function App() {
     StatusBar.setBackgroundColor({ color: '#2E7D5E' }).catch(() => {})
     // Barra de navegação inferior branca (Android)
     if (Capacitor.getPlatform() === 'android') {
-      ;(StatusBar as unknown as { setNavigationBarColor?: (o: { color: string }) => Promise<void> })
-        .setNavigationBarColor?.({ color: '#ffffff' })
-        ?.catch(() => {})
+      const statusBarWithNav = StatusBar as unknown as {
+        setNavigationBarColor?: (o: { color: string }) => Promise<void>
+      }
+      statusBarWithNav.setNavigationBarColor?.({ color: '#ffffff' })?.catch(() => {})
     }
   }, [])
 

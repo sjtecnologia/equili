@@ -138,7 +138,6 @@ const NAVEGACAO: Record<string, string> = {
   excluir_renda: '/renda',
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyWindow = Window & typeof globalThis & Record<string, unknown>
 
 interface SpeechRecognitionEvent {
@@ -161,7 +160,6 @@ interface SpeechRecognitionInstance {
 function criarReconhecedor(win: AnyWindow): SpeechRecognitionInstance | null {
   const SR = win.SpeechRecognition || win.webkitSpeechRecognition
   if (!SR) return null
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rec = new (SR as new () => SpeechRecognitionInstance)()
   rec.lang = 'pt-BR'
   rec.continuous = false
@@ -174,7 +172,6 @@ export function useVoiceAssistant() {
   const [state, dispatch] = useReducer(voiceAssistantReducer, initialState)
   const estadoRef = useRef<EstadoVoz>(initialState.estado)
   const transcricaoRef = useRef('')
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const reconhecimentoRef = useRef<SpeechRecognitionInstance | null>(null)
   const processarTranscricaoRef = useRef<() => void>(() => {})
   const navigate = useNavigate()
@@ -276,7 +273,7 @@ export function useVoiceAssistant() {
       setEstado('pedindo_data')
     }
     rec.start()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   const pararEscuta = useCallback(() => {
     reconhecimentoRef.current?.stop()
