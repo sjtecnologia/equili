@@ -1,13 +1,15 @@
 import { useReducer } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2, X, CreditCard, Landmark, RefreshCw } from 'lucide-react'
 import api from '@/services/api'
+import { notify } from '@/utils/notify'
 import { formatCurrency } from '@/utils/format'
 import { parseApiError } from '@/utils/api'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
 import { ModalDialog } from '@/components/ui/ModalDialog'
+import { invalidateContasPagarAndDashboard } from '@/lib/queryInvalidation'
 import { contaPagarSchema, editarContaPagarSchema } from '@/lib/schemas/financeiro'
 import type { ContaPagarFormData, EditarContaPagarFormData } from '@/lib/schemas/financeiro'
 import type { ContaAPagar } from '@/types/financeiro'
@@ -69,19 +71,17 @@ type EditFormData = EditarContaPagarFormData
 interface ContaModalBaseProps {
   conta: ContaAPagar
   onClose: () => void
-  onSuccess: () => void
 }
 
 interface ContaModalProps {
   onClose: () => void
-  onSuccess: (count: number) => void
 }
 
 export function EditarContaModal({
   conta,
   onClose,
-  onSuccess,
 }: ContaModalBaseProps) {
+  const queryClient = useQueryClient()
   const {
     register,
     control,
@@ -104,7 +104,7 @@ export function EditarContaModal({
   async function onSubmit(data: EditFormData) {
     await submit(async () => {
       await api.patch(`/contas-pagar/${conta.id}`, data)
-      onSuccess()
+      invalidateContasPagarAndDashboard(queryClient)
       onClose()
     })
   }
@@ -170,8 +170,8 @@ export function EditarContaModal({
 export function PagarContaModal({
   conta,
   onClose,
-  onSuccess,
 }: ContaModalBaseProps) {
+  const queryClient = useQueryClient()
   const [s, dispatch] = useReducer(pagarContaReducer, {
     dataPagamento: new Date().toISOString().slice(0, 10),
     meioPagamento: 'nenhum',
@@ -199,7 +199,7 @@ export function PagarContaModal({
         cartao_credito_id: s.meioPagamento === 'cartao' && s.cartaoSelecionado ? s.cartaoSelecionado : null,
       })
       dispatch({ type: 'SUBMIT_SUCCESS' })
-      onSuccess()
+      invalidateContasPagarAndDashboard(queryClient)
       onClose()
     } catch (err) {
       dispatch({ type: 'SUBMIT_ERROR', message: parseApiError(err) ?? 'Erro ao registrar pagamento. Tente novamente.' })
@@ -282,7 +282,8 @@ export function PagarContaModal({
   )
 }
 
-export function ContaModal({ onClose, onSuccess }: ContaModalProps) {
+export function ContaModal({ onClose }: ContaModalProps) {
+  const queryClient = useQueryClient()
   const { submit, error: serverError } = useFormSubmit()
   const {
     register,
@@ -311,7 +312,10 @@ export function ContaModal({ onClose, onSuccess }: ContaModalProps) {
     await submit(async () => {
       const res = await api.post('/contas-pagar', data)
       const count = Array.isArray(res.data) ? res.data.length : 1
-      onSuccess(count)
+      invalidateContasPagarAndDashboard(queryClient)
+      if (count > 1) {
+        notify.success(`${count} lançamentos criados com sucesso!`)
+      }
       onClose()
     })
   }

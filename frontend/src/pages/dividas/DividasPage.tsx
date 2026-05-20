@@ -15,7 +15,7 @@ export default function DividasPage() {
   const [pagando, setPagando] = useState<Divida | null>(null)
   const [historico, setHistorico] = useState<Divida | null>(null)
 
-  const { data: dividas = [], isLoading, contasFixasAtrasadas, deletar: deleteMutation, invalidate } = useDividas()
+  const { data: dividas = [], isLoading, contasFixasAtrasadas, deletar: deleteMutation } = useDividas()
 
   const dividasAtivas = dividas.filter((d) => !d.quitada)
   const totalDevido = dividasAtivas.reduce(
@@ -210,22 +210,17 @@ export default function DividasPage() {
         </div>
       )}
 
-      {showModal && <DividaModal onClose={() => setShowModal(false)} onSuccess={invalidate} />}
+      {showModal && <DividaModal onClose={() => setShowModal(false)} />}
       {editando && (
         <EditarDividaModal
           divida={editando}
           onClose={() => setEditando(null)}
-          onSuccess={invalidate}
         />
       )}
       {pagando && (
         <PagarParcelaModal
           divida={pagando}
           onClose={() => setPagando(null)}
-          onSuccess={() => {
-            invalidate()
-            setPagando(null)
-          }}
         />
       )}
       {historico && (

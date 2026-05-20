@@ -12,6 +12,7 @@ import { ModalDialog } from '@/components/ui/ModalDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { dividaSchema } from '@/lib/schemas/financeiro'
+import { invalidateDividasAndAtrasos } from '@/lib/queryInvalidation'
 import type { DividaFormData } from '@/lib/schemas/financeiro'
 import type { Divida, DividaPagamento } from '@/types/financeiro'
 
@@ -30,7 +31,6 @@ interface DividaFormProps {
 
 interface ModalBaseProps {
   onClose: () => void
-  onSuccess: () => void
 }
 
 interface DividaModalProps extends ModalBaseProps {}
@@ -241,14 +241,15 @@ export function DividaForm({
   )
 }
 
-export function DividaModal({ onClose, onSuccess }: DividaModalProps) {
+export function DividaModal({ onClose }: DividaModalProps) {
+  const queryClient = useQueryClient()
   const { submit, error: serverError, isPending: isSubmitting } = useFormSubmit()
 
   async function onSubmit(data: FormData) {
     await submit(
       async () => {
         await api.post('/dividas', data)
-        onSuccess()
+        invalidateDividasAndAtrasos(queryClient)
         onClose()
       },
       (err) => {
@@ -277,8 +278,8 @@ export function DividaModal({ onClose, onSuccess }: DividaModalProps) {
 export function EditarDividaModal({
   divida,
   onClose,
-  onSuccess,
 }: EditarDividaModalProps) {
+  const queryClient = useQueryClient()
   const { submit, error: serverError, isPending: isSubmitting } = useFormSubmit()
 
   const defaultValues: Partial<FormData> = {
@@ -297,7 +298,7 @@ export function EditarDividaModal({
   async function onSubmit(data: FormData) {
     await submit(async () => {
       await api.patch(`/dividas/${divida.id}`, data)
-      onSuccess()
+      invalidateDividasAndAtrasos(queryClient)
       onClose()
     })
   }
@@ -344,8 +345,8 @@ function pagarParcelaReducer(state: PagarParcelaState, action: PagarParcelaActio
 export function PagarParcelaModal({
   divida,
   onClose,
-  onSuccess,
 }: PagarParcelaModalProps) {
+  const queryClient = useQueryClient()
   const hoje = new Date()
   const vencimento = new Date(divida.data_prox_vencimento + 'T00:00:00')
   const atrasada = vencimento < hoje
@@ -380,7 +381,7 @@ export function PagarParcelaModal({
         observacao: s.observacao.trim() || null,
       })
       dispatch({ type: 'SUBMIT_SUCCESS' })
-      onSuccess()
+      invalidateDividasAndAtrasos(queryClient)
       onClose()
     } catch {
       dispatch({ type: 'SUBMIT_ERROR', message: 'Erro ao registrar pagamento. Tente novamente.' })

@@ -6,7 +6,6 @@ import { SkeletonList } from '@/components/ui/SkeletonList'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { useContasPagar } from '@/hooks/useContasPagar'
 import type { ContaAPagar } from '@/types/financeiro'
-import { notify } from '@/utils/notify'
 import { CATEGORIAS, EditarContaModal, PagarContaModal, ContaModal } from './ContaPagarModals'
 
 const STATUS_LABELS: Record<string, { label: string; classes: string }> = {
@@ -21,7 +20,7 @@ export default function ContasPagarPage() {
   const [pagando, setPagando] = useState<ContaAPagar | null>(null)
   const [filtroStatus, setFiltroStatus] = useState<string>('todos')
 
-  const { data: contas = [], isLoading, deletar: deleteMutation, pagar: pagarMutation, invalidate } = useContasPagar()
+  const { data: contas = [], isLoading, deletar: deleteMutation, pagar: pagarMutation } = useContasPagar()
 
   const contasFiltradas = useMemo(
     () => filtroStatus === 'todos' ? contas : contas.filter((c) => c.status === filtroStatus),
@@ -163,26 +162,18 @@ export default function ContasPagarPage() {
       {showModal && (
         <ContaModal
           onClose={() => setShowModal(false)}
-          onSuccess={(count) => {
-            invalidate()
-            if (count > 1) {
-              notify.success(`${count} lançamentos criados com sucesso!`)
-            }
-          }}
         />
       )}
       {editando && (
         <EditarContaModal
           conta={editando}
           onClose={() => setEditando(null)}
-          onSuccess={invalidate}
         />
       )}
       {pagando && (
         <PagarContaModal
           conta={pagando}
           onClose={() => setPagando(null)}
-          onSuccess={invalidate}
         />
       )}
 
