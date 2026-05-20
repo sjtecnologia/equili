@@ -29,7 +29,7 @@ export default function BaixasPage() {
           observacao: item?.observacao ? String(item.observacao) : null,
         }))
       }),
-    staleTime: 5 * 60_000,
+    staleTime: 0,
     refetchOnMount: 'always',
   })
 
