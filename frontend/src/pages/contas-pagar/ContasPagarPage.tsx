@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react'
-import { Trash2, X, CheckCircle2, AlertCircle, RefreshCw, Layers, Pencil } from 'lucide-react'
+import { Trash2, CheckCircle2, AlertCircle, RefreshCw, Layers, Pencil } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { useContasPagar } from '@/hooks/useContasPagar'
 import type { ContaAPagar } from '@/types/financeiro'
+import { notify } from '@/utils/notify'
 import { CATEGORIAS, EditarContaModal, PagarContaModal, ContaModal } from './ContaPagarModals'
 
 const STATUS_LABELS: Record<string, { label: string; classes: string }> = {
@@ -19,7 +20,6 @@ export default function ContasPagarPage() {
   const [editando, setEditando] = useState<ContaAPagar | null>(null)
   const [pagando, setPagando] = useState<ContaAPagar | null>(null)
   const [filtroStatus, setFiltroStatus] = useState<string>('todos')
-  const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
   const { data: contas = [], isLoading, deletar: deleteMutation, pagar: pagarMutation, invalidate } = useContasPagar()
 
@@ -166,8 +166,7 @@ export default function ContasPagarPage() {
           onSuccess={(count) => {
             invalidate()
             if (count > 1) {
-              setSuccessMsg(`${count} lançamentos criados com sucesso!`)
-              setTimeout(() => setSuccessMsg(null), 4000)
+              notify.success(`${count} lançamentos criados com sucesso!`)
             }
           }}
         />
@@ -187,15 +186,6 @@ export default function ContasPagarPage() {
         />
       )}
 
-      {successMsg && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm flex items-center gap-2">
-          <CheckCircle2 size={16} />
-          {successMsg}
-          <button onClick={() => setSuccessMsg(null)} className="ml-2 text-white/70 hover:text-white">
-            <X size={14} />
-          </button>
-        </div>
-      )}
     </div>
   )
 }
