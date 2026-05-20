@@ -29,6 +29,7 @@ python-dotenv==1.2.2
 
 # Scheduler
 apscheduler==3.11.2
+redis==5.2.1
 
 # Dev / Test
 pytest>=8.2.0

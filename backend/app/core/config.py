@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     # Rate limiting de IA
     RATE_LIMIT_AI_REQUESTS: int = 20
     RATE_LIMIT_AI_WINDOW_SECONDS: int = 60
+    REDIS_URL: str = ""
 
 
 settings = Settings()

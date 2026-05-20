@@ -4,9 +4,11 @@ import sys
 import time
 from collections import defaultdict
 from contextlib import asynccontextmanager
+from typing import Optional
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from redis.asyncio import Redis
 
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -21,6 +23,7 @@ _rate_cache_auth: dict[str, list[float]] = defaultdict(list)
 _rate_cache_ai: dict[str, list[float]] = defaultdict(list)
 _RATE_LIMIT_AUTH = 10        # 10 tentativas por janela em /auth/
 _RATE_LIMIT_AUTH_WINDOW = 60  # janela de 60 segundos
+_redis_client: Optional[Redis] = None
 
 
 def _check_rate_limit(
@@ -38,6 +41,43 @@ def _check_rate_limit(
         return False
     cache[key].append(now)
     return True
+
+
+async def _check_rate_limit_redis(
+    key: str,
+    limit: int,
+    window: int,
+) -> bool:
+    """Retorna True se estiver dentro do limite no Redis (janela fixa)."""
+    global _redis_client
+    if not _redis_client:
+        return True
+
+    bucket = int(time.time()) // window
+    redis_key = f"rl:{key}:{bucket}"
+
+    current = await _redis_client.incr(redis_key)
+    if current == 1:
+        # Expira após a janela para evitar crescimento de chaves.
+        await _redis_client.expire(redis_key, window + 1)
+    return current <= limit
+
+
+async def _init_redis() -> None:
+    """Inicializa cliente Redis opcional para rate limit distribuído."""
+    global _redis_client
+    if not settings.REDIS_URL:
+        logger.info("[rate-limit] Redis desabilitado; usando cache em memória")
+        return
+
+    try:
+        client = Redis.from_url(settings.REDIS_URL, decode_responses=True)
+        await client.ping()
+        _redis_client = client
+        logger.info("[rate-limit] Redis conectado para rate limiting distribuído")
+    except Exception as exc:
+        _redis_client = None
+        logger.warning("[rate-limit] Falha ao conectar no Redis (%s); fallback para memória", exc)
 
 
 def _run_migrations() -> None:
@@ -61,9 +101,12 @@ def _run_migrations() -> None:
 async def lifespan(app: FastAPI):
     # Startup
     _run_migrations()
+    await _init_redis()
     scheduler = start_scheduler()
     yield
     # Shutdown
+    if _redis_client:
+        await _redis_client.aclose()
     scheduler.shutdown(wait=False)
 
 
@@ -134,12 +177,22 @@ async def rate_limit_ai(request: Request, call_next) -> Response:
 
     if request.url.path in ai_paths:
         ip = request.client.host if request.client else "unknown"
-        if not _check_rate_limit(
-            key=f"ai:{ip}",
-            cache=_rate_cache_ai,
-            limit=settings.RATE_LIMIT_AI_REQUESTS,
-            window=settings.RATE_LIMIT_AI_WINDOW_SECONDS,
-        ):
+        allowed = False
+        if _redis_client:
+            allowed = await _check_rate_limit_redis(
+                key=f"ai:{ip}",
+                limit=settings.RATE_LIMIT_AI_REQUESTS,
+                window=settings.RATE_LIMIT_AI_WINDOW_SECONDS,
+            )
+        else:
+            allowed = _check_rate_limit(
+                key=f"ai:{ip}",
+                cache=_rate_cache_ai,
+                limit=settings.RATE_LIMIT_AI_REQUESTS,
+                window=settings.RATE_LIMIT_AI_WINDOW_SECONDS,
+            )
+
+        if not allowed:
             return Response(
                 content='{"detail":"Muitas requisições para IA. Aguarde e tente novamente."}',
                 status_code=429,
