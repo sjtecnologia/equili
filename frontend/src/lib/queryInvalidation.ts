@@ -25,3 +25,7 @@ export function invalidateFinanceiroBase(queryClient: QueryClient, includeRendas
 export function invalidateDividasAndAtrasos(queryClient: QueryClient) {
   invalidateMany(queryClient, [['dividas'], ['contas-fixas-atrasadas']])
 }
+
+export function invalidateDividasAtrasosAndBaixas(queryClient: QueryClient) {
+  invalidateMany(queryClient, [['dividas'], ['contas-fixas-atrasadas'], ['divida-baixas']])
+}
