@@ -41,6 +41,7 @@ class Settings(BaseSettings):
 
     # Social Auth
     GOOGLE_CLIENT_ID: str = ""  # ex: 123456789-xxx.apps.googleusercontent.com
+    APPLE_ALLOWED_AUDIENCES: str = "com.equili.app"  # CSV: com.equili.app,com.equili.web
 
 
 settings = Settings()
