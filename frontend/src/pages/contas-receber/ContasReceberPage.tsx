@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react'
-import { Trash2, X, CheckCircle2, RefreshCw, Layers, Pencil } from 'lucide-react'
+import { Trash2, CheckCircle2, RefreshCw, Layers, Pencil } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { useContasReceber } from '@/hooks/useContasReceber'
 import type { ContaAReceber } from '@/types/financeiro'
+import { notify } from '@/utils/notify'
 import { ORIGENS, EditarContaReceberModal, ReceberContaModal, ContaModal } from './ContaReceberModals'
 
 const STATUS_LABELS: Record<string, { label: string; classes: string }> = {
@@ -19,7 +20,6 @@ export default function ContasReceberPage() {
   const [editando, setEditando] = useState<ContaAReceber | null>(null)
   const [recebendo, setRecebendo] = useState<ContaAReceber | null>(null)
   const [filtroStatus, setFiltroStatus] = useState<string>('todos')
-  const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
   const { data: contas = [], isLoading, deletar: deleteMutation, invalidate } = useContasReceber()
 
@@ -159,8 +159,7 @@ export default function ContasReceberPage() {
           onSuccess={(count) => {
             invalidate()
             if (count > 1) {
-              setSuccessMsg(`${count} lançamentos criados com sucesso!`)
-              setTimeout(() => setSuccessMsg(null), 4000)
+              notify.success(`${count} lançamentos criados com sucesso!`)
             }
           }}
         />
@@ -180,15 +179,6 @@ export default function ContasReceberPage() {
         />
       )}
 
-      {successMsg && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm flex items-center gap-2">
-          <CheckCircle2 size={16} />
-          {successMsg}
-          <button onClick={() => setSuccessMsg(null)} className="ml-2 text-white/70 hover:text-white">
-            <X size={14} />
-          </button>
-        </div>
-      )}
     </div>
   )
 }
