@@ -1,11 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
-import axios from 'axios'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { Capacitor } from '@capacitor/core'
 import { StatusBar, Style } from '@capacitor/status-bar'
 import { useAuthStore } from '@/stores/authStore'
-import api from '@/services/api'
 
 // Pages
 import LoginPage from '@/pages/auth/LoginPage'
@@ -29,16 +27,15 @@ import ChatPage from '@/pages/chat/ChatPage'
 import InvestimentosPage from '@/pages/investimentos/InvestimentosPage'
 import AnimatedSplash from '@/components/shared/AnimatedSplash'
 
-function PrivateRoute({ children, ready }: { children: React.ReactNode; ready: boolean }) {
-  const token = useAuthStore((s) => s.accessToken)
-  if (!ready) return null
-  return token ? <>{children}</> : <Navigate to="/login" replace />
+function PrivateRoute({ children }: { children: React.ReactNode }) {
+  const status = useAuthStore((s) => s.status)
+  if (status === 'loading') return null
+  return status === 'authenticated' ? <>{children}</> : <Navigate to="/login" replace />
 }
 
 export default function App() {
-  const [ready, setReady] = useState(false)
-  const setAccessToken = useAuthStore((s) => s.setAccessToken)
-  const setUser = useAuthStore((s) => s.setUser)
+  const status = useAuthStore((s) => s.status)
+  const bootstrapSession = useAuthStore((s) => s.bootstrapSession)
 
   // Detecta novo SW disponível e força reload imediato
   useRegisterSW({
@@ -86,20 +83,12 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    axios
-      .post('/api/v1/auth/refresh', {}, { withCredentials: true })
-      .then(async (res) => {
-        setAccessToken(res.data.access_token)
-        const me = await api.get('/usuarios/me')
-        setUser(me.data)
-      })
-      .catch(() => {})
-      .finally(() => setReady(true))
-  }, [])
+    bootstrapSession().catch(() => {})
+  }, [bootstrapSession])
 
   return (
     <>
-    <AnimatedSplash ready={ready} />
+    <AnimatedSplash ready={status !== 'loading'} />
     <BrowserRouter>
       <Routes>
         {/* Rotas públicas */}
@@ -110,7 +99,7 @@ export default function App() {
         <Route
           path="/"
           element={
-            <PrivateRoute ready={ready}>
+            <PrivateRoute>
               <AppLayout />
             </PrivateRoute>
           }

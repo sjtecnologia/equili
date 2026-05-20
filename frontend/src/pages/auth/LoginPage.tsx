@@ -28,8 +28,8 @@ type FormData = z.infer<typeof schema>
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const setAccessToken = useAuthStore((s) => s.setAccessToken)
-  const setUser = useAuthStore((s) => s.setUser)
+  const authenticateWithToken = useAuthStore((s) => s.authenticateWithToken)
+  const bootstrapSession = useAuthStore((s) => s.bootstrapSession)
   const [showPassword, setShowPassword] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
   const { getIdToken, loading: googleLoading } = useGoogleAuth()
@@ -54,9 +54,7 @@ export default function LoginPage() {
   }, [isNative]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function finalizarLogin(accessToken: string) {
-    setAccessToken(accessToken)
-    const me = await api.get('/usuarios/me')
-    setUser(me.data)
+    await authenticateWithToken(accessToken)
     navigate('/dashboard', { replace: true })
   }
 
@@ -91,8 +89,11 @@ export default function LoginPage() {
       return
     }
     try {
-      const me = await api.get('/usuarios/me')
-      setUser(me.data)
+      const restored = await bootstrapSession()
+      if (!restored) {
+        setServerError('Sessão expirada. Faça login com e-mail e senha novamente.')
+        return
+      }
       navigate('/dashboard', { replace: true })
     } catch {
       setServerError('Sessão expirada. Faça login com e-mail e senha novamente.')
