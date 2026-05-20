@@ -382,6 +382,7 @@ export function PagarParcelaModal({
       })
       dispatch({ type: 'SUBMIT_SUCCESS' })
       invalidateDividasAtrasosAndBaixas(queryClient)
+      queryClient.removeQueries({ queryKey: ['divida-baixas'] })
       onClose()
     } catch {
       dispatch({ type: 'SUBMIT_ERROR', message: 'Erro ao registrar pagamento. Tente novamente.' })
