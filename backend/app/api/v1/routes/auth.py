@@ -178,11 +178,23 @@ async def login_apple(data: SocialAppleRequest, response: Response, db: DBSessio
             data.identity_token,
             public_key,
             algorithms=["RS256"],
-            audience="com.equili.app",
-            options={"verify_aud": False},  # audience pode variar por plataforma
+            options={"verify_aud": False},
         )
     except JWTError:
         raise HTTPException(status_code=401, detail="Assinatura do token Apple inválida.")
+
+    # 5. Valida audience explicitamente contra lista permitida (app/web)
+    allowed = {a.strip() for a in settings.APPLE_ALLOWED_AUDIENCES.split(",") if a.strip()}
+    aud_claim = payload.get("aud")
+    if isinstance(aud_claim, str):
+        aud_values = {aud_claim}
+    elif isinstance(aud_claim, list):
+        aud_values = {str(v) for v in aud_claim}
+    else:
+        aud_values = set()
+
+    if not aud_values or not (aud_values & allowed):
+        raise HTTPException(status_code=401, detail="Token Apple com audience inválida.")
 
     apple_id = payload.get("sub")
     email = payload.get("email")
