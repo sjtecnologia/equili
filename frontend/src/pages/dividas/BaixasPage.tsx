@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Loader2, X, Pencil, Trash2, Search, History } from 'lucide-react'
+import { Loader2, X, Pencil, Trash2, Search, History, AlertCircle, RefreshCcw } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { SkeletonList } from '@/components/ui/SkeletonList'
@@ -12,9 +12,23 @@ export default function BaixasPage() {
   const queryClient = useQueryClient()
   const queryKey = ['divida-baixas']
 
-  const { data: baixas = [], isLoading } = useQuery<Baixa[]>({
+  const { data: baixas = [], isLoading, isError, refetch } = useQuery<Baixa[]>({
     queryKey,
-    queryFn: () => api.get('/dividas/pagamentos').then((r) => r.data),
+    queryFn: () =>
+      api.get('/dividas/pagamentos').then((r) => {
+        const data = Array.isArray(r.data) ? r.data : []
+        return data.map((item): Baixa => ({
+          id: String(item?.id ?? ''),
+          divida_id: String(item?.divida_id ?? ''),
+          divida_descricao: String(item?.divida_descricao ?? 'Dívida sem descrição'),
+          divida_credor: item?.divida_credor ? String(item.divida_credor) : null,
+          data_referencia: String(item?.data_referencia ?? ''),
+          data_pagamento: item?.data_pagamento ? String(item.data_pagamento) : null,
+          valor_pago: Number(item?.valor_pago ?? 0),
+          valor_parcela_original: Number(item?.valor_parcela_original ?? 0),
+          observacao: item?.observacao ? String(item.observacao) : null,
+        }))
+      }),
     staleTime: 5 * 60_000,
   })
 
@@ -72,13 +86,19 @@ export default function BaixasPage() {
       if (!busca.trim()) return true
       const termo = busca.toLowerCase()
       return (
-        b.divida_descricao.toLowerCase().includes(termo) ||
+        (b.divida_descricao || '').toLowerCase().includes(termo) ||
         (b.divida_credor?.toLowerCase().includes(termo) ?? false) ||
         (b.observacao?.toLowerCase().includes(termo) ?? false)
       )
     }),
     [baixas, busca]
   )
+
+  function formatarMesReferencia(valor: string) {
+    const dt = new Date(`${valor}T00:00:00`)
+    if (Number.isNaN(dt.getTime())) return 'não informado'
+    return dt.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+  }
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto">
@@ -111,6 +131,20 @@ export default function BaixasPage() {
       {/* Lista */}
       {isLoading ? (
         <SkeletonList count={4} height="h-20" />
+      ) : isError ? (
+        <div className="border border-danger-200 rounded-xl bg-danger-50 p-4 text-center space-y-2">
+          <div className="flex items-center justify-center gap-2 text-danger-600">
+            <AlertCircle size={16} />
+            <p className="text-sm font-medium">Não foi possível carregar as baixas agora.</p>
+          </div>
+          <button
+            onClick={() => refetch()}
+            className="btn-primary text-xs inline-flex items-center gap-1"
+          >
+            <RefreshCcw size={12} />
+            Tentar novamente
+          </button>
+        </div>
       ) : baixasFiltradas.length === 0 ? (
         <EmptyState
           icon={History}
@@ -235,10 +269,7 @@ export default function BaixasPage() {
                       <span className="text-xs text-gray-500">
                         Parcela:{' '}
                         <span className="font-medium text-gray-700">
-                          {new Date(b.data_referencia + 'T00:00:00').toLocaleDateString('pt-BR', {
-                            month: 'long',
-                            year: 'numeric',
-                          })}
+                          {formatarMesReferencia(b.data_referencia)}
                         </span>
                       </span>
                       {b.data_pagamento && (
