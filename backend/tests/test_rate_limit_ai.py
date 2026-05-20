@@ -20,27 +20,29 @@ class _DummyScheduler:
 class _FakeRedis:
     def __init__(self):
         self._counters: dict[str, int] = {}
+        self.expire_calls: list[tuple[str, int]] = []
 
     async def incr(self, key: str) -> int:
         self._counters[key] = self._counters.get(key, 0) + 1
         return self._counters[key]
 
     async def expire(self, key: str, ttl: int) -> bool:
+        self.expire_calls.append((key, ttl))
         return True
 
     async def aclose(self) -> None:
         return None
 
 
-def _prepare_app(limit: int = 2):
+def _prepare_app(limit: int = 2, window: int = 60):
     main_module._run_migrations = lambda: None
     main_module.start_scheduler = lambda: _DummyScheduler()
     main_module.settings.RATE_LIMIT_AI_REQUESTS = limit
-    main_module.settings.RATE_LIMIT_AI_WINDOW_SECONDS = 60
+    main_module.settings.RATE_LIMIT_AI_WINDOW_SECONDS = window
 
 
 def test_ai_rate_limit_in_memory_fallback() -> None:
-    _prepare_app(limit=2)
+    _prepare_app(limit=2, window=7)
     main_module._redis_client = None
     main_module._rate_cache_ai = defaultdict(list)
 
@@ -52,11 +54,13 @@ def test_ai_rate_limit_in_memory_fallback() -> None:
     assert r1.status_code != 429
     assert r2.status_code != 429
     assert r3.status_code == 429
+    assert r3.headers.get("Retry-After") == "7"
 
 
 def test_ai_rate_limit_with_redis_counter() -> None:
-    _prepare_app(limit=2)
-    main_module._redis_client = _FakeRedis()
+    _prepare_app(limit=2, window=9)
+    fake_redis = _FakeRedis()
+    main_module._redis_client = fake_redis
     main_module._rate_cache_ai = defaultdict(list)
 
     with TestClient(main_module.app) as client:
@@ -67,3 +71,7 @@ def test_ai_rate_limit_with_redis_counter() -> None:
     assert r1.status_code != 429
     assert r2.status_code != 429
     assert r3.status_code == 429
+    assert r3.headers.get("Retry-After") == "9"
+    # TTL da chave Redis precisa ser janela + 1 para limpeza automática.
+    assert fake_redis.expire_calls, "Esperava ao menos uma chamada expire no Redis"
+    assert fake_redis.expire_calls[0][1] == 10
