@@ -12,7 +12,7 @@ import { ModalDialog } from '@/components/ui/ModalDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { dividaSchema } from '@/lib/schemas/financeiro'
-import { invalidateDividasAndAtrasos } from '@/lib/queryInvalidation'
+import { invalidateDividasAndAtrasos, invalidateDividasAtrasosAndBaixas } from '@/lib/queryInvalidation'
 import type { DividaFormData } from '@/lib/schemas/financeiro'
 import type { Divida, DividaPagamento } from '@/types/financeiro'
 
@@ -298,7 +298,7 @@ export function EditarDividaModal({
   async function onSubmit(data: FormData) {
     await submit(async () => {
       await api.patch(`/dividas/${divida.id}`, data)
-      invalidateDividasAndAtrasos(queryClient)
+      invalidateDividasAtrasosAndBaixas(queryClient)
       onClose()
     })
   }
