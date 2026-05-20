@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import { X } from 'lucide-react'
-import { ALL_NAV_ITEMS } from '@/config/navItems'
+import { ALL_NAV_ITEMS, requiresExactActiveMatch } from '@/config/navItems'
 import logo from '@/assets/logo.png'
 
 interface Props {
@@ -51,6 +51,7 @@ export default function DrawerNav({ open, onClose }: Props) {
             <NavLink
               key={to}
               to={to}
+              end={requiresExactActiveMatch(to)}
               onClick={onClose}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 rounded-xl mb-0.5 text-sm font-medium transition-colors ${

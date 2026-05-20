@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { useNavStore } from '@/stores/navStore'
-import { ALL_NAV_ITEMS } from '@/config/navItems'
+import { ALL_NAV_ITEMS, requiresExactActiveMatch } from '@/config/navItems'
 
 export default function BottomNav() {
   const { shortcuts } = useNavStore()
@@ -13,6 +13,7 @@ export default function BottomNav() {
           <NavLink
             key={to}
             to={to}
+            end={requiresExactActiveMatch(to)}
             className={({ isActive }) =>
               `flex flex-col items-center gap-0.5 py-1 rounded text-xs font-medium transition-colors duration-150 flex-1 min-w-0 ${
                 isActive ? 'text-primary-500' : 'text-gray-400'

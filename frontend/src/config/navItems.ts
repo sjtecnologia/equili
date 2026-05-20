@@ -41,3 +41,7 @@ export const DEFAULT_SHORTCUTS = [
   '/renda',
   '/relatorios',
 ]
+
+export function requiresExactActiveMatch(path: string): boolean {
+  return ALL_NAV_ITEMS.some((item) => item.to !== path && item.to.startsWith(`${path}/`))
+}

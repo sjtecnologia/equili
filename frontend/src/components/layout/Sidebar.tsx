@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { Settings, LogOut } from 'lucide-react'
-import { ALL_NAV_ITEMS } from '@/config/navItems'
+import { ALL_NAV_ITEMS, requiresExactActiveMatch } from '@/config/navItems'
 import { useAuthStore } from '@/stores/authStore'
 import api from '@/services/api'
 import logo from '@/assets/logo.png'
@@ -53,6 +53,7 @@ export default function Sidebar() {
           <NavLink
             key={to}
             to={to}
+            end={requiresExactActiveMatch(to)}
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-colors duration-150 ${
                 isActive
