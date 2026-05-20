@@ -2,7 +2,7 @@
  * useVoiceAssistant — lógica completa do assistente de voz.
  * Extraído de VoiceButton para separar estado/lógica do JSX.
  */
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useReducer, useRef, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import api from '@/services/api'
@@ -31,6 +31,57 @@ export interface AcaoVoz {
   acao: string
   dados: Record<string, string | number | boolean | null | undefined>
   mensagem: string
+}
+
+interface VoiceAssistantState {
+  estado: EstadoVoz
+  transcricao: string
+  dataSelecionada: string
+  acao: AcaoVoz | null
+  ouvinDataTranscricao: string
+  erro: string
+}
+
+type VoiceAssistantAction =
+  | { type: 'SET_ESTADO'; value: EstadoVoz }
+  | { type: 'SET_TRANSCRICAO'; value: string }
+  | { type: 'SET_DATA_SELECIONADA'; value: string }
+  | { type: 'SET_ACAO'; value: AcaoVoz | null }
+  | { type: 'SET_OUVIN_DATA_TRANSCRICAO'; value: string }
+  | { type: 'SET_ERRO'; value: string }
+  | { type: 'RESET' }
+
+const initialState: VoiceAssistantState = {
+  estado: 'idle',
+  transcricao: '',
+  dataSelecionada: '',
+  acao: null,
+  ouvinDataTranscricao: '',
+  erro: '',
+}
+
+function voiceAssistantReducer(
+  state: VoiceAssistantState,
+  action: VoiceAssistantAction
+): VoiceAssistantState {
+  switch (action.type) {
+    case 'SET_ESTADO':
+      return { ...state, estado: action.value }
+    case 'SET_TRANSCRICAO':
+      return { ...state, transcricao: action.value }
+    case 'SET_DATA_SELECIONADA':
+      return { ...state, dataSelecionada: action.value }
+    case 'SET_ACAO':
+      return { ...state, acao: action.value }
+    case 'SET_OUVIN_DATA_TRANSCRICAO':
+      return { ...state, ouvinDataTranscricao: action.value }
+    case 'SET_ERRO':
+      return { ...state, erro: action.value }
+    case 'RESET':
+      return initialState
+    default:
+      return state
+  }
 }
 
 const ROTAS: Record<string, string> = {
@@ -120,13 +171,9 @@ function criarReconhecedor(win: AnyWindow): SpeechRecognitionInstance | null {
 }
 
 export function useVoiceAssistant() {
-  const [estado, setEstado] = useState<EstadoVoz>('idle')
+  const [state, dispatch] = useReducer(voiceAssistantReducer, initialState)
+  const estadoRef = useRef<EstadoVoz>(initialState.estado)
   const transcricaoRef = useRef('')
-  const [transcricao, setTranscricaoState] = useState('')
-  const [dataSelecionada, setDataSelecionada] = useState('')
-  const [acao, setAcao] = useState<AcaoVoz | null>(null)
-  const [ouvinDataTranscricao, setOuvinDataTranscricao] = useState('')
-  const [erro, setErro] = useState('')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const reconhecimentoRef = useRef<SpeechRecognitionInstance | null>(null)
   const processarTranscricaoRef = useRef<() => void>(() => {})
@@ -138,9 +185,25 @@ export function useVoiceAssistant() {
       (window as AnyWindow).webkitSpeechRecognition,
   )
 
+  const setEstado = useCallback((value: EstadoVoz) => {
+    dispatch({ type: 'SET_ESTADO', value })
+  }, [])
+
+  const setErro = useCallback((value: string) => {
+    dispatch({ type: 'SET_ERRO', value })
+  }, [])
+
+  const setDataSelecionada = useCallback((value: string) => {
+    dispatch({ type: 'SET_DATA_SELECIONADA', value })
+  }, [])
+
+  useEffect(() => {
+    estadoRef.current = state.estado
+  }, [state.estado])
+
   function setTranscricao(t: string) {
     transcricaoRef.current = t
-    setTranscricaoState(t)
+    dispatch({ type: 'SET_TRANSCRICAO', value: t })
   }
 
   const iniciarEscuta = useCallback(() => {
@@ -170,16 +233,13 @@ export function useVoiceAssistant() {
     }
 
     rec.onend = () => {
-      setEstado((s) => {
-        if (s === 'ouvindo') {
-          if (transcricaoRef.current.trim()) {
-            setTimeout(() => processarTranscricaoRef.current(), 0)
-          } else {
-            return 'idle'
-          }
+      if (estadoRef.current === 'ouvindo') {
+        if (transcricaoRef.current.trim()) {
+          setTimeout(() => processarTranscricaoRef.current(), 0)
+        } else {
+          setEstado('idle')
         }
-        return s
-      })
+      }
     }
 
     rec.start()
@@ -188,7 +248,7 @@ export function useVoiceAssistant() {
   const ouvirDataPorVoz = useCallback(() => {
     const rec = criarReconhecedor(window as AnyWindow)
     if (!rec) return
-    setOuvinDataTranscricao('')
+    dispatch({ type: 'SET_OUVIN_DATA_TRANSCRICAO', value: '' })
     setEstado('ouvindo_data')
     const textoRef = { current: '' }
     rec.onresult = (event: SpeechRecognitionEvent) => {
@@ -196,7 +256,7 @@ export function useVoiceAssistant() {
         .map((r) => r[0].transcript)
         .join('')
       textoRef.current = t
-      setOuvinDataTranscricao(t)
+      dispatch({ type: 'SET_OUVIN_DATA_TRANSCRICAO', value: t })
     }
     rec.onerror = () => setEstado('pedindo_data')
     rec.onend = async () => {
@@ -231,7 +291,7 @@ export function useVoiceAssistant() {
     setEstado('processando')
     try {
       const res = await withTimeout(api.post<AcaoVoz>('/voz/comando', { transcricao: texto }))
-      setAcao(res.data)
+      dispatch({ type: 'SET_ACAO', value: res.data })
       if (res.data.acao === 'nao_entendido') {
         setErro(res.data.mensagem)
         setEstado('erro')
@@ -255,13 +315,13 @@ export function useVoiceAssistant() {
   })
 
   async function confirmarComData() {
-    if (!acao || !dataSelecionada) return
-    const tipoConta = acao.dados._tipo_conta as string
+    if (!state.acao || !state.dataSelecionada) return
+    const tipoConta = state.acao.dados._tipo_conta as string
     const acaoReal = tipoConta === 'receber' ? 'criar_conta_receber' : 'criar_conta_pagar'
     const rota = ROTAS[acaoReal]
     setEstado('processando')
     try {
-      await withTimeout(api.post(rota, prepararDados(acaoReal, acao.dados, dataSelecionada)))
+      await withTimeout(api.post(rota, prepararDados(acaoReal, state.acao.dados, state.dataSelecionada)))
       invalidateFinanceiroBase(queryClient)
       resetar()
       navigate(NAVEGACAO[acaoReal] || '/dashboard')
@@ -277,9 +337,7 @@ export function useVoiceAssistant() {
     atualizar_renda: async (dados) => {
       const { data: rendas } = await withTimeout(api.get<{ id: string }[]>('/rendas'))
       if (!rendas || rendas.length === 0) {
-        setErro('Nenhuma renda cadastrada para atualizar. Crie uma primeiro.')
-        setEstado('erro')
-        return
+        throw new Error('Nenhuma renda cadastrada para atualizar. Crie uma primeiro.')
       }
       await withTimeout(api.patch(`/rendas/${rendas[0].id}`, { valor: dados.valor }))
     },
@@ -288,9 +346,7 @@ export function useVoiceAssistant() {
         api.get<{ id: string; descricao: string; valor: number }[]>('/rendas')
       )
       if (!rendas || rendas.length === 0) {
-        setErro('Nenhuma renda encontrada para excluir.')
-        setEstado('erro')
-        return
+        throw new Error('Nenhuma renda encontrada para excluir.')
       }
       const busca = ((dados.descricao_busca as string) || '').toLowerCase()
       const alvo = busca
@@ -307,9 +363,7 @@ export function useVoiceAssistant() {
         contas.find((c) => c.status !== 'pago' && c.descricao.toLowerCase().includes(busca)) ??
         contas.find((c) => c.descricao.toLowerCase().includes(busca))
       if (!alvo) {
-        setErro(`Não encontrei conta com "${dados.descricao_busca}" para excluir.`)
-        setEstado('erro')
-        return
+        throw new Error(`Não encontrei conta com "${dados.descricao_busca}" para excluir.`)
       }
       await withTimeout(api.delete(`/contas-pagar/${alvo.id}`))
     },
@@ -320,36 +374,35 @@ export function useVoiceAssistant() {
       const busca = ((dados.descricao_busca as string) || '').toLowerCase()
       const alvo = contas.find((c) => c.descricao.toLowerCase().includes(busca))
       if (!alvo) {
-        setErro(`Não encontrei conta a receber com "${dados.descricao_busca}" para excluir.`)
-        setEstado('erro')
-        return
+        throw new Error(`Não encontrei conta a receber com "${dados.descricao_busca}" para excluir.`)
       }
       await withTimeout(api.delete(`/contas-receber/${alvo.id}`))
     },
   }
 
   async function confirmar() {
-    if (!acao) return
-    const rota = ROTAS[acao.acao]
+    if (!state.acao) return
+    const rota = ROTAS[state.acao.acao]
     if (!rota) return
 
     setEstado('processando')
     try {
-      const handler = ACTION_HANDLERS[acao.acao]
+      const handler = ACTION_HANDLERS[state.acao.acao]
       if (handler) {
-        await handler(acao.dados)
-        if (estado === 'erro') return
+        await handler(state.acao.dados)
       } else {
-        await withTimeout(api.post(rota, prepararDados(acao.acao, acao.dados)))
+        await withTimeout(api.post(rota, prepararDados(state.acao.acao, state.acao.dados)))
       }
 
       invalidateFinanceiroBase(queryClient, true)
       resetar()
-      navigate(NAVEGACAO[acao.acao] || '/dashboard')
+      navigate(NAVEGACAO[state.acao.acao] || '/dashboard')
     } catch (e) {
       const msg =
         e instanceof Error && e.message.startsWith('Timeout')
           ? 'Servidor demorou demais. Verifique sua conexão e tente novamente.'
+          : e instanceof Error && e.message
+          ? e.message
           : 'Erro ao executar. Tente novamente.'
       setErro(msg)
       setEstado('erro')
@@ -357,23 +410,18 @@ export function useVoiceAssistant() {
   }
 
   function resetar() {
-    setEstado('idle')
-    setTranscricao('')
     transcricaoRef.current = ''
-    setAcao(null)
-    setErro('')
-    setDataSelecionada('')
-    setOuvinDataTranscricao('')
+    dispatch({ type: 'RESET' })
   }
 
   return {
-    estado,
-    acao,
-    transcricao,
-    dataSelecionada,
+    estado: state.estado,
+    acao: state.acao,
+    transcricao: state.transcricao,
+    dataSelecionada: state.dataSelecionada,
     setDataSelecionada,
-    ouvinDataTranscricao,
-    erro,
+    ouvinDataTranscricao: state.ouvinDataTranscricao,
+    erro: state.erro,
     isSupportedBrowser,
     iniciarEscuta,
     ouvirDataPorVoz,
