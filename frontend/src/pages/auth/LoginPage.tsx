@@ -51,7 +51,7 @@ export default function LoginPage() {
       setBioDisponivel(disp)
       setBioHabilitado(hab)
     })
-  }, [isNative]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isNative])
 
   async function finalizarLogin(accessToken: string) {
     await authenticateWithToken(accessToken)

@@ -78,7 +78,8 @@ export const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
       <input
         ref={(node) => {
           // Support both internal ref and forwarded ref
-          ;(internalRef as React.MutableRefObject<HTMLInputElement | null>).current = node
+          const mutableInternalRef = internalRef as React.MutableRefObject<HTMLInputElement | null>
+          mutableInternalRef.current = node
           if (typeof ref === 'function') ref(node)
           else if (ref) (ref as React.MutableRefObject<HTMLInputElement | null>).current = node
         }}

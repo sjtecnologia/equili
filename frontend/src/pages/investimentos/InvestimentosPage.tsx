@@ -32,7 +32,6 @@ export default function InvestimentosPage() {
   const rentPos = (resumo?.rentabilidade_pct ?? 0) >= 0
   const tiposOrdenados = useMemo(
     () => Object.entries(resumo?.por_tipo ?? {}).sort(([, a], [, b]) => b - a),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [resumo?.por_tipo]
   )
 
