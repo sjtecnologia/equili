@@ -5,10 +5,11 @@ Entende perguntas em linguagem natural sobre a situação financeira do usuário
 import logging
 from datetime import date, timedelta
 from typing import Any
+from typing import Literal
 
 import httpx
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.core.config import settings
@@ -21,15 +22,17 @@ router = APIRouter(prefix="/chat", tags=["Chat IA"])
 logger = logging.getLogger(__name__)
 
 MAX_HISTORICO = 20  # máximo de mensagens no contexto
+MAX_MENSAGEM_CHARS = 2000
+MAX_MESSAGES_REQUEST = 50
 
 
 class Mensagem(BaseModel):
-    role: str  # "user" | "assistant"
-    content: str
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=MAX_MENSAGEM_CHARS)
 
 
 class ChatRequest(BaseModel):
-    messages: list[Mensagem]  # histórico + nova mensagem do usuário
+    messages: list[Mensagem] = Field(min_length=1, max_length=MAX_MESSAGES_REQUEST)
 
 
 class ChatResponse(BaseModel):
