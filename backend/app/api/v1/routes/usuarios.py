@@ -4,22 +4,22 @@ from app.core.dependencies import CurrentUserID, DBSession
 from app.core.security import get_password_hash, verify_password
 from app.models.usuario import Usuario
 from fastapi import APIRouter, HTTPException, Response
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 
 router = APIRouter()
 
 
 class UpdatePerfilRequest(BaseModel):
-    nome: Optional[str] = None
+    nome: Optional[str] = Field(default=None, min_length=2, max_length=120)
     email: Optional[EmailStr] = None
-    senha_atual: Optional[str] = None
-    nova_senha: Optional[str] = None
+    senha_atual: Optional[str] = Field(default=None, min_length=1, max_length=128)
+    nova_senha: Optional[str] = Field(default=None, min_length=8, max_length=128)
 
 
 class DeleteContaRequest(BaseModel):
-    senha: str
-    confirmacao: str  # deve ser igual a "EXCLUIR MINHA CONTA"
+    senha: str = Field(min_length=1, max_length=128)
+    confirmacao: str = Field(min_length=1, max_length=64)  # deve ser igual a "EXCLUIR MINHA CONTA"
 
 
 @router.get("/me")

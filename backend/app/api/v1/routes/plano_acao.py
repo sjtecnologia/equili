@@ -2,10 +2,11 @@ import json
 import logging
 from datetime import date, datetime, timedelta, timezone
 from uuid import UUID
+from typing import Literal
 
 import httpx
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import extract, func, select
 
 from app.core.config import settings
@@ -273,8 +274,8 @@ async def historico_planos(usuario_id: CurrentUserID, db: DBSession):
 
 
 class FeedbackRequest(BaseModel):
-    feedback: int  # 1 ou -1
-    feedback_texto: str | None = None
+    feedback: Literal[1, -1]
+    feedback_texto: str | None = Field(default=None, max_length=500)
 
 
 @router.post("/{plano_id}/feedback", status_code=status.HTTP_204_NO_CONTENT)
@@ -283,8 +284,7 @@ async def enviar_feedback(plano_id: UUID, data: FeedbackRequest, usuario_id: Cur
     if not plano or plano.usuario_id != usuario_id:
         raise HTTPException(status_code=404, detail="Plano não encontrado.")
 
-    if data.feedback not in (1, -1):
-        raise HTTPException(status_code=400, detail="Feedback deve ser 1 (positivo) ou -1 (negativo).")
+    # Validation is now handled by the FeedbackRequest model
 
     plano.feedback = data.feedback
     plano.feedback_texto = data.feedback_texto
