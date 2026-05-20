@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useMemo, useReducer, useState } from 'react'
 import { Trash2, CheckCircle2, RefreshCw, Layers, Pencil } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -6,8 +6,46 @@ import { SkeletonList } from '@/components/ui/SkeletonList'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { useContasReceber } from '@/hooks/useContasReceber'
 import type { ContaAReceber } from '@/types/financeiro'
-import { notify } from '@/utils/notify'
 import { ORIGENS, EditarContaReceberModal, ReceberContaModal, ContaModal } from './ContaReceberModals'
+
+type ModalState = {
+  showCreate: boolean
+  editando: ContaAReceber | null
+  recebendo: ContaAReceber | null
+}
+
+type ModalAction =
+  | { type: 'OPEN_CREATE' }
+  | { type: 'CLOSE_CREATE' }
+  | { type: 'OPEN_EDIT'; conta: ContaAReceber }
+  | { type: 'CLOSE_EDIT' }
+  | { type: 'OPEN_RECEIVE'; conta: ContaAReceber }
+  | { type: 'CLOSE_RECEIVE' }
+
+const initialModalState: ModalState = {
+  showCreate: false,
+  editando: null,
+  recebendo: null,
+}
+
+function modalReducer(state: ModalState, action: ModalAction): ModalState {
+  switch (action.type) {
+    case 'OPEN_CREATE':
+      return { ...state, showCreate: true }
+    case 'CLOSE_CREATE':
+      return { ...state, showCreate: false }
+    case 'OPEN_EDIT':
+      return { ...state, editando: action.conta }
+    case 'CLOSE_EDIT':
+      return { ...state, editando: null }
+    case 'OPEN_RECEIVE':
+      return { ...state, recebendo: action.conta }
+    case 'CLOSE_RECEIVE':
+      return { ...state, recebendo: null }
+    default:
+      return state
+  }
+}
 
 const STATUS_LABELS: Record<string, { label: string; classes: string }> = {
   pendente: { label: 'Pendente', classes: 'bg-amber-100 text-amber-700' },
@@ -16,12 +54,10 @@ const STATUS_LABELS: Record<string, { label: string; classes: string }> = {
 }
 
 export default function ContasReceberPage() {
-  const [showModal, setShowModal] = useState(false)
-  const [editando, setEditando] = useState<ContaAReceber | null>(null)
-  const [recebendo, setRecebendo] = useState<ContaAReceber | null>(null)
+  const [modals, dispatchModal] = useReducer(modalReducer, initialModalState)
   const [filtroStatus, setFiltroStatus] = useState<string>('todos')
 
-  const { data: contas = [], isLoading, deletar: deleteMutation, invalidate } = useContasReceber()
+  const { data: contas = [], isLoading, deletar: deleteMutation } = useContasReceber()
 
   const contasFiltradas = useMemo(
     () => filtroStatus === 'todos' ? contas : contas.filter((c) => c.status === filtroStatus),
@@ -38,7 +74,7 @@ export default function ContasReceberPage() {
       <PageHeader
         title="Contas a Receber"
         subtitle={`${contas.filter((c) => c.status !== 'recebido').length} conta(s) pendente(s)`}
-        action={{ label: 'Adicionar', onClick: () => setShowModal(true) }}
+        action={{ label: 'Adicionar', onClick: () => dispatchModal({ type: 'OPEN_CREATE' }) }}
       />
 
       {/* Resumo */}
@@ -77,7 +113,7 @@ export default function ContasReceberPage() {
         <EmptyState
           icon={CheckCircle2}
           title={filtroStatus === 'todos' ? 'Nenhuma conta cadastrada.' : `Nenhuma conta ${STATUS_LABELS[filtroStatus]?.label.toLowerCase()}.`}
-          action={filtroStatus === 'todos' ? { label: 'Adicionar primeira conta', onClick: () => setShowModal(true) } : undefined}
+          action={filtroStatus === 'todos' ? { label: 'Adicionar primeira conta', onClick: () => dispatchModal({ type: 'OPEN_CREATE' }) } : undefined}
         />
       ) : (
         <div className="space-y-3">
@@ -124,7 +160,7 @@ export default function ContasReceberPage() {
                 <div className="flex gap-2">
                   {conta.status !== 'recebido' && (
                     <button
-                      onClick={() => setRecebendo(conta)}
+                      onClick={() => dispatchModal({ type: 'OPEN_RECEIVE', conta })}
                       className="btn-secondary text-xs flex-1 flex items-center justify-center gap-1"
                     >
                       <CheckCircle2 size={12} />
@@ -132,7 +168,7 @@ export default function ContasReceberPage() {
                     </button>
                   )}
                   <button
-                    onClick={() => setEditando(conta)}
+                    onClick={() => dispatchModal({ type: 'OPEN_EDIT', conta })}
                     className="text-gray-300 hover:text-primary-500 transition-colors p-1"
                     aria-label="Editar conta"
                   >
@@ -153,29 +189,21 @@ export default function ContasReceberPage() {
         </div>
       )}
 
-      {showModal && (
+      {modals.showCreate && (
         <ContaModal
-          onClose={() => setShowModal(false)}
-          onSuccess={(count) => {
-            invalidate()
-            if (count > 1) {
-              notify.success(`${count} lançamentos criados com sucesso!`)
-            }
-          }}
+          onClose={() => dispatchModal({ type: 'CLOSE_CREATE' })}
         />
       )}
-      {editando && (
+      {modals.editando && (
         <EditarContaReceberModal
-          conta={editando}
-          onClose={() => setEditando(null)}
-          onSuccess={invalidate}
+          conta={modals.editando}
+          onClose={() => dispatchModal({ type: 'CLOSE_EDIT' })}
         />
       )}
-      {recebendo && (
+      {modals.recebendo && (
         <ReceberContaModal
-          conta={recebendo}
-          onClose={() => setRecebendo(null)}
-          onSuccess={invalidate}
+          conta={modals.recebendo}
+          onClose={() => dispatchModal({ type: 'CLOSE_RECEIVE' })}
         />
       )}
 

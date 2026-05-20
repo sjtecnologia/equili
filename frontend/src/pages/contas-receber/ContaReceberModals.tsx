@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2, Landmark, RefreshCw } from 'lucide-react'
@@ -8,6 +8,8 @@ import { formatCurrency } from '@/utils/format'
 import { parseApiError } from '@/utils/api'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
 import { ModalDialog } from '@/components/ui/ModalDialog'
+import { notify } from '@/utils/notify'
+import { invalidateContasReceberAndDashboard } from '@/lib/queryInvalidation'
 import { contaReceberSchema, editarContaReceberSchema } from '@/lib/schemas/financeiro'
 import type { ContaReceberFormData, EditarContaReceberFormData } from '@/lib/schemas/financeiro'
 import type { ContaAReceber } from '@/types/financeiro'
@@ -36,19 +38,17 @@ type EditFormData = EditarContaReceberFormData
 interface ContaReceberModalBaseProps {
   conta: ContaAReceber
   onClose: () => void
-  onSuccess: () => void
 }
 
 interface ContaReceberModalProps {
   onClose: () => void
-  onSuccess: (count: number) => void
 }
 
 export function EditarContaReceberModal({
   conta,
   onClose,
-  onSuccess,
 }: ContaReceberModalBaseProps) {
+  const queryClient = useQueryClient()
   const {
     register,
     control,
@@ -72,7 +72,7 @@ export function EditarContaReceberModal({
   async function onSubmit(data: EditFormData) {
     await submit(async () => {
       await api.patch(`/contas-receber/${conta.id}`, data)
-      onSuccess()
+      invalidateContasReceberAndDashboard(queryClient)
       onClose()
     })
   }
@@ -141,8 +141,8 @@ export function EditarContaReceberModal({
 export function ReceberContaModal({
   conta,
   onClose,
-  onSuccess,
 }: ContaReceberModalBaseProps) {
+  const queryClient = useQueryClient()
   const [dataRecebimento, setDataRecebimento] = useState(new Date().toISOString().slice(0, 10))
   const [registrarNaConta, setRegistrarNaConta] = useState(false)
   const [contaSelecionada, setContaSelecionada] = useState('')
@@ -162,7 +162,7 @@ export function ReceberContaModal({
         data_recebimento: dataRecebimento || null,
         conta_bancaria_id: registrarNaConta && contaSelecionada ? contaSelecionada : null,
       })
-      onSuccess()
+      invalidateContasReceberAndDashboard(queryClient)
       onClose()
     } catch (err) {
       setErroReceber(parseApiError(err) ?? 'Erro ao registrar recebimento. Tente novamente.')
@@ -221,7 +221,8 @@ export function ReceberContaModal({
   )
 }
 
-export function ContaModal({ onClose, onSuccess }: ContaReceberModalProps) {
+export function ContaModal({ onClose }: ContaReceberModalProps) {
+  const queryClient = useQueryClient()
   const { submit, error: serverError } = useFormSubmit()
   const {
     register,
@@ -250,7 +251,10 @@ export function ContaModal({ onClose, onSuccess }: ContaReceberModalProps) {
     await submit(async () => {
       const res = await api.post('/contas-receber', data)
       const count = Array.isArray(res.data) ? res.data.length : 1
-      onSuccess(count)
+      invalidateContasReceberAndDashboard(queryClient)
+      if (count > 1) {
+        notify.success(`${count} lançamentos criados com sucesso!`)
+      }
       onClose()
     })
   }
