@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Cookie, HTTPException, Response, status
-from pydantic import BaseModel
+import secrets
+
+from fastapi import APIRouter, Cookie, Header, HTTPException, Response, status
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.core.config import settings
@@ -20,6 +22,8 @@ import os
 router = APIRouter()
 
 REFRESH_COOKIE = "refresh_token"
+CSRF_COOKIE = "csrf_token"
+CSRF_HEADER = "X-CSRF-Token"
 
 def _set_refresh_cookie(response: Response, token: str) -> None:
     response.set_cookie(
@@ -31,6 +35,31 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
         max_age=60 * 60 * 24 * 30,
         path="/",
     )
+
+
+def _set_csrf_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        key=CSRF_COOKIE,
+        value=token,
+        httponly=False,
+        secure=True,
+        samesite="strict",
+        max_age=60 * 60 * 24 * 30,
+        path="/",
+    )
+
+
+def _issue_session_cookies(response: Response, refresh_token: str) -> None:
+    _set_refresh_cookie(response, refresh_token)
+    _set_csrf_cookie(response, secrets.token_urlsafe(32))
+
+
+def _validate_csrf(origin: str | None, csrf_cookie: str | None, csrf_header: str | None) -> None:
+    if origin and origin.rstrip("/") != settings.FRONTEND_URL.rstrip("/"):
+        raise HTTPException(status_code=403, detail="Origem inválida.")
+
+    if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+        raise HTTPException(status_code=403, detail="CSRF token inválido.")
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED, response_model=TokenResponse)
@@ -51,7 +80,7 @@ async def register(data: RegisterRequest, response: Response, db: DBSession):
 
     access_token = create_access_token(str(usuario.id))
     refresh_token = create_refresh_token(str(usuario.id))
-    _set_refresh_cookie(response, refresh_token)
+    _issue_session_cookies(response, refresh_token)
     return TokenResponse(access_token=access_token)
 
 
@@ -72,18 +101,18 @@ async def login(data: LoginRequest, response: Response, db: DBSession):
 
     access_token = create_access_token(str(usuario.id))
     refresh_token = create_refresh_token(str(usuario.id))
-    _set_refresh_cookie(response, refresh_token)
+    _issue_session_cookies(response, refresh_token)
     return TokenResponse(access_token=access_token)
 
 
 # ─── Social Auth ──────────────────────────────────────────────────────────────
 
 class SocialGoogleRequest(BaseModel):
-    id_token: str
+    id_token: str = Field(min_length=20, max_length=4096)
 
 class SocialAppleRequest(BaseModel):
-    identity_token: str
-    full_name: str | None = None
+    identity_token: str = Field(min_length=20, max_length=4096)
+    full_name: str | None = Field(default=None, max_length=120)
 
 
 @router.post("/google", response_model=TokenResponse)
@@ -130,7 +159,7 @@ async def login_google(data: SocialGoogleRequest, response: Response, db: DBSess
 
     access_token = create_access_token(str(usuario.id))
     refresh_token = create_refresh_token(str(usuario.id))
-    _set_refresh_cookie(response, refresh_token)
+    _issue_session_cookies(response, refresh_token)
     return TokenResponse(access_token=access_token)
 
 
@@ -222,7 +251,7 @@ async def login_apple(data: SocialAppleRequest, response: Response, db: DBSessio
 
     access_token = create_access_token(str(usuario.id))
     refresh_token = create_refresh_token(str(usuario.id))
-    _set_refresh_cookie(response, refresh_token)
+    _issue_session_cookies(response, refresh_token)
     return TokenResponse(access_token=access_token)
 
 
@@ -230,8 +259,13 @@ async def login_apple(data: SocialAppleRequest, response: Response, db: DBSessio
 async def refresh_token(
     response: Response,
     db: DBSession,
+    origin: str | None = Header(default=None),
+    csrf_header: str | None = Header(default=None, alias=CSRF_HEADER),
     refresh_token: str | None = Cookie(default=None, alias="refresh_token"),
+    csrf_cookie: str | None = Cookie(default=None, alias=CSRF_COOKIE),
 ):
+    _validate_csrf(origin, csrf_cookie, csrf_header)
+
     if not refresh_token:
         raise HTTPException(status_code=401, detail="Refresh token não encontrado.")
     payload = decode_token(refresh_token)
@@ -247,10 +281,17 @@ async def refresh_token(
 
     access_token = create_access_token(str(usuario.id))
     new_refresh = create_refresh_token(str(usuario.id))
-    _set_refresh_cookie(response, new_refresh)
+    _issue_session_cookies(response, new_refresh)
     return TokenResponse(access_token=access_token)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-async def logout(response: Response):
+async def logout(
+    response: Response,
+    origin: str | None = Header(default=None),
+    csrf_header: str | None = Header(default=None, alias=CSRF_HEADER),
+    csrf_cookie: str | None = Cookie(default=None, alias=CSRF_COOKIE),
+):
+    _validate_csrf(origin, csrf_cookie, csrf_header)
     response.delete_cookie(REFRESH_COOKIE)
+    response.delete_cookie(CSRF_COOKIE)

@@ -8,7 +8,7 @@ import os
 from datetime import datetime, date, timedelta
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
+from pydantic import AnyHttpUrl, BaseModel, Field
 from sqlalchemy import select, delete
 
 from app.core.config import settings
@@ -23,16 +23,21 @@ router = APIRouter(prefix="/notificacoes", tags=["notificacoes"])
 # ──────────────────────────────────────────────
 
 class SubscriptionKeys(BaseModel):
-    p256dh: str
-    auth: str
+    p256dh: str = Field(min_length=20, max_length=512)
+    auth: str = Field(min_length=10, max_length=256)
+
+
+class SubscriptionPayload(BaseModel):
+    endpoint: AnyHttpUrl
+    keys: SubscriptionKeys
 
 
 class SubscribeRequest(BaseModel):
-    subscription: dict  # { endpoint, keys: { p256dh, auth } }
+    subscription: SubscriptionPayload
 
 
 class UnsubscribeRequest(BaseModel):
-    endpoint: str
+    endpoint: AnyHttpUrl
 
 
 # ──────────────────────────────────────────────
@@ -88,14 +93,9 @@ async def subscribe(
     user_id: CurrentUserID,
 ):
     """Salva a subscrição push do dispositivo do usuário."""
-    sub = body.subscription
-    endpoint = sub.get("endpoint", "")
-    keys = sub.get("keys", {})
-    p256dh = keys.get("p256dh", "")
-    auth = keys.get("auth", "")
-
-    if not endpoint or not p256dh or not auth:
-        raise HTTPException(status_code=422, detail="Dados de subscrição inválidos")
+    endpoint = str(body.subscription.endpoint)
+    p256dh = body.subscription.keys.p256dh
+    auth = body.subscription.keys.auth
 
     # Upsert: atualiza se endpoint já existe
     result = await db.execute(
@@ -132,7 +132,7 @@ async def unsubscribe(
     """Remove a subscrição push do dispositivo."""
     await db.execute(
         delete(PushSubscription).where(
-            PushSubscription.endpoint == body.endpoint,
+            PushSubscription.endpoint == str(body.endpoint),
             PushSubscription.usuario_id == user_id,
         )
     )
