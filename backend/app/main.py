@@ -16,21 +16,27 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ─── Rate limiter simples em memória ─────────────────────────────────────────
-# Estrutura: { ip: [(timestamp, endpoint_group), ...] }
-_rate_cache: dict[str, list[float]] = defaultdict(list)
+# Estrutura: { chave: [timestamps] }
+_rate_cache_auth: dict[str, list[float]] = defaultdict(list)
+_rate_cache_ai: dict[str, list[float]] = defaultdict(list)
 _RATE_LIMIT_AUTH = 10        # 10 tentativas por janela em /auth/
-_RATE_LIMIT_WINDOW = 60      # janela de 60 segundos
+_RATE_LIMIT_AUTH_WINDOW = 60  # janela de 60 segundos
 
 
-def _check_rate_limit(ip: str, limit: int = _RATE_LIMIT_AUTH, window: int = _RATE_LIMIT_WINDOW) -> bool:
+def _check_rate_limit(
+    key: str,
+    cache: dict[str, list[float]],
+    limit: int,
+    window: int,
+) -> bool:
     """Retorna True se o IP estiver dentro do limite, False se excedeu."""
     now = time.time()
-    timestamps = _rate_cache[ip]
+    timestamps = cache[key]
     # Remove entradas antigas
-    _rate_cache[ip] = [t for t in timestamps if now - t < window]
-    if len(_rate_cache[ip]) >= limit:
+    cache[key] = [t for t in timestamps if now - t < window]
+    if len(cache[key]) >= limit:
         return False
-    _rate_cache[ip].append(now)
+    cache[key].append(now)
     return True
 
 
@@ -102,12 +108,43 @@ async def rate_limit_auth(request: Request, call_next) -> Response:
     """Rate limiting para endpoints de autenticação."""
     if request.url.path.startswith("/api/v1/auth/"):
         ip = request.client.host if request.client else "unknown"
-        if not _check_rate_limit(ip):
+        if not _check_rate_limit(
+            key=ip,
+            cache=_rate_cache_auth,
+            limit=_RATE_LIMIT_AUTH,
+            window=_RATE_LIMIT_AUTH_WINDOW,
+        ):
             return Response(
                 content='{"detail":"Muitas tentativas. Aguarde 1 minuto."}',
                 status_code=429,
                 media_type="application/json",
                 headers={"Retry-After": "60"},
+            )
+    return await call_next(request)
+
+
+@app.middleware("http")
+async def rate_limit_ai(request: Request, call_next) -> Response:
+    """Rate limiting para endpoints de IA (chat/voz)."""
+    ai_paths = (
+        "/api/v1/chat",
+        "/api/v1/voz/comando",
+        "/api/v1/voz/interpretar-data",
+    )
+
+    if request.url.path in ai_paths:
+        ip = request.client.host if request.client else "unknown"
+        if not _check_rate_limit(
+            key=f"ai:{ip}",
+            cache=_rate_cache_ai,
+            limit=settings.RATE_LIMIT_AI_REQUESTS,
+            window=settings.RATE_LIMIT_AI_WINDOW_SECONDS,
+        ):
+            return Response(
+                content='{"detail":"Muitas requisições para IA. Aguarde e tente novamente."}',
+                status_code=429,
+                media_type="application/json",
+                headers={"Retry-After": str(settings.RATE_LIMIT_AI_WINDOW_SECONDS)},
             )
     return await call_next(request)
 
