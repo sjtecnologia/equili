@@ -104,9 +104,14 @@ async def subscribe(
     existing = result.scalar_one_or_none()
 
     if existing:
+        # Um endpoint push já registrado por outro usuário não pode ser reatribuído.
+        if existing.usuario_id != user_id:
+            raise HTTPException(
+                status_code=409,
+                detail="Este dispositivo já está registrado em outra conta.",
+            )
         existing.p256dh = p256dh
         existing.auth = auth
-        existing.usuario_id = user_id
     else:
         db.add(PushSubscription(
             usuario_id=user_id,
