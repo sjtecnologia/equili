@@ -98,6 +98,8 @@ const ROTAS: Record<string, string> = {
   criar_investimento: '/investimentos',
   atualizar_investimento: '/investimentos',
   excluir_investimento: '/investimentos',
+  criar_tarefa_lista: '/listas/tarefas',
+  criar_item_compra_lista: '/listas/compras',
 }
 
 export const LABELS_MODALIDADE: Record<string, string> = {
@@ -150,6 +152,19 @@ function prepararDados(acao: string, dados: Record<string, unknown>, dataExtra?:
       data_investimento: dataExtra || dados.data_investimento,
     }
   }
+  if (acao === 'criar_tarefa_lista') {
+    return {
+      titulo: dados.titulo,
+    }
+  }
+  if (acao === 'criar_item_compra_lista') {
+    return {
+      nome: dados.nome,
+      quantidade: dados.quantidade || 1,
+      ...(dados.unidade ? { unidade: dados.unidade } : {}),
+      ...(dados.observacao ? { observacao: dados.observacao } : {}),
+    }
+  }
   return dados
 }
 
@@ -167,6 +182,8 @@ const NAVEGACAO: Record<string, string> = {
   criar_investimento: '/investimentos',
   atualizar_investimento: '/investimentos',
   excluir_investimento: '/investimentos',
+  criar_tarefa_lista: '/listas',
+  criar_item_compra_lista: '/listas',
 }
 
 type AnyWindow = Window & typeof globalThis & Record<string, unknown>
@@ -364,6 +381,8 @@ export function useVoiceAssistant() {
     try {
       await withTimeout(api.post(rota, prepararDados(acaoReal, state.acao.dados, state.dataSelecionada)))
       invalidateFinanceiroBase(queryClient)
+      queryClient.invalidateQueries({ queryKey: ['listas-tarefas'] })
+      queryClient.invalidateQueries({ queryKey: ['listas-compras'] })
       resetar()
       navigate(NAVEGACAO[acaoReal] || '/dashboard')
     } catch {
@@ -510,6 +529,8 @@ export function useVoiceAssistant() {
       }
 
       invalidateFinanceiroBase(queryClient, true)
+      queryClient.invalidateQueries({ queryKey: ['listas-tarefas'] })
+      queryClient.invalidateQueries({ queryKey: ['listas-compras'] })
       resetar()
       navigate(NAVEGACAO[state.acao.acao] || '/dashboard')
     } catch (e) {

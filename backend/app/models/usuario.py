@@ -42,3 +42,5 @@ class Usuario(Base):
     investimentos: Mapped[list["Investimento"]] = relationship(back_populates="usuario", cascade="all, delete-orphan")  # noqa: F821
     contas_bancarias: Mapped[list["ContaBancaria"]] = relationship(back_populates="usuario", cascade="all, delete-orphan")  # noqa: F821
     cartoes_credito: Mapped[list["CartaoCredito"]] = relationship(back_populates="usuario", cascade="all, delete-orphan")  # noqa: F821
+    tarefas: Mapped[list["Tarefa"]] = relationship(back_populates="usuario", cascade="all, delete-orphan")  # noqa: F821
+    itens_compra: Mapped[list["ItemCompra"]] = relationship(back_populates="usuario", cascade="all, delete-orphan")  # noqa: F821

@@ -83,6 +83,14 @@ Atualizar valor de investimento:
 Excluir investimento:
 {{"acao": "excluir_investimento", "dados": {{"nome_busca": "..."}}, "mensagem": "..."}}
 
+═══ LISTAS ═══
+
+Adicionar afazer:
+{{"acao": "criar_tarefa_lista", "dados": {{"titulo": "..."}}, "mensagem": "..."}}
+
+Adicionar item na lista de compras:
+{{"acao": "criar_item_compra_lista", "dados": {{"nome": "...", "quantidade": 1, "unidade": "un"}}, "mensagem": "..."}}
+
 ═══ AÇÕES RÁPIDAS ═══
 
 Ver resumo/dashboard (quando usuário diz "como tá meu financeiro", "resumo", "visão geral", "status", "como estou"):
@@ -100,6 +108,9 @@ Ver dívidas:
 Ver investimentos:
 {{"acao": "navegar", "dados": {{"destino": "/investimentos"}}, "mensagem": "Abrindo seus investimentos."}}
 
+Ver listas (afazeres e compras):
+{{"acao": "navegar", "dados": {{"destino": "/listas"}}, "mensagem": "Abrindo suas listas."}}
+
 Se não entender ou a ação não se encaixar:
 {{"acao": "nao_entendido", "dados": {{}}, "mensagem": "Não entendi. Tente: 'Conta do condomínio 500 reais', 'Registrar pagamento de 200 reais', 'Ver minhas dívidas'"}}
 
@@ -109,6 +120,8 @@ Se não entender ou a ação não se encaixar:
 - tipo renda: salario | freela | aluguel | outro
 - tipo divida: emprestimo | cartao_parcelado | financiamento | cheque_pre | outro
 - tipo investimento: acoes | fii | renda_fixa | cripto | outro
+- quantidade (lista de compras): número decimal maior que zero
+- unidade (lista de compras): opcional, ex.: un, kg, g, l, ml, pacote
 - data_vencimento: extraia se mencionada; senão use "pedir_data_vencimento"
 - valor: sempre número decimal, sem R$
 """

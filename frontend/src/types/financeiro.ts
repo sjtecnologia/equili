@@ -277,3 +277,24 @@ export interface Baixa {
   valor_parcela_original: number
   observacao: string | null
 }
+
+// ─── Listas (Afazeres e Compras) ───────────────────────────────────────────
+
+export interface Tarefa {
+  id: string
+  titulo: string
+  concluida: boolean
+  criado_em: string
+  atualizado_em: string
+}
+
+export interface ItemCompra {
+  id: string
+  nome: string
+  quantidade: number
+  unidade: string | null
+  comprado: boolean
+  observacao: string | null
+  criado_em: string
+  atualizado_em: string
+}

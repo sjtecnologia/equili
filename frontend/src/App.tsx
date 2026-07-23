@@ -26,6 +26,7 @@ import InstallBanner from '@/components/pwa/InstallBanner'
 import ChatPage from '@/pages/chat/ChatPage'
 import InvestimentosPage from '@/pages/investimentos/InvestimentosPage'
 import AnimatedSplash from '@/components/shared/AnimatedSplash'
+import ListasPage from '@/pages/listas/ListasPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const status = useAuthStore((s) => s.status)
@@ -47,7 +48,7 @@ export default function App() {
 
   // Força limpeza de cache do SW antigo na primeira abertura de cada versão
   useEffect(() => {
-    const APP_VERSION = '17'
+    const APP_VERSION = '18'
     const stored = localStorage.getItem('app_cache_version')
     if (stored !== APP_VERSION) {
       localStorage.setItem('app_cache_version', APP_VERSION)
@@ -120,6 +121,7 @@ export default function App() {
           <Route path="plano-de-acao" element={<PlanoAcaoPage />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="investimentos" element={<InvestimentosPage />} />
+          <Route path="listas" element={<ListasPage />} />
           <Route path="configuracoes" element={<ConfiguracoesPage />} />
         </Route>
 
