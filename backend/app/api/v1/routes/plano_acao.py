@@ -11,6 +11,7 @@ from sqlalchemy import extract, func, select
 
 from app.core.config import settings
 from app.core.dependencies import CurrentUserID, DBSession
+from app.core.rastro_client import rastro_client
 from app.models.conta_lancamento import ContaAPagar, ContaAReceber
 from app.models.divida import Divida
 from app.models.plano_acao import PlanoAcao
@@ -70,6 +71,10 @@ async def _verificar_cota_ia(usuario_id: UUID, db) -> None:
             )
         )
         if count >= settings.PLANO_GRATIS_MAX_PLANOS_IA_MES:
+            await rastro_client.send_warning_event(
+                message="Usuário excedeu cota mensal de geração de plano IA no plano gratuito.",
+                fingerprint="equili:plano_acao:quota:limit_exceeded",
+            )
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"Você atingiu o limite de {settings.PLANO_GRATIS_MAX_PLANOS_IA_MES} planos por mês no plano gratuito.",
@@ -87,6 +92,10 @@ async def gerar_plano(usuario_id: CurrentUserID, db: DBSession):
     rendas = rendas_result.scalars().all()
 
     if not rendas:
+        await rastro_client.send_warning_event(
+            message="Tentativa de gerar plano de ação sem renda cadastrada.",
+            fingerprint="equili:plano_acao:business:no_income_registered",
+        )
         raise HTTPException(status_code=400, detail="Cadastre ao menos uma renda antes de gerar o plano.")
 
     # Coletar dívidas ativas
@@ -130,6 +139,14 @@ async def gerar_plano(usuario_id: CurrentUserID, db: DBSession):
     total_a_pagar_total = sum(float(c.valor) for c in contas_pagar)
     total_a_receber_total = sum(float(c.valor) for c in contas_receber)
     saldo_disponivel_real = renda_total + total_a_receber_30d - total_a_pagar_30d
+    if saldo_disponivel_real < 0:
+        await rastro_client.send_warning_event(
+            message=(
+                f"Fluxo de caixa projetado negativo em 30 dias para geração de plano: "
+                f"saldo={saldo_disponivel_real:.2f}"
+            ),
+            fingerprint="equili:plano_acao:cashflow:negative_30d",
+        )
 
     rendas_texto = "\n".join(
         f"- {r.descricao} ({r.tipo}): R$ {float(r.valor):,.2f}/{r.frequencia}" for r in rendas
@@ -189,6 +206,10 @@ Data atual: {hoje.strftime("%d/%m/%Y")}
 """
 
     if not settings.GITHUB_TOKEN:
+        await rastro_client.send_warning_event(
+            message="Serviço de plano de ação chamado sem GITHUB_TOKEN configurado.",
+            fingerprint="equili:plano_acao:config:missing_github_token",
+        )
         raise HTTPException(status_code=503, detail="Serviço de IA não configurado. Verifique o GITHUB_TOKEN.")
 
     try:
@@ -212,9 +233,17 @@ Data atual: {hoje.strftime("%d/%m/%Y")}
             )
             response.raise_for_status()
     except httpx.TimeoutException:
+        await rastro_client.send_warning_event(
+            message="Timeout ao chamar provedor de IA do plano de ação.",
+            fingerprint="equili:plano_acao:provider:timeout",
+        )
         raise HTTPException(status_code=503, detail="O serviço de IA demorou muito para responder. Tente novamente.")
     except httpx.HTTPStatusError as e:
         logger.error("Erro na API LLM: status %s", e.response.status_code)
+        await rastro_client.send_warning_event(
+            message=f"Falha HTTP no provedor de IA do plano de ação: status {e.response.status_code}.",
+            fingerprint=f"equili:plano_acao:provider:http_status:{e.response.status_code}",
+        )
         raise HTTPException(status_code=503, detail="Serviço de IA indisponível no momento.")
 
     result_data = response.json()
@@ -224,6 +253,10 @@ Data atual: {hoje.strftime("%d/%m/%Y")}
     try:
         conteudo_json = json.loads(conteudo_texto)
     except json.JSONDecodeError:
+        await rastro_client.send_warning_event(
+            message="Resposta não-JSON recebida do provedor de IA no plano de ação.",
+            fingerprint="equili:plano_acao:provider:invalid_json",
+        )
         raise HTTPException(status_code=503, detail="Resposta inválida do serviço de IA.")
 
     data_livre_str = conteudo_json.get("data_livre_prevista")

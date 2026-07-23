@@ -14,11 +14,26 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.rastro_client import rastro_client
 from app.db.session import AsyncSessionLocal
 from app.models.conta_lancamento import ContaAPagar
 from app.models.push_subscription import PushSubscription
 
 logger = logging.getLogger(__name__)
+
+
+def _emit_warning_async(message: str, fingerprint: str) -> None:
+    """Dispara warning para observabilidade sem bloquear o job agendado."""
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(
+            rastro_client.send_warning_event(
+                message=message,
+                fingerprint=fingerprint,
+            )
+        )
+    except RuntimeError:
+        logger.debug("[alertas] sem loop ativo para enviar warning ao Rastro")
 
 
 def _send_push_sync(subscription_info: dict, payload: dict) -> None:
@@ -40,6 +55,10 @@ def _send_push_sync(subscription_info: dict, payload: dict) -> None:
             os.unlink(pem_path)
     except Exception as exc:
         logger.warning(f"[alertas] Falha ao enviar push: {exc}")
+        _emit_warning_async(
+            message=f"Falha ao enviar push notification no job de alertas: {exc}",
+            fingerprint="equili:alertas:push_send_failed",
+        )
 
 
 async def verificar_vencimentos() -> None:
@@ -48,6 +67,8 @@ async def verificar_vencimentos() -> None:
         return
 
     hoje = date.today()
+    contas_vencendo_hoje = 0
+    contas_sem_subscription = 0
     datas_alerta = {
         0: "vence HOJE",
         1: "vence amanhã",
@@ -66,6 +87,8 @@ async def verificar_vencimentos() -> None:
                 )
             )
             contas = result.scalars().all()
+            if offset == 0:
+                contas_vencendo_hoje = len(contas)
 
             for conta in contas:
                 # Busca subscriptions do dono da conta
@@ -75,6 +98,8 @@ async def verificar_vencimentos() -> None:
                     )
                 )
                 subscriptions = subs_result.scalars().all()
+                if not subscriptions:
+                    contas_sem_subscription += 1
 
                 valor = f"R$ {conta.valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
                 payload = {
@@ -91,6 +116,15 @@ async def verificar_vencimentos() -> None:
                         {"endpoint": sub.endpoint, "keys": {"p256dh": sub.p256dh, "auth": sub.auth}},
                         payload,
                     )
+
+    if contas_vencendo_hoje > 0 and contas_sem_subscription > 0:
+        await rastro_client.send_warning_event(
+            message=(
+                "Contas vencendo hoje sem canal de push disponível: "
+                f"{contas_sem_subscription} de {contas_vencendo_hoje}."
+            ),
+            fingerprint="equili:alertas:coverage:missing_push_subscription",
+        )
 
     logger.info("[alertas] Verificação de vencimentos concluída")
 

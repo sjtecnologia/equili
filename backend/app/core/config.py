@@ -48,5 +48,14 @@ class Settings(BaseSettings):
     RATE_LIMIT_AI_WINDOW_SECONDS: int = 60
     REDIS_URL: str = ""
 
+    # Rastro (observabilidade)
+    RASTRO_ENABLED: bool = False
+    RASTRO_INGEST_URL: str = "http://localhost:4000/ingest/errors"
+    RASTRO_INGEST_TOKEN: str = ""
+    RASTRO_ORGANIZATION_SLUG: str = "acme"
+    RASTRO_PROJECT_SLUG: str = "equili"
+    RASTRO_ENVIRONMENT: str = "development"
+    RASTRO_RELEASE: str = "dev"
+
 
 settings = Settings()

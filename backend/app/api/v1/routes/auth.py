@@ -1,4 +1,5 @@
 import secrets
+import logging
 
 from fastapi import APIRouter, Cookie, Header, HTTPException, Response, status
 from pydantic import BaseModel, Field
@@ -6,6 +7,7 @@ from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.dependencies import DBSession
+from app.core.rastro_client import rastro_client
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -20,6 +22,7 @@ import httpx
 import os
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 REFRESH_COOKIE = "refresh_token"
 CSRF_COOKIE = "csrf_token"
@@ -91,12 +94,20 @@ async def login(data: LoginRequest, response: Response, db: DBSession):
 
     # Mensagem genérica para não revelar se email existe
     if not usuario or not verify_password(data.senha, usuario.senha_hash):
+        await rastro_client.send_warning_event(
+            message="Tentativa de login com credenciais inválidas.",
+            fingerprint="equili:auth:login:invalid_credentials",
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou senha incorretos.",
         )
 
     if not usuario.ativo:
+        await rastro_client.send_warning_event(
+            message="Tentativa de login em conta desativada.",
+            fingerprint="equili:auth:login:inactive_account",
+        )
         raise HTTPException(status_code=403, detail="Conta desativada.")
 
     access_token = create_access_token(str(usuario.id))
@@ -118,12 +129,25 @@ class SocialAppleRequest(BaseModel):
 @router.post("/google", response_model=TokenResponse)
 async def login_google(data: SocialGoogleRequest, response: Response, db: DBSession):
     """Valida um id_token do Google e faz login/cadastro automático."""
-    async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.get(
-            "https://oauth2.googleapis.com/tokeninfo",
-            params={"id_token": data.id_token},
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(
+                "https://oauth2.googleapis.com/tokeninfo",
+                params={"id_token": data.id_token},
+            )
+    except Exception as exc:
+        logger.warning("[auth/google] falha ao validar token no Google: %s", exc)
+        await rastro_client.send_warning_event(
+            message="Falha de conectividade ao validar token Google.",
+            fingerprint="equili:auth:google:tokeninfo_unavailable",
         )
+        raise HTTPException(status_code=503, detail="Não foi possível validar o token Google agora.")
+
     if r.status_code != 200:
+        await rastro_client.send_warning_event(
+            message="Token Google inválido recebido no login social.",
+            fingerprint="equili:auth:google:invalid_token",
+        )
         raise HTTPException(status_code=401, detail="Token do Google inválido.")
 
     info = r.json()
@@ -137,6 +161,10 @@ async def login_google(data: SocialGoogleRequest, response: Response, db: DBSess
     nome = info.get("name") or email.split("@")[0]
 
     if not google_id or not email:
+        await rastro_client.send_warning_event(
+            message="Token Google sem campos obrigatórios de identidade.",
+            fingerprint="equili:auth:google:missing_identity_fields",
+        )
         raise HTTPException(status_code=401, detail="Dados insuficientes no token Google.")
 
     # Busca por google_id ou por email
@@ -175,7 +203,12 @@ async def login_apple(data: SocialAppleRequest, response: Response, db: DBSessio
             jwks_resp = await client.get("https://appleid.apple.com/auth/keys")
             jwks_resp.raise_for_status()
         jwks = jwks_resp.json()
-    except Exception:
+    except Exception as exc:
+        logger.warning("[auth/apple] falha ao obter JWKS da Apple: %s", exc)
+        await rastro_client.send_warning_event(
+            message="Falha ao obter JWKS da Apple para login social.",
+            fingerprint="equili:auth:apple:jwks_unavailable",
+        )
         raise HTTPException(status_code=503, detail="Não foi possível verificar o token Apple.")
 
     # 2. Decodifica o header do JWT para obter o kid
@@ -188,6 +221,10 @@ async def login_apple(data: SocialAppleRequest, response: Response, db: DBSessio
         header = _json.loads(base64.urlsafe_b64decode(header_bytes))
         kid = header.get("kid")
     except Exception:
+        await rastro_client.send_warning_event(
+            message="Token Apple malformado recebido no login social.",
+            fingerprint="equili:auth:apple:malformed_token",
+        )
         raise HTTPException(status_code=401, detail="Token da Apple inválido.")
 
     # 3. Localiza a chave correta no JWKS
@@ -197,6 +234,10 @@ async def login_apple(data: SocialAppleRequest, response: Response, db: DBSessio
             public_key = key_data
             break
     if not public_key:
+        await rastro_client.send_warning_event(
+            message="Chave pública Apple correspondente ao token não encontrada.",
+            fingerprint="equili:auth:apple:key_not_found",
+        )
         raise HTTPException(status_code=401, detail="Chave pública Apple não encontrada.")
 
     # 4. Verifica a assinatura do JWT usando python-jose
@@ -210,6 +251,10 @@ async def login_apple(data: SocialAppleRequest, response: Response, db: DBSessio
             options={"verify_aud": False},
         )
     except JWTError:
+        await rastro_client.send_warning_event(
+            message="Assinatura inválida no token Apple.",
+            fingerprint="equili:auth:apple:invalid_signature",
+        )
         raise HTTPException(status_code=401, detail="Assinatura do token Apple inválida.")
 
     # 5. Valida audience explicitamente contra lista permitida (app/web)
@@ -223,6 +268,10 @@ async def login_apple(data: SocialAppleRequest, response: Response, db: DBSessio
         aud_values = set()
 
     if not aud_values or not (aud_values & allowed):
+        await rastro_client.send_warning_event(
+            message="Audience inválida no token Apple.",
+            fingerprint="equili:auth:apple:invalid_audience",
+        )
         raise HTTPException(status_code=401, detail="Token Apple com audience inválida.")
 
     apple_id = payload.get("sub")
@@ -230,6 +279,10 @@ async def login_apple(data: SocialAppleRequest, response: Response, db: DBSessio
     nome = data.full_name or (email.split("@")[0] if email else "Usuário")
 
     if not apple_id:
+        await rastro_client.send_warning_event(
+            message="Token Apple sem subject (sub).",
+            fingerprint="equili:auth:apple:missing_subject",
+        )
         raise HTTPException(status_code=401, detail="Dados insuficientes no token Apple.")
 
     usuario = await db.scalar(select(Usuario).where(Usuario.apple_id == apple_id))

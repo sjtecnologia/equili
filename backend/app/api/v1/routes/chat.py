@@ -14,6 +14,7 @@ from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.dependencies import CurrentUserID, DBSession
+from app.core.rastro_client import rastro_client
 from app.models.conta_lancamento import ContaAPagar, ContaAReceber
 from app.models.divida import Divida
 from app.models.renda import Renda
@@ -144,6 +145,10 @@ async def chat(
     db: DBSession,
 ):
     if not settings.GITHUB_TOKEN:
+        await rastro_client.send_warning_event(
+            message="Endpoint de chat IA chamado sem GITHUB_TOKEN configurado.",
+            fingerprint="equili:chat:config:missing_github_token",
+        )
         raise HTTPException(status_code=503, detail="Assistente IA não configurado.")
 
     if not body.messages:
@@ -151,6 +156,11 @@ async def chat(
 
     # Limita o histórico para não exceder o contexto do modelo
     messages = body.messages[-MAX_HISTORICO:]
+    if len(body.messages) > MAX_HISTORICO:
+        await rastro_client.send_warning_event(
+            message="Histórico do chat truncado para caber no contexto do modelo.",
+            fingerprint="equili:chat:history:truncated",
+        )
 
     # Monta o contexto financeiro fresco a cada chamada
     contexto = await _contexto_financeiro(usuario_id, db)
@@ -183,7 +193,15 @@ async def chat(
 
     except httpx.HTTPStatusError as exc:
         logger.error(f"[chat] HTTP error: {exc.response.status_code} — {exc.response.text}")
+        await rastro_client.send_warning_event(
+            message=f"Falha HTTP no provedor de IA do chat: status {exc.response.status_code}.",
+            fingerprint=f"equili:chat:provider:http_status:{exc.response.status_code}",
+        )
         raise HTTPException(status_code=502, detail="Erro ao contatar a IA. Tente novamente.")
     except Exception as exc:
         logger.error(f"[chat] Erro inesperado: {exc}")
+        await rastro_client.send_error_event(
+            message=f"Erro inesperado no endpoint de chat: {exc}",
+            fingerprint="equili:chat:unexpected_error",
+        )
         raise HTTPException(status_code=500, detail="Erro interno. Tente novamente.")
