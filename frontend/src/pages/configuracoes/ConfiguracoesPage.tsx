@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Download, Loader2, Lock, LogOut, ShieldCheck, Trash2, User, CheckCircle, Bell, Smartphone, Check } from 'lucide-react'
+import { Download, Loader2, Lock, LogOut, ShieldCheck, Trash2, User, CheckCircle, Bell, Smartphone, Check, Mic } from 'lucide-react'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'
 import { useNavStore } from '@/stores/navStore'
+import { useVoiceStore } from '@/stores/voiceStore'
 import { ALL_NAV_ITEMS } from '@/config/navItems'
 import PushNotificationToggle from '@/components/pwa/PushNotificationToggle'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -275,6 +276,73 @@ function SecaoNavRodape() {
   )
 }
 
+function ToggleConfig({
+  enabled,
+  onToggle,
+  title,
+  description,
+}: {
+  enabled: boolean
+  onToggle: () => void
+  title: string
+  description: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="w-full flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors text-left"
+      aria-pressed={enabled}
+    >
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-gray-800">{title}</p>
+        <p className="text-xs text-gray-500">{description}</p>
+      </div>
+      <span
+        className={`w-11 h-6 rounded-full p-0.5 transition-colors ${enabled ? 'bg-primary-500' : 'bg-gray-300'}`}
+      >
+        <span
+          className={`block w-5 h-5 rounded-full bg-white transition-transform ${enabled ? 'translate-x-5' : 'translate-x-0'}`}
+        />
+      </span>
+    </button>
+  )
+}
+
+function SecaoAssistenteVoz() {
+  const autoListenEnabled = useVoiceStore((s) => s.autoListenEnabled)
+  const voiceConfirmationEnabled = useVoiceStore((s) => s.voiceConfirmationEnabled)
+  const setAutoListenEnabled = useVoiceStore((s) => s.setAutoListenEnabled)
+  const setVoiceConfirmationEnabled = useVoiceStore((s) => s.setVoiceConfirmationEnabled)
+
+  return (
+    <section className="card p-6 space-y-3">
+      <div className="flex items-center gap-2 mb-1">
+        <Mic size={18} className="text-primary-500" />
+        <h2 className="text-base font-semibold text-gray-800">Assistente de voz</h2>
+      </div>
+      <p className="text-sm text-gray-500">
+        Ajuste como o assistente escuta e confirma os comandos por fala.
+      </p>
+
+      <div className="space-y-2">
+        <ToggleConfig
+          enabled={autoListenEnabled}
+          onToggle={() => setAutoListenEnabled(!autoListenEnabled)}
+          title="Escuta automática"
+          description="Quando o app estiver aberto, o microfone entra em escuta sem apertar o botão."
+        />
+        <ToggleConfig
+          enabled={voiceConfirmationEnabled}
+          onToggle={() => setVoiceConfirmationEnabled(!voiceConfirmationEnabled)}
+          title="Confirmação por voz"
+          description="Após entender o comando, o app pergunta por áudio e você confirma falando sim ou não."
+        />
+      </div>
+    </section>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ConfiguracoesPage() {
   const user = useAuthStore((s) => s.user)
@@ -310,6 +378,7 @@ export default function ConfiguracoesPage() {
 
       <SecaoPerfil />
       <SecaoSenha />
+      <SecaoAssistenteVoz />
       <SecaoNavRodape />
 
       {/* Notificações push */}

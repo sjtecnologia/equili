@@ -3,21 +3,78 @@
  * Usa a Web Speech API (disponível em iOS 13+ WKWebView e Android Chrome).
  */
 import { Mic, MicOff, X, Check, Loader2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { useVoiceAssistant, LABELS_MODALIDADE } from '@/hooks/useVoiceAssistant'
+import { useVoiceStore } from '@/stores/voiceStore'
 
 export default function VoiceButton() {
   const {
     estado, acao, transcricao, dataSelecionada, setDataSelecionada,
-    ouvinDataTranscricao, erro, isSupportedBrowser,
+    transcricaoConfirmacao, ouvinDataTranscricao, erro, isSupportedBrowser,
     iniciarEscuta, ouvirDataPorVoz, pararEscuta, confirmar, confirmarComData, resetar,
   } = useVoiceAssistant()
+  const autoListenEnabled = useVoiceStore((s) => s.autoListenEnabled)
+
+  const [escutaAutoAtiva, setEscutaAutoAtiva] = useState(false)
+  const [appVisivel, setAppVisivel] = useState(() => document.visibilityState === 'visible')
+  const autoEscutaPausadaRef = useRef(false)
 
   if (!isSupportedBrowser) return null
+
+  useEffect(() => {
+    function onVisibilityChange() {
+      setAppVisivel(document.visibilityState === 'visible')
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+  }, [])
+
+  useEffect(() => {
+    if (!isSupportedBrowser) return
+    if (!autoListenEnabled) return
+    if (autoEscutaPausadaRef.current) return
+    if (!appVisivel) return
+    if (estado !== 'idle') return
+
+    const timer = window.setTimeout(() => {
+      setEscutaAutoAtiva(true)
+      iniciarEscuta()
+    }, 900)
+
+    return () => window.clearTimeout(timer)
+  }, [appVisivel, autoListenEnabled, estado, iniciarEscuta, isSupportedBrowser])
+
+  useEffect(() => {
+    if (estado !== 'erro' || !escutaAutoAtiva) return
+
+    // Evita loop infinito quando não há permissão/recurso de microfone para escuta automática.
+    if (/microfone|ouvir|suportado/i.test(erro)) {
+      autoEscutaPausadaRef.current = true
+    }
+
+    setEscutaAutoAtiva(false)
+  }, [erro, estado, escutaAutoAtiva])
+
+  useEffect(() => {
+    if (estado !== 'ouvindo') {
+      setEscutaAutoAtiva(false)
+    }
+  }, [estado])
+
+  function iniciarEscutaManual() {
+    autoEscutaPausadaRef.current = false
+    setEscutaAutoAtiva(false)
+    iniciarEscuta()
+  }
+
+  const mostrarOverlay =
+    estado !== 'idle' && !(estado === 'ouvindo' && escutaAutoAtiva && autoListenEnabled)
 
   return (
     <>
       {/* ── Overlay quando ativo ─────────────────────────── */}
-      {estado !== 'idle' && (
+      {mostrarOverlay && (
         <div
           className="fixed inset-0 z-40 bg-black/50 flex items-end justify-center pb-32"
           onClick={estado === 'ouvindo' ? undefined : resetar}
@@ -53,6 +110,26 @@ export default function VoiceButton() {
               <div className="text-center space-y-3 py-2">
                 <Loader2 size={32} className="text-primary-500 animate-spin mx-auto" />
                 <p className="text-sm text-gray-600">Processando comando...</p>
+              </div>
+            )}
+
+            {/* Confirmacao por voz */}
+            {estado === 'confirmando_voz' && acao && (
+              <div className="space-y-4 text-center">
+                <div className="w-14 h-14 rounded-full bg-primary-500 flex items-center justify-center animate-pulse mx-auto">
+                  <Mic size={24} className="text-white" />
+                </div>
+                <p className="text-sm font-medium text-gray-800">{acao.mensagem}</p>
+                <p className="text-xs text-gray-500">Diga "sim" para confirmar ou "não" para cancelar.</p>
+                {transcricaoConfirmacao && (
+                  <p className="text-sm text-primary-700 italic">"{transcricaoConfirmacao}"</p>
+                )}
+                <button
+                  onClick={resetar}
+                  className="btn-ghost w-full flex items-center justify-center gap-1"
+                >
+                  <X size={14} /> Cancelar
+                </button>
               </div>
             )}
 
@@ -158,7 +235,7 @@ export default function VoiceButton() {
                 <p className="text-sm text-danger-500">{erro}</p>
                 <div className="flex gap-2">
                   <button onClick={resetar} className="btn-ghost flex-1">Fechar</button>
-                  <button onClick={iniciarEscuta} className="btn-primary flex-1 flex items-center justify-center gap-1">
+                  <button onClick={iniciarEscutaManual} className="btn-primary flex-1 flex items-center justify-center gap-1">
                     <Mic size={14} /> Tentar novamente
                   </button>
                 </div>
@@ -170,7 +247,7 @@ export default function VoiceButton() {
 
       {/* ── Botão flutuante ──────────────────────────────── */}
       <button
-        onClick={estado === 'idle' ? iniciarEscuta : undefined}
+        onClick={estado === 'idle' ? iniciarEscutaManual : undefined}
         className={`fixed z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 ${
           estado === 'idle'
             ? 'bg-primary-500 hover:bg-primary-400 active:scale-95'

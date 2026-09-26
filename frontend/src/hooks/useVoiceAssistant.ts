@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import api from '@/services/api'
 import { invalidateFinanceiroBase } from '@/lib/queryInvalidation'
+import { useVoiceStore } from '@/stores/voiceStore'
 
 // Helper para requisições com timeout de 12s
 function withTimeout<T>(promise: Promise<T>, ms = 12000): Promise<T> {
@@ -23,6 +24,7 @@ export type EstadoVoz =
   | 'ouvindo'
   | 'processando'
   | 'confirmando'
+  | 'confirmando_voz'
   | 'pedindo_data'
   | 'ouvindo_data'
   | 'erro'
@@ -36,6 +38,7 @@ export interface AcaoVoz {
 interface VoiceAssistantState {
   estado: EstadoVoz
   transcricao: string
+  transcricaoConfirmacao: string
   dataSelecionada: string
   acao: AcaoVoz | null
   ouvinDataTranscricao: string
@@ -45,6 +48,7 @@ interface VoiceAssistantState {
 type VoiceAssistantAction =
   | { type: 'SET_ESTADO'; value: EstadoVoz }
   | { type: 'SET_TRANSCRICAO'; value: string }
+  | { type: 'SET_TRANSCRICAO_CONFIRMACAO'; value: string }
   | { type: 'SET_DATA_SELECIONADA'; value: string }
   | { type: 'SET_ACAO'; value: AcaoVoz | null }
   | { type: 'SET_OUVIN_DATA_TRANSCRICAO'; value: string }
@@ -54,6 +58,7 @@ type VoiceAssistantAction =
 const initialState: VoiceAssistantState = {
   estado: 'idle',
   transcricao: '',
+  transcricaoConfirmacao: '',
   dataSelecionada: '',
   acao: null,
   ouvinDataTranscricao: '',
@@ -69,6 +74,8 @@ function voiceAssistantReducer(
       return { ...state, estado: action.value }
     case 'SET_TRANSCRICAO':
       return { ...state, transcricao: action.value }
+    case 'SET_TRANSCRICAO_CONFIRMACAO':
+      return { ...state, transcricaoConfirmacao: action.value }
     case 'SET_DATA_SELECIONADA':
       return { ...state, dataSelecionada: action.value }
     case 'SET_ACAO':
@@ -224,6 +231,7 @@ export function useVoiceAssistant() {
   const processarTranscricaoRef = useRef<() => void>(() => {})
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const voiceConfirmationEnabled = useVoiceStore((s) => s.voiceConfirmationEnabled)
 
   const isSupportedBrowser = Boolean(
     (window as AnyWindow).SpeechRecognition ||
@@ -242,6 +250,24 @@ export function useVoiceAssistant() {
     dispatch({ type: 'SET_DATA_SELECIONADA', value })
   }, [])
 
+  const sintetizadorDisponivel = typeof window !== 'undefined' && 'speechSynthesis' in window
+
+  const falar = useCallback(async (texto: string) => {
+    if (!sintetizadorDisponivel) return
+
+    const synth = window.speechSynthesis
+    synth.cancel()
+
+    await new Promise<void>((resolve) => {
+      const utterance = new SpeechSynthesisUtterance(texto)
+      utterance.lang = 'pt-BR'
+      utterance.rate = 1
+      utterance.onend = () => resolve()
+      utterance.onerror = () => resolve()
+      synth.speak(utterance)
+    })
+  }, [sintetizadorDisponivel])
+
   useEffect(() => {
     estadoRef.current = state.estado
   }, [state.estado])
@@ -250,6 +276,33 @@ export function useVoiceAssistant() {
     transcricaoRef.current = t
     dispatch({ type: 'SET_TRANSCRICAO', value: t })
   }
+
+  function setTranscricaoConfirmacao(t: string) {
+    dispatch({ type: 'SET_TRANSCRICAO_CONFIRMACAO', value: t })
+  }
+
+  const cancelarAudio = useCallback(() => {
+    if (sintetizadorDisponivel) {
+      window.speechSynthesis.cancel()
+    }
+  }, [sintetizadorDisponivel])
+
+  const interpretarConfirmacao = useCallback((texto: string): 'sim' | 'nao' | 'incerto' => {
+    const normalizado = texto
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+
+    if (!normalizado) return 'incerto'
+
+    const positivos = ['sim', 'confirmar', 'confirma', 'pode', 'ok', 'pode confirmar', 'isso']
+    const negativos = ['nao', 'não', 'cancelar', 'cancela', 'negativo', 'parar']
+
+    if (positivos.some((item) => normalizado.includes(item))) return 'sim'
+    if (negativos.some((item) => normalizado.includes(item))) return 'nao'
+    return 'incerto'
+  }, [])
 
   const iniciarEscuta = useCallback(() => {
     const rec = criarReconhecedor(window as AnyWindow)
@@ -327,6 +380,55 @@ export function useVoiceAssistant() {
     reconhecimentoRef.current?.stop()
   }, [])
 
+  const confirmarPorVoz = useCallback(async (mensagem: string) => {
+    const MAX_TENTATIVAS = 2
+    setTranscricaoConfirmacao('')
+    setEstado('confirmando_voz')
+    await falar(`${mensagem}. Deseja confirmar? Responda sim ou não.`)
+
+    for (let tentativa = 1; tentativa <= MAX_TENTATIVAS; tentativa += 1) {
+      const rec = criarReconhecedor(window as AnyWindow)
+      if (!rec) {
+        setEstado('confirmando')
+        return
+      }
+
+      const resultado = await new Promise<'sim' | 'nao' | 'incerto'>((resolve) => {
+        let textoCapturado = ''
+
+        rec.onresult = (event: SpeechRecognitionEvent) => {
+          const texto = Array.from(event.results as ArrayLike<{ 0: { transcript: string } }>)
+            .map((r) => r[0].transcript)
+            .join('')
+          textoCapturado = texto
+          setTranscricaoConfirmacao(texto)
+        }
+
+        rec.onerror = () => resolve('incerto')
+        rec.onend = () => resolve(interpretarConfirmacao(textoCapturado))
+        rec.start()
+      })
+
+      if (resultado === 'sim') {
+        await confirmar()
+        return
+      }
+
+      if (resultado === 'nao') {
+        resetar()
+        return
+      }
+
+      if (tentativa < MAX_TENTATIVAS) {
+        setTranscricaoConfirmacao('')
+        await falar('Não entendi. Responda somente sim ou não.')
+      }
+    }
+
+    setErro('Não entendi a confirmação por voz. Use os botões para confirmar ou cancelar.')
+    setEstado('confirmando')
+  }, [falar, interpretarConfirmacao, resetar, setErro, setEstado, confirmar])
+
   async function processarTranscricao() {
     const texto = transcricaoRef.current || ''
     if (!texto.trim()) {
@@ -343,7 +445,11 @@ export function useVoiceAssistant() {
       } else if (res.data.acao === 'pedir_data_vencimento') {
         setEstado('pedindo_data')
       } else {
-        setEstado('confirmando')
+        if (voiceConfirmationEnabled) {
+          void confirmarPorVoz(res.data.mensagem)
+        } else {
+          setEstado('confirmando')
+        }
       }
     } catch (e) {
       const msg =
@@ -358,6 +464,13 @@ export function useVoiceAssistant() {
   useEffect(() => {
     processarTranscricaoRef.current = processarTranscricao
   })
+
+  useEffect(() => {
+    return () => {
+      reconhecimentoRef.current?.abort()
+      cancelarAudio()
+    }
+  }, [cancelarAudio])
 
   async function confirmarComData() {
     if (!state.acao || !state.dataSelecionada) return
@@ -546,6 +659,7 @@ export function useVoiceAssistant() {
   }
 
   function resetar() {
+    cancelarAudio()
     transcricaoRef.current = ''
     dispatch({ type: 'RESET' })
   }
@@ -554,6 +668,7 @@ export function useVoiceAssistant() {
     estado: state.estado,
     acao: state.acao,
     transcricao: state.transcricao,
+    transcricaoConfirmacao: state.transcricaoConfirmacao,
     dataSelecionada: state.dataSelecionada,
     setDataSelecionada,
     ouvinDataTranscricao: state.ouvinDataTranscricao,
