@@ -31,4 +31,16 @@ describe('parseNfsQr', () => {
       valor: 98.7,
     })
   })
+
+  it('accepts the official SP NFC-e QR URL format with a single pipe-delimited p parameter', () => {
+    const qr = 'https://www.nfce.fazenda.sp.gov.br/NFCeConsultaPublica/Paginas/ConsultaQRCode.aspx?p=35260972954308001230652170001572369003696985%7C2%7C1%7C26%7C77.71%7C652f44445765443677684b5a3547614732585434413169452b4e553d%7C1%7Cf1548e548850a9e7fbf99e17d18faffb634f245a'
+
+    const parsed = parseNfsQr(qr)
+
+    expect(parsed).toMatchObject({
+      chaveAcesso: '35260972954308001230652170001572369003696985',
+      valor: 77.71,
+      codigoVerificacao: 'f1548e548850a9e7fbf99e17d18faffb634f245a',
+    })
+  })
 })

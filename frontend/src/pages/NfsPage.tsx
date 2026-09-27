@@ -105,11 +105,11 @@ export default function NfsPage() {
       <NfsQrReader onScanSuccess={setDadosLidos} />
 
       {dadosLidos && (
-        <div className="card p-4 space-y-4">
-          <div className="flex items-center justify-between gap-3">
+        <div className="card border-emerald-200 bg-emerald-50/40 p-4 space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-semibold text-gray-800">Dados extraídos do QR</p>
-              <p className="text-xs text-gray-500">Revise antes de lançar a nota.</p>
+              <p className="text-sm font-semibold text-emerald-800">Resumo da NFC-e lida</p>
+              <p className="text-xs text-emerald-700">Revise os dados antes de lançar a nota.</p>
             </div>
             <button
               type="button"
@@ -121,38 +121,39 @@ export default function NfsPage() {
             </button>
           </div>
 
+          <div className="rounded-2xl border border-emerald-200 bg-white p-3 shadow-sm">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-500">Valor</p>
+                <p className="text-2xl font-bold text-emerald-700">{formatCurrency(dadosLidos.valor)}</p>
+              </div>
+              <div className="text-left md:text-right">
+                <p className="text-xs uppercase tracking-wide text-gray-500">Nota</p>
+                <p className="text-lg font-semibold text-gray-800">{dadosLidos.numero} · Série {dadosLidos.serie}</p>
+              </div>
+            </div>
+          </div>
+
           <div className="grid gap-3 md:grid-cols-2">
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-              <p className="text-xs text-gray-500">Número</p>
-              <p className="font-semibold text-gray-800">{dadosLidos.numero}</p>
-            </div>
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-              <p className="text-xs text-gray-500">Série</p>
-              <p className="font-semibold text-gray-800">{dadosLidos.serie}</p>
-            </div>
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-              <p className="text-xs text-gray-500">Valor</p>
-              <p className="font-semibold text-gray-800">{formatCurrency(dadosLidos.valor)}</p>
-            </div>
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+            <div className="rounded-xl border border-gray-200 bg-white p-3">
               <p className="text-xs text-gray-500">Chave de acesso</p>
-              <p className="font-semibold text-gray-800 break-all">{dadosLidos.chaveAcesso}</p>
+              <p className="mt-1 font-semibold text-gray-800 break-all">{dadosLidos.chaveAcesso}</p>
             </div>
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+            <div className="rounded-xl border border-gray-200 bg-white p-3">
               <p className="text-xs text-gray-500">Código verificação</p>
-              <p className="font-semibold text-gray-800">{dadosLidos.codigoVerificacao}</p>
+              <p className="mt-1 font-semibold text-gray-800">{dadosLidos.codigoVerificacao}</p>
             </div>
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+            <div className="rounded-xl border border-gray-200 bg-white p-3">
               <p className="text-xs text-gray-500">CPF/CNPJ</p>
-              <p className="font-semibold text-gray-800">{dadosLidos.cpfCnpj}</p>
+              <p className="mt-1 font-semibold text-gray-800">{dadosLidos.cpfCnpj}</p>
             </div>
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 md:col-span-2">
+            <div className="rounded-xl border border-gray-200 bg-white p-3">
               <p className="text-xs text-gray-500">Inscrição municipal</p>
-              <p className="font-semibold text-gray-800">{dadosLidos.inscricaoMunicipal}</p>
+              <p className="mt-1 font-semibold text-gray-800">{dadosLidos.inscricaoMunicipal}</p>
             </div>
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 md:col-span-2">
+            <div className="rounded-xl border border-gray-200 bg-white p-3 md:col-span-2">
               <p className="text-xs text-gray-500">URL de consulta</p>
-              <p className="font-semibold text-gray-800 break-all">{dadosLidos.urlConsulta}</p>
+              <p className="mt-1 font-semibold text-gray-800 break-all">{dadosLidos.urlConsulta}</p>
             </div>
           </div>
         </div>

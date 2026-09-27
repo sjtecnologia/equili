@@ -15,8 +15,31 @@ function normalizeNumber(value: string | null | undefined): number {
   const cleaned = decodeURIComponent(String(value).replace(/\+/g, ' '))
     .replace(/\s+/g, '')
     .replace(/[R$]/gi, '')
-    .replace(/\./g, '')
-    .replace(',', '.')
+    .trim()
+
+  if (!cleaned) return Number.NaN
+
+  if (cleaned.includes(',') && cleaned.includes('.')) {
+    const normalized = cleaned.replace(/\./g, '').replace(',', '.')
+    const parsed = Number(normalized)
+    return Number.isFinite(parsed) ? parsed : Number.NaN
+  }
+
+  if (cleaned.includes(',')) {
+    const normalized = cleaned.replace('.', '').replace(',', '.')
+    const parsed = Number(normalized)
+    return Number.isFinite(parsed) ? parsed : Number.NaN
+  }
+
+  if (cleaned.includes('.')) {
+    const lastDotIndex = cleaned.lastIndexOf('.')
+    const fractional = cleaned.slice(lastDotIndex + 1)
+    const isProbablyThousandsSeparator = fractional.length === 3 && cleaned.slice(0, lastDotIndex).replace(/\D/g, '').length > 0
+
+    const normalized = isProbablyThousandsSeparator ? cleaned.replace(/\./g, '') : cleaned
+    const parsed = Number(normalized)
+    return Number.isFinite(parsed) ? parsed : Number.NaN
+  }
 
   const parsed = Number(cleaned)
   return Number.isFinite(parsed) ? parsed : Number.NaN
@@ -62,6 +85,48 @@ function collectQueryParams(rawInput: string): Map<string, string> {
   return params
 }
 
+function applyPipeDelimitedPFallback(params: Map<string, string>, rawInput: string) {
+  const pValue = rawInput.includes('?') ? (() => {
+    try {
+      return new URL(rawInput).searchParams.get('p') ?? undefined
+    } catch {
+      return undefined
+    }
+  })() : undefined
+  const sourceValue = pValue ?? rawInput
+  const decodedValue = decodeURIComponent(sourceValue.replace(/%7c/gi, '|'))
+
+  if (!decodedValue || !decodedValue.includes('|')) return
+
+  const parts = decodedValue
+    .split('|')
+    .map((entry) => String(entry).trim())
+    .filter(Boolean)
+
+  if (parts.length < 5 || parts[0].length < 30) return
+
+  const numericSegments = parts.slice(1).filter((segment) => /^\d+$/.test(segment))
+  const decimalSegments = parts.slice(1).filter((segment) => /\d+[.,]\d+/.test(segment))
+
+  const chaveAcesso = parts[0]
+  const valorRaw = decimalSegments[0] ?? numericSegments[0] ?? ''
+  const serie = numericSegments[1] ?? numericSegments[0] ?? '1'
+  const numero = numericSegments[2] ?? numericSegments[1] ?? numericSegments[0] ?? '1'
+  const codigoVerificacao = parts[parts.length - 1] || 'sem-codigo'
+
+  params.set('chaveAcesso', chaveAcesso)
+  params.set('chave_nfse', chaveAcesso)
+  params.set('chaveNfse', chaveAcesso)
+  params.set('numero', String(numero))
+  params.set('numeroNf', String(numero))
+  params.set('numeroNfs', String(numero))
+  params.set('serie', String(serie))
+  params.set('valor', valorRaw)
+  params.set('valorTotal', valorRaw)
+  params.set('codigoVerificacao', codigoVerificacao)
+  params.set('codVerificacao', codigoVerificacao)
+}
+
 export function parseNfsQr(rawQr: string): NfsQrData {
   const raw = (rawQr ?? '').trim()
   if (!raw) {
@@ -70,6 +135,17 @@ export function parseNfsQr(rawQr: string): NfsQrData {
 
   let urlConsulta = raw
   let params = collectQueryParams(raw)
+
+  if ((raw.includes('|') || raw.includes('%7C') || raw.includes('%7c')) && raw.includes('p=')) {
+    try {
+      const url = new URL(raw)
+      applyPipeDelimitedPFallback(params, url.toString())
+    } catch {
+      applyPipeDelimitedPFallback(params, decodeURIComponent(raw))
+    }
+  } else if (raw.includes('|') || raw.includes('%7C') || raw.includes('%7c')) {
+    applyPipeDelimitedPFallback(params, decodeURIComponent(raw))
+  }
 
   if (!/^https?:\/\//i.test(urlConsulta)) {
     const hasQueryLikeData = raw.includes('?') || raw.includes('=')
