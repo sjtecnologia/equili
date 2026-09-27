@@ -1,25 +1,39 @@
-import secrets
 import logging
+import os
+import secrets
+import time
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
+from uuid import UUID
 
-from fastapi import APIRouter, Cookie, Header, HTTPException, Response, status
+import httpx
+import jwt
+from fastapi import APIRouter, Cookie, Header, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.core.config import settings
-from app.core.dependencies import DBSession
+from app.core.dependencies import CurrentUserID, DBSession
 from app.core.rastro_client import rastro_client
 from app.core.security import (
+    build_email_verification_link,
     create_access_token,
+    create_email_verification_token,
     create_refresh_token,
     decode_token,
     get_password_hash,
+    get_refresh_jti,
     verify_password,
 )
+from app.models.sessao import Sessao
 from app.models.usuario import Usuario
-from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse
-
-import httpx
-import os
+from app.schemas.auth import (
+    EmailResendRequest,
+    EmailVerificationRequest,
+    LoginRequest,
+    RegisterRequest,
+    TokenResponse,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -27,13 +41,15 @@ logger = logging.getLogger(__name__)
 REFRESH_COOKIE = "refresh_token"
 CSRF_COOKIE = "csrf_token"
 CSRF_HEADER = "X-CSRF-Token"
+_EMAIL_VERIFY_RATE_LIMIT_SECONDS = 60
+_EMAIL_VERIFY_RATE_LIMIT_CACHE: dict[str, list[float]] = defaultdict(list)
 
 def _set_refresh_cookie(response: Response, token: str) -> None:
     response.set_cookie(
         key=REFRESH_COOKIE,
         value=token,
         httponly=True,
-        secure=True,
+        secure=not settings.DEBUG,
         samesite="lax",
         max_age=60 * 60 * 24 * 30,
         path="/",
@@ -65,8 +81,126 @@ def _validate_csrf(origin: str | None, csrf_cookie: str | None, csrf_header: str
         raise HTTPException(status_code=403, detail="CSRF token inválido.")
 
 
+def _request_metadata(request: Request) -> tuple[str | None, str | None]:
+    user_agent = request.headers.get("user-agent")
+    ip = request.client.host if request.client else None
+    return (
+        user_agent[:512] if user_agent else None,
+        ip[:64] if ip else None,
+    )
+
+
+def _is_session_valid_for_refresh(sessao: Sessao | None, usuario_id: UUID, now: datetime) -> bool:
+    if sessao is None:
+        return False
+    if sessao.usuario_id != usuario_id:
+        return False
+    if sessao.revogada_em is not None:
+        return False
+    return not sessao.expira_em <= now
+
+
+async def _register_refresh_session(
+    db: DBSession,
+    user_id: UUID | str,
+    refresh_token: str,
+    request: Request,
+) -> Sessao:
+    payload = decode_token(refresh_token)
+    jti = payload.get("jti") if payload else None
+    if not payload or payload.get("type") != "refresh" or not jti:
+        raise HTTPException(status_code=401, detail="Refresh token inválido. Faça login novamente.")
+
+    try:
+        jti_uuid = UUID(str(jti))
+    except ValueError as exc:
+        raise HTTPException(status_code=401, detail="Refresh token inválido. Faça login novamente.") from exc
+
+    user_agent, ip = _request_metadata(request)
+    agora = datetime.now(timezone.utc)
+    sessao = Sessao(
+        usuario_id=UUID(str(user_id)),
+        jti=jti_uuid,
+        criado_em=agora,
+        expira_em=agora + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+        user_agent=user_agent,
+        ip=ip,
+    )
+    db.add(sessao)
+    await db.commit()
+    await db.refresh(sessao)
+    return sessao
+
+
+async def _revoke_user_sessions(db: DBSession, user_id: UUID | str) -> None:
+    user_uuid = UUID(str(user_id))
+    result = await db.execute(
+        select(Sessao).where(Sessao.usuario_id == user_uuid, Sessao.revogada_em.is_(None))
+    )
+    sessoes = result.scalars().all()
+    if not sessoes:
+        return
+    agora = datetime.now(timezone.utc)
+    for sessao in sessoes:
+        sessao.revogada_em = agora
+    await db.commit()
+
+
+async def _revoke_session_by_jti(db: DBSession, jti: str | UUID | None) -> None:
+    if jti is None:
+        return
+    try:
+        token_jti = UUID(str(jti))
+    except ValueError:
+        return
+    sessao = await db.scalar(select(Sessao).where(Sessao.jti == token_jti))
+    if sessao is None:
+        return
+    sessao.revogada_em = datetime.now(timezone.utc)
+    await db.commit()
+
+
+async def _issue_refresh_and_session(
+    db: DBSession,
+    response: Response,
+    request: Request,
+    user_id: UUID | str,
+) -> str:
+    refresh_token = create_refresh_token(str(user_id))
+    await _register_refresh_session(db, user_id, refresh_token, request)
+    _issue_session_cookies(response, refresh_token)
+    return refresh_token
+
+
+def _send_verification_email(email: str, token: str) -> dict:
+    url = build_email_verification_link(token)
+    payload = {
+        "from": settings.EMAIL_FROM,
+        "to": [email],
+        "subject": "Confirme seu e-mail",
+        "html": (
+            "<p>Para confirmar seu e-mail, clique no link abaixo:</p>"
+            f"<p><a href=\"{url}\">Confirmar e-mail</a></p>"
+            "<p>Se você não solicitou esse cadastro, pode ignorar este e-mail.</p>"
+        ),
+    }
+
+    if not settings.RESEND_API_KEY:
+        logger.info("[auth/email] API key do Resend ausente; envio de verificação ignorado para %s", email)
+        return {"id": "dev-skip"}
+
+    try:
+        import resend
+
+        resend.api_key = settings.RESEND_API_KEY
+        return resend.Emails.send(payload)
+    except Exception as exc:  # pragma: no cover - depende de serviço externo  # noqa: BLE001
+        logger.warning("[auth/email] falha ao enviar e-mail de verificação para %s: %s", email, exc)
+        return {"id": "send-failed"}
+
+
 @router.post("/register", status_code=status.HTTP_201_CREATED, response_model=TokenResponse)
-async def register(data: RegisterRequest, response: Response, db: DBSession):
+async def register(data: RegisterRequest, response: Response, db: DBSession, request: Request):
     # Verificar email duplicado
     result = await db.execute(select(Usuario).where(Usuario.email == data.email))
     if result.scalar_one_or_none():
@@ -81,14 +215,64 @@ async def register(data: RegisterRequest, response: Response, db: DBSession):
     await db.commit()
     await db.refresh(usuario)
 
+    verification_token = create_email_verification_token(str(usuario.id), usuario.email)
+    _send_verification_email(usuario.email, verification_token)
+
     access_token = create_access_token(str(usuario.id))
-    refresh_token = create_refresh_token(str(usuario.id))
-    _issue_session_cookies(response, refresh_token)
-    return TokenResponse(access_token=access_token)
+    await _issue_refresh_and_session(db, response, request, usuario.id)
+    return TokenResponse(
+        access_token=access_token,
+        email_verificado=usuario.email_verificado,
+        verification_required=not usuario.email_verificado,
+    )
+
+
+@router.post("/verificar-email")
+async def verificar_email(data: EmailVerificationRequest, db: DBSession):
+    payload = decode_token(data.token)
+    if not payload or payload.get("type") != "email_verify":
+        raise HTTPException(status_code=401, detail="Token de verificação inválido ou expirado.")
+
+    email = payload.get("email")
+    if not email:
+        raise HTTPException(status_code=401, detail="Token de verificação sem e-mail válido.")
+
+    usuario = await db.scalar(select(Usuario).where(Usuario.email == email))
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+
+    usuario.email_verificado = True
+    await db.commit()
+    return {"message": "E-mail verificado com sucesso.", "email_verificado": True}
+
+
+@router.post("/reenviar-verificacao")
+async def reenviar_verificacao(data: EmailResendRequest, db: DBSession):
+    email = data.email.lower().strip()
+    now = time.time()
+    window = _EMAIL_VERIFY_RATE_LIMIT_CACHE[email]
+    window[:] = [ts for ts in window if now - ts < _EMAIL_VERIFY_RATE_LIMIT_SECONDS]
+
+    if window:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Aguarde {_EMAIL_VERIFY_RATE_LIMIT_SECONDS} segundos antes de reenviar a verificação.",
+        )
+
+    window.append(now)
+
+    usuario = await db.scalar(select(Usuario).where(Usuario.email == email))
+    if usuario and not usuario.email_verificado:
+        token = create_email_verification_token(str(usuario.id), usuario.email)
+        _send_verification_email(usuario.email, token)
+
+    return {
+        "message": "Se o endereço estiver cadastrado e ainda não estiver verificado, um novo e-mail foi enviado.",
+    }
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(data: LoginRequest, response: Response, db: DBSession):
+async def login(data: LoginRequest, response: Response, db: DBSession, request: Request):
     result = await db.execute(select(Usuario).where(Usuario.email == data.email))
     usuario = result.scalar_one_or_none()
 
@@ -111,9 +295,12 @@ async def login(data: LoginRequest, response: Response, db: DBSession):
         raise HTTPException(status_code=403, detail="Conta desativada.")
 
     access_token = create_access_token(str(usuario.id))
-    refresh_token = create_refresh_token(str(usuario.id))
-    _issue_session_cookies(response, refresh_token)
-    return TokenResponse(access_token=access_token)
+    await _issue_refresh_and_session(db, response, request, usuario.id)
+    return TokenResponse(
+        access_token=access_token,
+        email_verificado=usuario.email_verificado,
+        verification_required=not usuario.email_verificado,
+    )
 
 
 # ─── Social Auth ──────────────────────────────────────────────────────────────
@@ -127,7 +314,7 @@ class SocialAppleRequest(BaseModel):
 
 
 @router.post("/google", response_model=TokenResponse)
-async def login_google(data: SocialGoogleRequest, response: Response, db: DBSession):
+async def login_google(data: SocialGoogleRequest, response: Response, db: DBSession, request: Request):
     """Valida um id_token do Google e faz login/cadastro automático."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -135,7 +322,7 @@ async def login_google(data: SocialGoogleRequest, response: Response, db: DBSess
                 "https://oauth2.googleapis.com/tokeninfo",
                 params={"id_token": data.id_token},
             )
-    except Exception as exc:
+    except (httpx.HTTPError, ValueError) as exc:
         logger.warning("[auth/google] falha ao validar token no Google: %s", exc)
         await rastro_client.send_warning_event(
             message="Falha de conectividade ao validar token Google.",
@@ -182,17 +369,21 @@ async def login_google(data: SocialGoogleRequest, response: Response, db: DBSess
             )
             db.add(usuario)
 
+    usuario.email_verificado = True
     await db.commit()
     await db.refresh(usuario)
 
     access_token = create_access_token(str(usuario.id))
-    refresh_token = create_refresh_token(str(usuario.id))
-    _issue_session_cookies(response, refresh_token)
-    return TokenResponse(access_token=access_token)
+    await _issue_refresh_and_session(db, response, request, usuario.id)
+    return TokenResponse(
+        access_token=access_token,
+        email_verificado=usuario.email_verificado,
+        verification_required=False,
+    )
 
 
 @router.post("/apple", response_model=TokenResponse)
-async def login_apple(data: SocialAppleRequest, response: Response, db: DBSession):
+async def login_apple(data: SocialAppleRequest, response: Response, db: DBSession, request: Request):
     """Valida um identity_token da Apple via JWKS público e faz login/cadastro automático."""
     import base64
     import json as _json
@@ -203,7 +394,7 @@ async def login_apple(data: SocialAppleRequest, response: Response, db: DBSessio
             jwks_resp = await client.get("https://appleid.apple.com/auth/keys")
             jwks_resp.raise_for_status()
         jwks = jwks_resp.json()
-    except Exception as exc:
+    except (httpx.HTTPError, ValueError) as exc:
         logger.warning("[auth/apple] falha ao obter JWKS da Apple: %s", exc)
         await rastro_client.send_warning_event(
             message="Falha ao obter JWKS da Apple para login social.",
@@ -220,7 +411,7 @@ async def login_apple(data: SocialAppleRequest, response: Response, db: DBSessio
         header_bytes = parts[0] + "=" * (-len(parts[0]) % 4)
         header = _json.loads(base64.urlsafe_b64decode(header_bytes))
         kid = header.get("kid")
-    except Exception:
+    except (TypeError, ValueError, _json.JSONDecodeError):
         await rastro_client.send_warning_event(
             message="Token Apple malformado recebido no login social.",
             fingerprint="equili:auth:apple:malformed_token",
@@ -240,17 +431,15 @@ async def login_apple(data: SocialAppleRequest, response: Response, db: DBSessio
         )
         raise HTTPException(status_code=401, detail="Chave pública Apple não encontrada.")
 
-    # 4. Verifica a assinatura do JWT usando python-jose
-    from jose import jwt as jose_jwt, JWTError
-    from jose.backends import RSAKey
+    # 4. Verifica a assinatura do JWT usando PyJWT
     try:
-        payload = jose_jwt.decode(
+        payload = jwt.decode(
             data.identity_token,
             public_key,
             algorithms=["RS256"],
             options={"verify_aud": False},
         )
-    except JWTError:
+    except jwt.PyJWTError:
         await rastro_client.send_warning_event(
             message="Assinatura inválida no token Apple.",
             fingerprint="equili:auth:apple:invalid_signature",
@@ -299,18 +488,23 @@ async def login_apple(data: SocialAppleRequest, response: Response, db: DBSessio
         )
         db.add(usuario)
 
+    usuario.email_verificado = True
     await db.commit()
     await db.refresh(usuario)
 
     access_token = create_access_token(str(usuario.id))
-    refresh_token = create_refresh_token(str(usuario.id))
-    _issue_session_cookies(response, refresh_token)
-    return TokenResponse(access_token=access_token)
+    await _issue_refresh_and_session(db, response, request, usuario.id)
+    return TokenResponse(
+        access_token=access_token,
+        email_verificado=usuario.email_verificado,
+        verification_required=False,
+    )
 
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_token(
     response: Response,
+    request: Request,
     db: DBSession,
     origin: str | None = Header(default=None),
     csrf_header: str | None = Header(default=None, alias=CSRF_HEADER),
@@ -321,30 +515,101 @@ async def refresh_token(
 
     if not refresh_token:
         raise HTTPException(status_code=401, detail="Refresh token não encontrado.")
-    payload = decode_token(refresh_token)
 
+    payload = decode_token(refresh_token)
     if not payload or payload.get("type") != "refresh":
-        raise HTTPException(status_code=401, detail="Refresh token inválido.")
+        raise HTTPException(status_code=401, detail="Refresh token inválido. Faça login novamente.")
+
+    jti = get_refresh_jti(refresh_token)
+    if not jti:
+        raise HTTPException(status_code=401, detail="Refresh token sem sessão válida. Faça login novamente.")
 
     usuario_id = payload.get("sub")
-    usuario = await db.get(Usuario, usuario_id)
+    try:
+        usuario_uuid = UUID(str(usuario_id))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=401, detail="Refresh token inválido. Faça login novamente.")
 
+    usuario = await db.get(Usuario, usuario_uuid)
     if not usuario or not usuario.ativo:
         raise HTTPException(status_code=401, detail="Usuário não encontrado.")
 
+    sessao = await db.scalar(select(Sessao).where(Sessao.jti == UUID(jti)))
+    agora = datetime.now(timezone.utc)
+    if not _is_session_valid_for_refresh(sessao, usuario_uuid, agora):
+        await _revoke_user_sessions(db, usuario_uuid)
+        raise HTTPException(status_code=401, detail="Sessão inválida ou revogada. Faça login novamente.")
+
+    sessao.revogada_em = agora
+    await db.commit()
+
     access_token = create_access_token(str(usuario.id))
-    new_refresh = create_refresh_token(str(usuario.id))
-    _issue_session_cookies(response, new_refresh)
+    await _issue_refresh_and_session(db, response, request, usuario.id)
     return TokenResponse(access_token=access_token)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(
     response: Response,
+    db: DBSession,
+    request: Request,
     origin: str | None = Header(default=None),
     csrf_header: str | None = Header(default=None, alias=CSRF_HEADER),
     csrf_cookie: str | None = Cookie(default=None, alias=CSRF_COOKIE),
+    refresh_token: str | None = Cookie(default=None, alias=REFRESH_COOKIE),
 ):
     _validate_csrf(origin, csrf_cookie, csrf_header)
+    if refresh_token:
+        jti = get_refresh_jti(refresh_token)
+        if jti:
+            await _revoke_session_by_jti(db, jti)
     response.delete_cookie(REFRESH_COOKIE)
     response.delete_cookie(CSRF_COOKIE)
+
+
+@router.get("/sessoes")
+async def list_sessoes(current_user_id: CurrentUserID, db: DBSession):
+    result = await db.execute(
+        select(Sessao).where(
+            Sessao.usuario_id == current_user_id,
+            Sessao.revogada_em.is_(None),
+        ).order_by(Sessao.criado_em.desc())
+    )
+    sessoes = result.scalars().all()
+    return [
+        {
+            "id": str(sessao.id),
+            "jti": str(sessao.jti),
+            "criado_em": sessao.criado_em.isoformat(),
+            "expira_em": sessao.expira_em.isoformat(),
+            "user_agent": sessao.user_agent,
+            "ip": sessao.ip,
+        }
+        for sessao in sessoes
+    ]
+
+
+@router.delete("/sessoes/{sessao_id}")
+async def revoke_sessao_by_id(
+    sessao_id: UUID,
+    db: DBSession,
+    current_user_id: CurrentUserID,
+):
+    sessao = await db.get(Sessao, sessao_id)
+    if not sessao or sessao.usuario_id != current_user_id:
+        raise HTTPException(status_code=404, detail="Sessão não encontrada.")
+    sessao.revogada_em = datetime.now(timezone.utc)
+    await db.commit()
+    return {"status": "revogada"}
+
+
+@router.delete("/sessoes")
+async def revoke_all_sessoes(
+    response: Response,
+    db: DBSession,
+    current_user_id: CurrentUserID,
+):
+    await _revoke_user_sessions(db, current_user_id)
+    response.delete_cookie(REFRESH_COOKIE)
+    response.delete_cookie(CSRF_COOKIE)
+    return {"status": "todas_revogadas"}

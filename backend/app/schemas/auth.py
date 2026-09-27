@@ -26,3 +26,13 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    email_verificado: bool = False
+    verification_required: bool = False
+
+
+class EmailVerificationRequest(BaseModel):
+    token: str
+
+
+class EmailResendRequest(BaseModel):
+    email: EmailStr

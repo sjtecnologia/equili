@@ -4,3 +4,12 @@
 # ios/
 # Descomente as linhas acima se não quiser versionar o código nativo
 # Manter versionado facilita o CI/CD nas lojas
+
+# Build artifacts
+/dev-dist/
+/dev-dist/**
+dev-dist/
+dev-dist/**
+*.tsbuildinfo
+*.tsbuildinfo.*
+vite.config.d.ts

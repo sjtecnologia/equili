@@ -5,7 +5,6 @@ import time
 import uuid
 from collections import defaultdict
 from contextlib import asynccontextmanager
-from typing import Optional
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,9 +23,9 @@ logger = logging.getLogger(__name__)
 # Estrutura: { chave: [timestamps] }
 _rate_cache_auth: dict[str, list[float]] = defaultdict(list)
 _rate_cache_ai: dict[str, list[float]] = defaultdict(list)
-_RATE_LIMIT_AUTH = 10        # 10 tentativas por janela em /auth/
-_RATE_LIMIT_AUTH_WINDOW = 60  # janela de 60 segundos
-_redis_client: Optional[Redis] = None
+_RATE_LIMIT_AUTH = 10        # 10 tentativas por janela em /auth/login e /auth/register
+_RATE_LIMIT_AUTH_WINDOW = 900 # 15 minutos para mitigar brute force
+_redis_client: Redis | None = None
 
 
 def _check_rate_limit(
@@ -52,7 +51,6 @@ async def _check_rate_limit_redis(
     window: int,
 ) -> bool:
     """Retorna True se estiver dentro do limite no Redis (janela fixa)."""
-    global _redis_client
     if not _redis_client:
         return True
 
@@ -78,7 +76,7 @@ async def _init_redis() -> None:
         await client.ping()
         _redis_client = client
         logger.info("[rate-limit] Redis conectado para rate limiting distribuído")
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError) as exc:
         _redis_client = None
         logger.warning("[rate-limit] Falha ao conectar no Redis (%s); fallback para memória", exc)
         await rastro_client.send_warning_event(
@@ -95,12 +93,13 @@ def _run_migrations() -> None:
             capture_output=True,
             text=True,
             timeout=60,
+            check=False,
         )
         if result.returncode == 0:
             logger.info("[migrations] alembic upgrade head — OK")
         else:
             logger.error("[migrations] Falha: %s", result.stderr)
-    except Exception as exc:
+    except (OSError, RuntimeError, TimeoutError) as exc:
         logger.error("[migrations] Erro ao rodar migrations: %s", exc)
 
 
@@ -125,10 +124,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — permitir apenas o frontend configurado
+# CORS — permitir apenas origins explícitas do frontend e do ambiente de produção.
+origins = [origin for origin in list(dict.fromkeys([*settings.ALLOWED_ORIGINS, settings.FRONTEND_URL])) if origin and origin != "*"]
+if settings.DEBUG:
+    origins.extend(["http://localhost:5173", "http://127.0.0.1:5173"])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL],
+    allow_origins=list(dict.fromkeys(origins)),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept", "X-CSRF-Token"],
@@ -159,32 +162,39 @@ async def security_headers(request: Request, call_next) -> Response:
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "connect-src 'self' https://models.inference.ai.azure.com; "
-        "frame-ancestors 'none'"
+        "base-uri 'self'; "
+        "object-src 'none'; "
+        "frame-ancestors 'none'; "
+        "form-action 'self'; "
+        "img-src 'self' data: https:; "
+        "style-src 'self' 'unsafe-inline'; "
+        "script-src 'self'; "
+        "connect-src 'self' https://models.inference.ai.azure.com https://api.resend.com"
     )
     return response
 
 
 @app.middleware("http")
 async def rate_limit_auth(request: Request, call_next) -> Response:
-    """Rate limiting para endpoints de autenticação."""
-    if request.url.path.startswith("/api/v1/auth/"):
+    """Rate limiting para endpoints sensíveis de autenticação."""
+    restricted_paths = {"/api/v1/auth/login", "/api/v1/auth/register"}
+    if request.url.path in restricted_paths:
         ip = request.client.host if request.client else "unknown"
         if not _check_rate_limit(
-            key=ip,
+            key=f"auth:{ip}:{request.url.path}",
             cache=_rate_cache_auth,
             limit=_RATE_LIMIT_AUTH,
             window=_RATE_LIMIT_AUTH_WINDOW,
         ):
             await rastro_client.send_warning_event(
-                message=f"Rate limit de autenticação excedido para IP {ip}",
+                message=f"Rate limit de autenticação excedido para IP {ip} em {request.url.path}",
                 fingerprint="equili:security:rate_limit:auth_exceeded",
             )
             return Response(
-                content='{"detail":"Muitas tentativas. Aguarde 1 minuto."}',
+                content='{"detail":"Muitas tentativas. Aguarde 15 minutos e tente novamente."}',
                 status_code=429,
                 media_type="application/json",
-                headers={"Retry-After": "60"},
+                headers={"Retry-After": str(_RATE_LIMIT_AUTH_WINDOW)},
             )
     return await call_next(request)
 
@@ -198,7 +208,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     error_type = exc.__class__.__name__
 
     await rastro_client.send_error_event(
-        message=f"{error_type} em {method} {path}: {str(exc)}",
+        message=f"{error_type} em {method} {path}: {exc!s}",
         fingerprint=f"equili:{error_type}:{method}:{path}",
         level="error",
         trace_id=request_id,

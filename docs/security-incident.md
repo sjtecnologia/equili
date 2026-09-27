@@ -43,3 +43,15 @@ Este workspace local não possui acesso ao ambiente de produção real ou aos se
 ## Evidência de limpeza
 
 O comando `git log --all --oneline -- database_dump.sql` retornou vazio após a rewrite, confirmando que o dump não aparece mais no histórico do Git.
+
+## Avaliação de comunicação e conformidade LGPD/ANPD
+
+Se o dump continha dados pessoais de usuários, incluindo e-mails, nomes, valores, identificadores ou qualquer dado que permita individualização, a equipe deve avaliar imediatamente:
+
+- risco associado à exposição dos dados;
+- necessidade de notificação dos titulares afetados;
+- impacto operacional e jurídico da exposição;
+- a conveniência de comunicação à ANPD conforme os critérios da LGPD e da legislação aplicável; e
+- a necessidade de medidas de remediação e acompanhamento por parte da área de segurança e jurídico.
+
+A decisão de comunicar usuários afetados e/ou registrar o incidente à ANPD deve ser tomada com base na análise de impacto, no volume e na sensibilidade dos dados expostos, e não apenas na existência do vazamento em si.
