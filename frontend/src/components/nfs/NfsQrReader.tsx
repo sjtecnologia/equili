@@ -81,12 +81,18 @@ export default function NfsQrReader({ onScanSuccess }: NfsQrReaderProps) {
       await scanner.start(
         cameraIdToUse,
         {
-          fps: 10,
+          fps: 15,
           qrbox: {
-            width: 280,
-            height: 280,
+            width: 340,
+            height: 220,
           },
           aspectRatio: 1.777778,
+          disableFlip: false,
+          videoConstraints: {
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
         },
         async (decodedText) => {
           try {
