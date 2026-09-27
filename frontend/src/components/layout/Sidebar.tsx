@@ -28,15 +28,15 @@ export default function Sidebar() {
   }
 
   return (
-    <div className="w-60 min-h-screen bg-white border-r border-gray-200 flex flex-col">
+    <div className="w-60 h-full bg-white border-r border-gray-200 flex flex-col">
       {/* Logo */}
-      <div className="p-6 border-b border-gray-100">
+      <div className="p-6 border-b border-gray-100 shrink-0">
         <img src={logo} alt="Equili" className="h-14 w-auto" />
       </div>
 
       {/* Usuário logado */}
       {user && (
-        <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3">
+        <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3 shrink-0">
           <div className="w-9 h-9 rounded-full bg-primary-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
             {avatarLetters(user.nome)}
           </div>
@@ -48,7 +48,7 @@ export default function Sidebar() {
       )}
 
       {/* Nav */}
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="sidebar-nav flex-1 min-h-0 overflow-y-auto p-4 space-y-1">
         {mainNavItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
@@ -69,7 +69,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-gray-100 space-y-1">
+      <div className="p-4 border-t border-gray-100 space-y-1 shrink-0">
         <NavLink
           to="/configuracoes"
           className={({ isActive }) =>

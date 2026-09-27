@@ -22,7 +22,7 @@ export default function AppLayout() {
     <div className="overflow-hidden bg-gray-100 flex" style={{ height: '100dvh' }}>
       <DrawerNav open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       {/* Sidebar — apenas desktop */}
-      <aside className="hidden lg:flex print:hidden">
+      <aside className="hidden lg:flex print:hidden h-full">
         <Sidebar />
       </aside>
 
