@@ -13,3 +13,4 @@ from app.models.lancamento_conta import LancamentoConta  # noqa: F401
 from app.models.lancamento_cartao import LancamentoCartao  # noqa: F401
 from app.models.listas import Tarefa, ItemCompra  # noqa: F401
 from app.models.sessao import Sessao  # noqa: F401
+from app.models.nfs_recebida import NfsRecebida  # noqa: F401

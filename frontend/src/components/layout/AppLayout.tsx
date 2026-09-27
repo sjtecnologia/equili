@@ -4,7 +4,7 @@ import { Settings, Menu } from 'lucide-react'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
 import DrawerNav from './DrawerNav'
-import VoiceButton from '@/components/shared/VoiceButton'
+import VoiceAssistant from '@/components/voice/VoiceAssistant'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { useAuthStore } from '@/stores/authStore'
 import logo from '@/assets/logo.png'
@@ -75,8 +75,8 @@ export default function AppLayout() {
         </div>
       </div>
 
-      {/* Botão de voz flutuante — aparece quando logado */}
-      <div className="print:hidden"><VoiceButton /></div>
+      {/* Assistente de voz global */}
+      <div className="print:hidden"><VoiceAssistant /></div>
     </div>
   )
 }

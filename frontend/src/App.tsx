@@ -27,6 +27,7 @@ import ChatPage from '@/pages/chat/ChatPage'
 import InvestimentosPage from '@/pages/investimentos/InvestimentosPage'
 import AnimatedSplash from '@/components/shared/AnimatedSplash'
 import ListasPage from '@/pages/listas/ListasPage'
+import NfsPage from '@/pages/NfsPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const status = useAuthStore((s) => s.status)
@@ -122,6 +123,7 @@ export default function App() {
           <Route path="chat" element={<ChatPage />} />
           <Route path="investimentos" element={<InvestimentosPage />} />
           <Route path="listas" element={<ListasPage />} />
+          <Route path="nfs" element={<NfsPage />} />
           <Route path="configuracoes" element={<ConfiguracoesPage />} />
         </Route>
 

@@ -12,6 +12,7 @@ import {
   Settings,
   Landmark,
   ListChecks,
+  FileText,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -30,6 +31,7 @@ export const ALL_NAV_ITEMS: NavItem[] = [
   { to: '/investimentos',   label: 'Investimentos',      icon: TrendingUp },
   { to: '/contas-bancarias', label: 'Contas e Cartões',  icon: Landmark },
   { to: '/listas',          label: 'Listas',             icon: ListChecks },
+  { to: '/nfs',             label: 'Notas Fiscais (NFS)', icon: FileText },
   { to: '/chat',            label: 'Assistente IA',      icon: MessageSquare },
   { to: '/plano-de-acao',   label: 'Plano de Ação',      icon: Sparkles },
   { to: '/relatorios',      label: 'Relatórios',         icon: BarChart2 },
