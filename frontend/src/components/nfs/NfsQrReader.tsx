@@ -17,6 +17,7 @@ interface NfsQrReaderProps {
 export default function NfsQrReader({ onScanSuccess }: NfsQrReaderProps) {
   const [status, setStatus] = useState<'idle' | 'scanning' | 'processing' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
+  const [manualQrText, setManualQrText] = useState('')
   const [cameraList, setCameraList] = useState<Array<{ id: string; label: string }>>([])
   const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null)
   const scannerRef = useRef<Html5Qrcode | null>(null)
@@ -71,6 +72,14 @@ export default function NfsQrReader({ onScanSuccess }: NfsQrReaderProps) {
     }
 
     const cameraIdToUse = cameraId ?? selectedCameraId ?? currentCameras[0].id
+    const cameraVideoConstraints = {
+      facingMode: 'environment',
+      width: { ideal: 1920 },
+      height: { ideal: 1080 },
+      advanced: [{ zoom: 2.2 }, { focusMode: 'continuous' }],
+    } as MediaTrackConstraints & {
+      advanced?: Array<Record<string, unknown>>
+    }
 
     try {
       const scanner = new Html5Qrcode('nfs-reader')
@@ -81,18 +90,14 @@ export default function NfsQrReader({ onScanSuccess }: NfsQrReaderProps) {
       await scanner.start(
         cameraIdToUse,
         {
-          fps: 15,
+          fps: 20,
           qrbox: {
-            width: 340,
-            height: 220,
+            width: 180,
+            height: 180,
           },
           aspectRatio: 1.777778,
           disableFlip: false,
-          videoConstraints: {
-            facingMode: 'environment',
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
+          videoConstraints: cameraVideoConstraints,
         },
         async (decodedText) => {
           try {
@@ -142,6 +147,27 @@ export default function NfsQrReader({ onScanSuccess }: NfsQrReaderProps) {
     }
   }, [])
 
+  const handleManualQr = () => {
+    const value = manualQrText.trim()
+    if (!value) {
+      setStatus('error')
+      setMessage('Cole o conteúdo do QR ou a URL da nota para continuar.')
+      return
+    }
+
+    try {
+      const parsed = parseNfsQr(value)
+      onScanSuccess(parsed)
+      setStatus('success')
+      setMessage('QR informado processado com sucesso.')
+      setManualQrText('')
+    } catch (error) {
+      const errMessage = error instanceof Error ? error.message : 'Não foi possível processar o QR informado.'
+      setStatus('error')
+      setMessage(`${errMessage} Tente uma imagem mais nítida do QR ou cole a URL/consulta da nota.`)
+    }
+  }
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -160,7 +186,7 @@ export default function NfsQrReader({ onScanSuccess }: NfsQrReaderProps) {
     } catch (error) {
       const errMessage = error instanceof Error ? error.message : 'Não foi possível ler o QR da imagem.'
       setStatus('error')
-      setMessage(errMessage)
+      setMessage(`${errMessage} Tente aproximar a câmera, remover reflexo e usar uma imagem mais nítida. Também é possível colar o texto do QR manualmente abaixo.`)
     } finally {
       try {
         await fileScanner.clear()
@@ -210,6 +236,26 @@ export default function NfsQrReader({ onScanSuccess }: NfsQrReaderProps) {
           Enviar imagem
           <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
         </label>
+      </div>
+
+      <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3">
+        <label className="block text-xs font-medium uppercase tracking-wide text-gray-500">
+          Ou cole o conteúdo do QR / URL da nota
+        </label>
+        <textarea
+          value={manualQrText}
+          onChange={(event) => setManualQrText(event.target.value)}
+          rows={3}
+          placeholder="https://... ou chave=...&numero=..."
+          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none ring-0 placeholder:text-gray-400 focus:border-primary-400"
+        />
+        <button
+          type="button"
+          onClick={handleManualQr}
+          className="inline-flex items-center rounded-lg bg-gray-800 px-3 py-2 text-sm font-medium text-white hover:bg-gray-700"
+        >
+          Processar QR informado
+        </button>
       </div>
 
       {status !== 'idle' && (
