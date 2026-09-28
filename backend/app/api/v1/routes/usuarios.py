@@ -1,9 +1,10 @@
-from typing import Optional
+from typing import Annotated, Optional
+from uuid import UUID
 
 from app.core.dependencies import CurrentAdmin, CurrentUserID, DBSession
 from app.core.security import get_password_hash, verify_password
 from app.models.usuario import Usuario
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 
@@ -179,7 +180,7 @@ async def excluir_conta(
 
 
 @router.get("/admin/usuarios")
-async def listar_usuarios_admin(_: CurrentAdmin, db: DBSession):
+async def listar_usuarios_admin(_: Annotated[UUID, Depends(CurrentAdmin)], db: DBSession):
     result = await db.execute(select(Usuario).order_by(Usuario.criado_em))
     return [
         {
@@ -199,7 +200,7 @@ async def listar_usuarios_admin(_: CurrentAdmin, db: DBSession):
 async def atualizar_plano_admin(
     usuario_id: UUID,
     data: PlanoUpdateRequest,
-    _: CurrentAdmin,
+    _: Annotated[UUID, Depends(CurrentAdmin)],
     db: DBSession,
 ):
     if data.plano not in PLANOS_VALIDOS:
