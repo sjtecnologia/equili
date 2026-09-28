@@ -5,6 +5,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { useDividas } from '@/hooks/useDividas'
+import { gerarAgendaParcelas } from '@/lib/parcelas'
 import type { Divida } from '@/types/financeiro'
 import { DividaModal, EditarDividaModal, PagarParcelaModal, HistoricoPagamentosModal } from './DividaModals'
 
@@ -165,9 +166,7 @@ export default function DividasPage() {
                 ? Math.min(100, ((divida.valor_total - restante) / divida.valor_total) * 100)
                 : 0
             const atrasadas = divida.parcelas_atrasadas
-            const agendaParcelas = divida.parcelas ?? []
-            const parcelasExibidas = agendaParcelas.slice(0, 24)
-            const parcelasOcultas = Math.max(0, agendaParcelas.length - parcelasExibidas.length)
+            const agendaParcelas = gerarAgendaParcelas(divida)
             const mostrarParcelas = parcelasVisiveis[divida.id]
 
             return (
@@ -225,11 +224,6 @@ export default function DividasPage() {
                       style={{ width: `${progresso}%` }}
                     />
                   </div>
-                  <p className="mt-2 text-xs text-gray-500">
-                    {agendaParcelas.filter((p) => p.status === 'paga').length} pagas ·{' '}
-                    {agendaParcelas.filter((p) => p.status === 'vencida').length} vencidas ·{' '}
-                    {agendaParcelas.filter((p) => p.status === 'a_vencer').length} a vencer
-                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -243,18 +237,14 @@ export default function DividasPage() {
                   </button>
 
                   {mostrarParcelas && (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-gray-500">
-                      {parcelasExibidas.map((parcela) => (
-                        <span
-                          key={parcela.numero}
-                          className={parcela.status === 'paga' ? 'text-green-600' : parcela.status === 'vencida' ? 'text-red-600' : 'text-gray-500'}
-                        >
-                          Nº {parcela.numero} — {new Date(`${parcela.vencimento}T00:00:00`).toLocaleDateString('pt-BR')}
-                        </span>
-                      ))}
-                      {parcelasOcultas > 0 && (
-                        <span className="font-medium text-gray-600">e mais {parcelasOcultas} parcelas</span>
-                      )}
+                    <div className="max-h-[320px] overflow-y-auto">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-gray-500">
+                        {agendaParcelas.map((parcela) => (
+                          <span key={parcela.numero}>
+                            Nº {parcela.numero} — {parcela.vencimento.toLocaleDateString('pt-BR')}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
