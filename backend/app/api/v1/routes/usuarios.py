@@ -1,6 +1,6 @@
 from typing import Optional
 
-from app.core.dependencies import CurrentUserID, DBSession
+from app.core.dependencies import CurrentAdmin, CurrentUserID, DBSession
 from app.core.security import get_password_hash, verify_password
 from app.models.usuario import Usuario
 from fastapi import APIRouter, HTTPException, Response
@@ -8,6 +8,11 @@ from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 
 router = APIRouter()
+PLANOS_VALIDOS = {"gratuito", "premium", "pro"}
+
+
+class PlanoUpdateRequest(BaseModel):
+    plano: str
 
 
 class UpdatePerfilRequest(BaseModel):
@@ -32,6 +37,7 @@ async def get_me(usuario_id: CurrentUserID, db: DBSession):
         "nome": usuario.nome,
         "email": usuario.email,
         "plano": usuario.plano,
+        "is_admin": usuario.is_admin,
         "email_verificado": usuario.email_verificado,
         "criado_em": usuario.criado_em,
     }
@@ -70,6 +76,7 @@ async def update_me(data: UpdatePerfilRequest, usuario_id: CurrentUserID, db: DB
         "nome": usuario.nome,
         "email": usuario.email,
         "plano": usuario.plano,
+        "is_admin": usuario.is_admin,
         "email_verificado": usuario.email_verificado,
         "criado_em": usuario.criado_em,
     }
@@ -169,3 +176,41 @@ async def excluir_conta(
     # Apaga o cookie de refresh
     response.delete_cookie("refresh_token")
     return None
+
+
+@router.get("/admin/usuarios")
+async def listar_usuarios_admin(_: CurrentAdmin, db: DBSession):
+    result = await db.execute(select(Usuario).order_by(Usuario.criado_em))
+    return [
+        {
+            "id": str(u.id),
+            "nome": u.nome,
+            "email": u.email,
+            "plano": u.plano,
+            "is_admin": u.is_admin,
+            "ativo": u.ativo,
+            "criado_em": u.criado_em,
+        }
+        for u in result.scalars()
+    ]
+
+
+@router.patch("/admin/usuarios/{usuario_id}/plano")
+async def atualizar_plano_admin(
+    usuario_id: UUID,
+    data: PlanoUpdateRequest,
+    _: CurrentAdmin,
+    db: DBSession,
+):
+    if data.plano not in PLANOS_VALIDOS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Plano inválido. Use: {', '.join(PLANOS_VALIDOS)}",
+        )
+    usuario = await db.get(Usuario, usuario_id)
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+    usuario.plano = data.plano
+    await db.commit()
+    await db.refresh(usuario)
+    return {"id": str(usuario.id), "plano": usuario.plano}

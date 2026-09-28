@@ -7,6 +7,7 @@ export interface AuthUser {
   nome: string
   email: string
   plano: string
+  is_admin: boolean
 }
 
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'

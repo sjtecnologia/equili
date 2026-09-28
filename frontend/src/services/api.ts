@@ -13,6 +13,16 @@ const api = axios.create({
   withCredentials: true, // necessário para enviar o httpOnly cookie do refresh
 })
 
+export async function listarUsuariosAdmin(): Promise<any> {
+  const { data } = await api.get('/usuarios/admin/usuarios')
+  return data
+}
+
+export async function atualizarPlanoAdmin(usuarioId: string, plano: string): Promise<any> {
+  const { data } = await api.patch(`/usuarios/admin/usuarios/${usuarioId}/plano`, { plano })
+  return data
+}
+
 // Interceptor: adiciona o access token em cada requisição
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken

@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Settings, LogOut } from 'lucide-react'
+import { Settings, LogOut, ShieldCheck } from 'lucide-react'
 import { ALL_NAV_ITEMS, requiresExactActiveMatch } from '@/config/navItems'
 import { useAuthStore } from '@/stores/authStore'
 import api from '@/services/api'
@@ -66,6 +66,19 @@ export default function Sidebar() {
             {label}
           </NavLink>
         ))}
+        {user?.is_admin === true && (
+          <NavLink
+            to="/admin/usuarios"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-colors duration-150 ${
+                isActive ? 'bg-primary-100 text-primary-500' : 'text-gray-600 hover:bg-gray-100'
+              }`
+            }
+          >
+            <ShieldCheck size={20} />
+            Gerenciar Planos
+          </NavLink>
+        )}
       </nav>
 
       {/* Footer */}

@@ -28,6 +28,7 @@ import InvestimentosPage from '@/pages/investimentos/InvestimentosPage'
 import AnimatedSplash from '@/components/shared/AnimatedSplash'
 import ListasPage from '@/pages/listas/ListasPage'
 import NfsPage from '@/pages/NfsPage'
+import AdminUsuariosPage from '@/pages/admin/AdminUsuariosPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const status = useAuthStore((s) => s.status)
@@ -125,6 +126,7 @@ export default function App() {
           <Route path="listas" element={<ListasPage />} />
           <Route path="nfs" element={<NfsPage />} />
           <Route path="configuracoes" element={<ConfiguracoesPage />} />
+          <Route path="admin/usuarios" element={<AdminUsuariosPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

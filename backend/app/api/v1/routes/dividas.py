@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from app.core.config import settings
 from app.core.dependencies import CurrentUserID, DBSession
 from app.models.divida import Divida, DividaPagamento
+from app.models.conta_lancamento import ContaAPagar
 from app.models.usuario import Usuario
 
 router = APIRouter()
@@ -23,6 +24,28 @@ def _avancar_mes(d: date) -> date:
     return date(ano_novo, mes_novo, dia_novo)
 
 
+def _gerar_agenda(divida: Divida, pagas: set) -> list[dict]:
+    base = divida.data_primeira_parcela or divida.data_prox_vencimento
+    total = divida.parcelas_totais or (divida.parcelas_restantes + len(pagas))
+    agenda = []
+    atual = base
+    hoje = date.today()
+    for numero in range(1, min(total, 120) + 1):
+        if atual in pagas:
+            status_parcela = "paga"
+        elif atual < hoje:
+            status_parcela = "vencida"
+        else:
+            status_parcela = "a_vencer"
+        agenda.append({
+            "numero": numero,
+            "vencimento": atual.isoformat(),
+            "status": status_parcela,
+        })
+        atual = _avancar_mes(atual)
+    return agenda
+
+
 class DividaCreate(BaseModel):
     descricao: str
     credor: str | None = None
@@ -35,6 +58,27 @@ class DividaCreate(BaseModel):
     data_inicio_contrato: date | None = None
     data_primeira_parcela: date | None = None
     data_prox_vencimento: date | None = None
+
+    @field_validator("parcelas_totais", "parcelas_restantes", mode="before")
+    @classmethod
+    def normaliza_parcelas(cls, v):
+        if v in (None, ""):
+            return v
+        if isinstance(v, str):
+            value = v.strip()
+            if not value:
+                return None
+            try:
+                v = float(value)
+            except ValueError as exc:
+                raise ValueError("Quantidade de parcelas deve ser um inteiro válido.") from exc
+        if isinstance(v, float):
+            if not v.is_integer():
+                raise ValueError("Quantidade de parcelas deve ser inteira.")
+            v = int(v)
+        if isinstance(v, int):
+            return v
+        raise ValueError("Quantidade de parcelas deve ser inteira.")
 
     @field_validator("tipo")
     @classmethod
@@ -66,6 +110,8 @@ class DividaCreate(BaseModel):
                 raise ValueError(
                     "Informe data_primeira_parcela ou data_prox_vencimento."
                 )
+        if self.parcelas_totais is not None and self.parcelas_restantes > self.parcelas_totais:
+            raise ValueError("Parcelas restantes não pode exceder o total de parcelas.")
         return self
 
 
@@ -96,6 +142,27 @@ class DividaUpdate(BaseModel):
     data_primeira_parcela: date | None = None
     data_prox_vencimento: date | None = None
 
+    @field_validator("parcelas_totais", "parcelas_restantes", mode="before")
+    @classmethod
+    def normaliza_parcelas(cls, v):
+        if v in (None, ""):
+            return v
+        if isinstance(v, str):
+            value = v.strip()
+            if not value:
+                return None
+            try:
+                v = float(value)
+            except ValueError as exc:
+                raise ValueError("Quantidade de parcelas deve ser um inteiro válido.") from exc
+        if isinstance(v, float):
+            if not v.is_integer():
+                raise ValueError("Quantidade de parcelas deve ser inteira.")
+            v = int(v)
+        if isinstance(v, int):
+            return v
+        raise ValueError("Quantidade de parcelas deve ser inteira.")
+
     @field_validator("tipo")
     @classmethod
     def tipo_valido_update(cls, v: str | None) -> str | None:
@@ -123,17 +190,24 @@ async def _verificar_limite_dividas(usuario_id: UUID, db) -> None:
         if count >= settings.PLANO_GRATIS_MAX_DIVIDAS:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Você atingiu o limite de {settings.PLANO_GRATIS_MAX_DIVIDAS} dívidas do plano gratuito. Faça upgrade para adicionar mais.",
+                detail=f"Você atingiu o limite de {settings.PLANO_GRATIS_MAX_DIVIDAS} dívidas ativas do plano gratuito. Encerre uma dívida ou faça upgrade para adicionar mais.",
             )
 
 
 @router.get("")
-async def listar_dividas(usuario_id: CurrentUserID, db: DBSession):
-    result = await db.execute(
-        select(Divida)
-        .where(Divida.usuario_id == usuario_id, Divida.quitada == False)  # noqa: E712
-        .order_by(Divida.data_prox_vencimento)
-    )
+async def listar_dividas(
+    usuario_id: CurrentUserID,
+    db: DBSession,
+    status: str = "todas",
+):
+    if status not in {"ativas", "todas", "quitadas"}:
+        raise HTTPException(status_code=400, detail="Status inválido. Use: ativas, todas ou quitadas.")
+    query = select(Divida).where(Divida.usuario_id == usuario_id)
+    if status == "ativas":
+        query = query.where(Divida.quitada == False)  # noqa: E712
+    elif status == "quitadas":
+        query = query.where(Divida.quitada == True)  # noqa: E712
+    result = await db.execute(query.order_by(Divida.data_prox_vencimento))
     dividas = result.scalars().all()
 
     if not dividas:
@@ -154,6 +228,7 @@ async def listar_dividas(usuario_id: CurrentUserID, db: DBSession):
     output = []
     for divida in dividas:
         pagas = pagas_por_divida.get(divida.id, set())
+        agenda = _gerar_agenda(divida, pagas)
 
         # Conta meses esperados (agenda a partir da 1ª parcela) que ainda não foram pagos
         parcelas_atrasadas = 0
@@ -191,6 +266,8 @@ async def listar_dividas(usuario_id: CurrentUserID, db: DBSession):
             "data_primeira_atrasada": data_primeira_atrasada.isoformat() if data_primeira_atrasada else None,
             "quitada": divida.quitada,
             "parcelas_atrasadas": parcelas_atrasadas,
+            "parcelas": agenda,
+            "parcelas_pagas": len(pagas),
         })
 
     return output
@@ -202,6 +279,21 @@ async def criar_divida(data: DividaCreate, usuario_id: CurrentUserID, db: DBSess
 
     divida = Divida(usuario_id=usuario_id, **data.model_dump())
     db.add(divida)
+    await db.flush()
+    for parcela in _gerar_agenda(divida, set()):
+        if parcela["status"] == "paga":
+            continue
+        vencimento = date.fromisoformat(parcela["vencimento"])
+        db.add(ContaAPagar(
+            usuario_id=usuario_id,
+            divida_id=divida.id,
+            descricao=f"{divida.descricao} - {parcela['numero']}ª parcela",
+            valor=divida.valor_parcela,
+            data_vencimento=vencimento,
+            categoria="outro",
+            status="vencido" if parcela["status"] == "vencida" else "pendente",
+            tipo="variavel",
+        ))
     await db.commit()
     await db.refresh(divida)
     return divida
@@ -258,6 +350,17 @@ async def pagar_parcela(divida_id: UUID, data: PagarParcelaRequest, usuario_id: 
         observacao=data.observacao,
     )
     db.add(pagamento)
+
+    conta = await db.scalar(
+        select(ContaAPagar).where(
+            ContaAPagar.divida_id == divida.id,
+            ContaAPagar.usuario_id == usuario_id,
+            ContaAPagar.data_vencimento == base,
+        )
+    )
+    if conta:
+        conta.status = "pago"
+        conta.pago_em = datetime.combine(data.data_pagamento or hoje, datetime.min.time()).replace(tzinfo=timezone.utc)
 
     if divida.parcelas_restantes > 0:
         divida.parcelas_restantes -= 1

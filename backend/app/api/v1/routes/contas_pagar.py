@@ -1,3 +1,4 @@
+import logging
 from calendar import monthrange
 from datetime import date, datetime, timezone
 from uuid import UUID
@@ -15,6 +16,7 @@ from app.models.lancamento_cartao import LancamentoCartao
 from app.models.lancamento_conta import LancamentoConta
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 CATEGORIAS_VALIDAS = {
     "moradia", "transporte", "saude", "educacao",
@@ -63,10 +65,31 @@ class ContaAPagarCreate(BaseModel):
             raise ValueError("Modalidade inválida. Use: avulsa, recorrente ou parcelada.")
         return v
 
+    @field_validator("numero_parcelas", mode="before")
+    @classmethod
+    def normaliza_numero_parcelas(cls, v):
+        if v in (None, ""):
+            return None
+        if isinstance(v, str):
+            v = v.strip()
+            if not v:
+                return None
+            try:
+                v = float(v)
+            except ValueError as exc:
+                raise ValueError("Número de parcelas deve ser um inteiro válido.") from exc
+        if isinstance(v, float):
+            if not v.is_integer():
+                raise ValueError("Número de parcelas deve ser um inteiro.")
+            v = int(v)
+        if isinstance(v, int):
+            return v
+        raise ValueError("Número de parcelas deve ser um inteiro.")
+
     @model_validator(mode="after")
     def valida_parcelas(self) -> "ContaAPagarCreate":
         if self.modalidade == "parcelada":
-            if not self.numero_parcelas or self.numero_parcelas < 2:
+            if self.numero_parcelas is None or self.numero_parcelas < 2:
                 raise ValueError("Informe ao menos 2 parcelas para conta parcelada.")
         return self
 
@@ -168,6 +191,7 @@ async def criar_conta_pagar(
 
     if data.modalidade == "recorrente":
         n_meses = 12 - data.data_vencimento.month + 1
+        logger.info("Gerando %s lançamentos recorrentes para %s", n_meses, data.descricao)
         for i in range(n_meses):
             conta = ContaAPagar(
                 usuario_id=usuario_id,
@@ -183,6 +207,7 @@ async def criar_conta_pagar(
 
     elif data.modalidade == "parcelada":
         n = data.numero_parcelas  # >= 2 garantido pelo validator
+        logger.info("Gerando %s parcelas para conta a pagar: %s", n, data.descricao)
         for i in range(n):
             conta = ContaAPagar(
                 usuario_id=usuario_id,
@@ -197,6 +222,7 @@ async def criar_conta_pagar(
             contas_novas.append(conta)
 
     else:  # avulsa
+        logger.info("Gerando 1 lançamento avulso para %s", data.descricao)
         conta = ContaAPagar(
             usuario_id=usuario_id,
             descricao=data.descricao,
@@ -209,7 +235,14 @@ async def criar_conta_pagar(
         db.add(conta)
         contas_novas.append(conta)
 
+    if data.modalidade == "parcelada" and len(contas_novas) != data.numero_parcelas:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Falha ao gerar todas as parcelas. Nenhuma parcela foi persistida.",
+        )
+
     await db.commit()
+    logger.info("Persistência concluída: %s lançamentos criados para usuário %s", len(contas_novas), str(usuario_id))
     for c in contas_novas:
         await db.refresh(c)
 

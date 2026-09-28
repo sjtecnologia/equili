@@ -1,4 +1,4 @@
-import { useReducer } from 'react'
+import { useReducer, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
 import { useInlineEdit } from '@/hooks/useInlineEdit'
@@ -351,13 +351,13 @@ export function PagarParcelaModal({
   onClose,
 }: PagarParcelaModalProps) {
   const queryClient = useQueryClient()
-  const hoje = new Date()
-  const vencimento = new Date(divida.data_prox_vencimento + 'T00:00:00')
-  const atrasada = vencimento < hoje
-  const mesAnoAtrasado = vencimento.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+  const parcelas = divida.parcelas ?? []
+  const abertas = parcelas.filter((parcela) => parcela.status === 'vencida' || parcela.status === 'a_vencer')
+  const primeiraAberta = abertas[0]?.vencimento ?? divida.data_prox_vencimento
+  const [selecionadas, setSelecionadas] = useState<string[]>(primeiraAberta ? [primeiraAberta] : [])
 
   const [s, dispatch] = useReducer(pagarParcelaReducer, {
-    dataReferencia: divida.data_prox_vencimento,
+    dataReferencia: primeiraAberta,
     dataPagamento: new Date().toISOString().slice(0, 10),
     valorPago: divida.valor_parcela.toFixed(2).replace('.', ','),
     observacao: '',
@@ -365,25 +365,19 @@ export function PagarParcelaModal({
     erro: null,
   })
 
-  // Calcula o próximo vencimento que resultará da seleção atual
-  const proxDataPreview = (() => {
-    if (!s.dataReferencia) return '—'
-    const d = new Date(s.dataReferencia + 'T00:00:00')
-    d.setMonth(d.getMonth() + 1)
-    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-  })()
-
   const valorPagoNum = parseFloat(s.valorPago.replace(',', '.')) || 0
 
   async function handleConfirmar() {
     dispatch({ type: 'SUBMIT_START' })
     try {
-      await api.post(`/dividas/${divida.id}/pagar-parcela`, {
-        data_referencia: s.dataReferencia || null,
-        data_pagamento: s.dataPagamento || null,
-        valor_pago: valorPagoNum > 0 ? valorPagoNum : null,
-        observacao: s.observacao.trim() || null,
-      })
+      for (const dataReferencia of selecionadas) {
+        await api.post(`/dividas/${divida.id}/pagar-parcela`, {
+          data_referencia: dataReferencia,
+          data_pagamento: s.dataPagamento || null,
+          valor_pago: valorPagoNum > 0 ? valorPagoNum : null,
+          observacao: s.observacao.trim() || null,
+        })
+      }
       dispatch({ type: 'SUBMIT_SUCCESS' })
       invalidateDividasAtrasosAndBaixas(queryClient)
       queryClient.removeQueries({ queryKey: ['divida-baixas'] })
@@ -409,34 +403,38 @@ export function PagarParcelaModal({
             </p>
           </div>
 
-          {/* Alerta de atraso */}
-          {atrasada && (
+          {/* Parcelas disponíveis */}
+          <div>
+            <p className="block text-sm font-medium text-gray-700 mb-2">Parcelas</p>
+            <div className="max-h-48 overflow-y-auto space-y-2">
+              {parcelas.map((parcela) => {
+                const selecionavel = parcela.status === 'vencida' || parcela.status === 'a_vencer'
+                const selecionada = selecionadas.includes(parcela.vencimento)
+                return (
+                  <label key={parcela.numero} className="flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={selecionavel ? selecionada : false}
+                      disabled={!selecionavel}
+                      onChange={() => setSelecionadas((atual) => selecionada ? atual.filter((d) => d !== parcela.vencimento) : [...atual, parcela.vencimento])}
+                    />
+                    <span className={parcela.status === 'paga' ? 'text-green-600' : parcela.status === 'vencida' ? 'text-red-600' : 'text-gray-600'}>
+                      Parcela {parcela.numero} — {new Date(`${parcela.vencimento}T00:00:00`).toLocaleDateString('pt-BR')} ({parcela.status === 'paga' ? 'Paga' : parcela.status === 'vencida' ? 'Vencida' : 'A vencer'})
+                    </span>
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+
+          {abertas.some((p) => p.status === 'vencida') && (
             <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3">
               <AlertTriangle size={16} className="text-amber-500 shrink-0 mt-0.5" />
               <p className="text-xs text-amber-700">
-                A parcela de <strong>{mesAnoAtrasado}</strong> está em atraso. Se você pagou
-                a parcela de outro mês, selecione a data correspondente abaixo.
+                Selecione uma ou mais parcelas em aberto para registrar o pagamento.
               </p>
             </div>
           )}
-
-          {/* Seleção da data da parcela */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Parcela que foi paga (mês de referência)
-            </label>
-            <input
-              type="date"
-              className="input-field"
-              value={s.dataReferencia}
-              onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'dataReferencia', value: e.target.value })}
-            />
-            {s.dataReferencia && divida.parcelas_restantes > 1 && (
-              <p className="mt-1.5 text-xs text-gray-400">
-                Próximo vencimento será: <span className="font-medium text-gray-600">{proxDataPreview}</span>
-              </p>
-            )}
-          </div>
 
           {/* Data em que o pagamento foi realizado */}
           <div>
@@ -496,7 +494,7 @@ export function PagarParcelaModal({
             <button
               type="button"
               onClick={handleConfirmar}
-              disabled={isSubmitting || !s.dataReferencia || valorPagoNum <= 0}
+              disabled={isSubmitting || selecionadas.length === 0 || valorPagoNum <= 0}
               className="btn-primary flex-1 flex items-center justify-center gap-2"
             >
               {isSubmitting && <Loader2 size={14} className="animate-spin" />}

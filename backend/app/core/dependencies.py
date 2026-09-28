@@ -38,3 +38,15 @@ async def get_current_user_id(
 # Aliases para injeção de dependência nas rotas
 CurrentUserID = Annotated[UUID, Depends(get_current_user_id)]
 DBSession = Annotated[AsyncSession, Depends(get_session)]
+
+
+async def CurrentAdmin(usuario_id: CurrentUserID, db: DBSession) -> UUID:
+    from app.models.usuario import Usuario
+
+    usuario = await db.get(Usuario, usuario_id)
+    if not usuario or not usuario.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso restrito a administradores.",
+        )
+    return usuario_id

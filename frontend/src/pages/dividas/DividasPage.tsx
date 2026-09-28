@@ -5,7 +5,6 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { useDividas } from '@/hooks/useDividas'
-import { gerarAgendaParcelas } from '@/lib/parcelas'
 import type { Divida } from '@/types/financeiro'
 import { DividaModal, EditarDividaModal, PagarParcelaModal, HistoricoPagamentosModal } from './DividaModals'
 
@@ -155,18 +154,18 @@ export default function DividasPage() {
       {/* Lista */}
       {isLoading ? (
         <SkeletonList count={3} height="h-24" />
-      ) : dividasAtivas.length === 0 ? (
-        <EmptyState icon={CheckCircle} title="Nenhuma dívida ativa!" description="Parabéns pelo equilíbrio financeiro." />
+      ) : dividas.length === 0 ? (
+        <EmptyState icon={CheckCircle} title="Nenhuma dívida cadastrada" description="Adicione uma dívida para acompanhar suas parcelas." />
       ) : (
         <div className="space-y-3">
-          {dividasAtivas.map((divida) => {
+          {dividas.map((divida) => {
             const restante = divida.valor_parcela * divida.parcelas_restantes
             const progresso =
               divida.valor_total > 0
                 ? Math.min(100, ((divida.valor_total - restante) / divida.valor_total) * 100)
                 : 0
             const atrasadas = divida.parcelas_atrasadas
-            const agendaParcelas = gerarAgendaParcelas(divida)
+            const agendaParcelas = divida.parcelas ?? []
             const parcelasExibidas = agendaParcelas.slice(0, 24)
             const parcelasOcultas = Math.max(0, agendaParcelas.length - parcelasExibidas.length)
             const mostrarParcelas = parcelasVisiveis[divida.id]
@@ -177,7 +176,12 @@ export default function DividasPage() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-semibold text-gray-800 truncate">{divida.descricao}</p>
-                      {atrasadas > 0 && (
+                      {divida.quitada && (
+                        <span className="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                          Quitada
+                        </span>
+                      )}
+                      {atrasadas > 0 && !divida.quitada && (
                         <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
                           <AlertTriangle size={10} />
                           {atrasadas} {atrasadas === 1 ? 'atrasada' : 'atrasadas'}
@@ -221,6 +225,11 @@ export default function DividasPage() {
                       style={{ width: `${progresso}%` }}
                     />
                   </div>
+                  <p className="mt-2 text-xs text-gray-500">
+                    {agendaParcelas.filter((p) => p.status === 'paga').length} pagas ·{' '}
+                    {agendaParcelas.filter((p) => p.status === 'vencida').length} vencidas ·{' '}
+                    {agendaParcelas.filter((p) => p.status === 'a_vencer').length} a vencer
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -236,8 +245,11 @@ export default function DividasPage() {
                   {mostrarParcelas && (
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-gray-500">
                       {parcelasExibidas.map((parcela) => (
-                        <span key={parcela.numero}>
-                          Nº {parcela.numero} — {parcela.vencimento.toLocaleDateString('pt-BR')}
+                        <span
+                          key={parcela.numero}
+                          className={parcela.status === 'paga' ? 'text-green-600' : parcela.status === 'vencida' ? 'text-red-600' : 'text-gray-500'}
+                        >
+                          Nº {parcela.numero} — {new Date(`${parcela.vencimento}T00:00:00`).toLocaleDateString('pt-BR')}
                         </span>
                       ))}
                       {parcelasOcultas > 0 && (
@@ -251,7 +263,8 @@ export default function DividasPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => dispatchModal({ type: 'OPEN_PAY', divida })}
-                    className="btn-secondary text-xs flex-1"
+                    disabled={divida.quitada}
+                    className="btn-secondary text-xs flex-1 disabled:opacity-50"
                   >
                     Registrar pagamento
                   </button>

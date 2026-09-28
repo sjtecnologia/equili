@@ -123,6 +123,14 @@ export interface Divida {
   data_inicio_contrato: string | null
   data_primeira_parcela: string | null
   quitada: boolean
+  parcelas: ParcelaDivida[]
+  parcelas_pagas: number
+}
+
+export interface ParcelaDivida {
+  numero: number
+  vencimento: string
+  status: 'paga' | 'vencida' | 'a_vencer'
 }
 
 export interface DividaPagamento {

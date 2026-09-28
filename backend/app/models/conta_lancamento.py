@@ -33,6 +33,12 @@ class ContaAPagar(Base):
         nullable=True,
         index=True,
     )
+    divida_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("dividas.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     descricao: Mapped[str] = mapped_column(String(150), nullable=False)
     categoria: Mapped[str] = mapped_column(String(50), nullable=False)
     # moradia | transporte | saude | educacao | alimentacao | lazer | outro
@@ -55,6 +61,7 @@ class ContaAPagar(Base):
 
     usuario: Mapped["Usuario"] = relationship(back_populates="contas_a_pagar")  # noqa: F821
     conta_fixa: Mapped["ContaFixa | None"] = relationship()  # noqa: F821
+    divida: Mapped["Divida | None"] = relationship()  # noqa: F821
 
 
 class ContaAReceber(Base):
