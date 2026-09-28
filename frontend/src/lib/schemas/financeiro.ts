@@ -92,6 +92,9 @@ export const dividaSchema = z.object({
   taxa_juros_mensal: z.coerce.number().min(0).optional().nullable(),
   data_inicio_contrato: z.string().optional(),
   data_primeira_parcela: z.string().min(1, 'Data da primeira parcela obrigatória'),
+}).refine((d) => d.parcelas_totais == null || d.parcelas_totais >= d.parcelas_restantes, {
+  message: 'Total de parcelas deve ser maior ou igual às restantes',
+  path: ['parcelas_totais'],
 })
 export type DividaFormData = z.infer<typeof dividaSchema>
 

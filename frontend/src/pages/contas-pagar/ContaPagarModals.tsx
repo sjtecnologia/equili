@@ -399,7 +399,9 @@ export function ContaModal({ onClose }: ContaModalProps) {
                 min={2}
                 className={`input-field ${errors.numero_parcelas ? 'border-danger-500' : ''}`}
                 placeholder="Ex.: 12"
-                {...register('numero_parcelas')}
+                {...register('numero_parcelas', {
+                  setValueAs: (value) => (value === '' || value == null ? undefined : Number(value)),
+                })}
               />
               {errors.numero_parcelas && (
                 <p className="mt-1 text-xs text-danger-500">{errors.numero_parcelas.message}</p>

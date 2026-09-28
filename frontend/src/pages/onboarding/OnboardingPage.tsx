@@ -233,7 +233,9 @@ export default function OnboardingPage() {
                     min="1"
                     className="input-field"
                     placeholder="12"
-                    {...dividaForm.register('parcelas_restantes')}
+                    {...dividaForm.register('parcelas_restantes', {
+                      setValueAs: (value) => (value === '' || value == null ? undefined : Number(value)),
+                    })}
                   />
                 </div>
                 <div>

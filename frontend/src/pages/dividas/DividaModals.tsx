@@ -159,7 +159,9 @@ export function DividaForm({
             min="1"
             className="input-field"
             placeholder="Ex.: 24"
-            {...register('parcelas_totais')}
+            {...register('parcelas_totais', {
+              setValueAs: (value) => (value === '' || value == null ? undefined : Number(value)),
+            })}
           />
           <p className="mt-1 text-xs text-gray-400">Qtd total do contrato</p>
         </div>
@@ -170,7 +172,9 @@ export function DividaForm({
             min="1"
             className={`input-field ${errors.parcelas_restantes ? 'border-danger-500' : ''}`}
             placeholder="Ex.: 12"
-            {...register('parcelas_restantes')}
+            {...register('parcelas_restantes', {
+              setValueAs: (value) => (value === '' || value == null ? undefined : Number(value)),
+            })}
           />
           {errors.parcelas_restantes && (
             <p className="mt-1 text-xs text-danger-500">{errors.parcelas_restantes.message}</p>

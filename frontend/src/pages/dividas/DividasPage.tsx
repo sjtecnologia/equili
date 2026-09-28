@@ -1,10 +1,11 @@
-import { useReducer } from 'react'
+import { useReducer, useState } from 'react'
 import { Trash2, CheckCircle, Lock, Pencil, AlertTriangle, CalendarClock, History } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { useDividas } from '@/hooks/useDividas'
+import { gerarAgendaParcelas } from '@/lib/parcelas'
 import type { Divida } from '@/types/financeiro'
 import { DividaModal, EditarDividaModal, PagarParcelaModal, HistoricoPagamentosModal } from './DividaModals'
 
@@ -58,6 +59,7 @@ function modalReducer(state: ModalState, action: ModalAction): ModalState {
 
 export default function DividasPage() {
   const [modals, dispatchModal] = useReducer(modalReducer, initialModalState)
+  const [parcelasVisiveis, setParcelasVisiveis] = useState<Record<string, boolean>>({})
 
   const { data: dividas = [], isLoading, contasFixasAtrasadas, deletar: deleteMutation } = useDividas()
 
@@ -164,6 +166,10 @@ export default function DividasPage() {
                 ? Math.min(100, ((divida.valor_total - restante) / divida.valor_total) * 100)
                 : 0
             const atrasadas = divida.parcelas_atrasadas
+            const agendaParcelas = gerarAgendaParcelas(divida)
+            const parcelasExibidas = agendaParcelas.slice(0, 24)
+            const parcelasOcultas = Math.max(0, agendaParcelas.length - parcelasExibidas.length)
+            const mostrarParcelas = parcelasVisiveis[divida.id]
 
             return (
               <div key={divida.id} className={`card p-4 space-y-3 ${atrasadas > 0 ? 'border border-red-200' : ''}`}>
@@ -215,6 +221,30 @@ export default function DividasPage() {
                       style={{ width: `${progresso}%` }}
                     />
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <button
+                    onClick={() =>
+                      setParcelasVisiveis((prev) => ({ ...prev, [divida.id]: !prev[divida.id] }))
+                    }
+                    className="text-xs font-medium text-primary-500 hover:underline"
+                  >
+                    Ver parcelas
+                  </button>
+
+                  {mostrarParcelas && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-gray-500">
+                      {parcelasExibidas.map((parcela) => (
+                        <span key={parcela.numero}>
+                          Nº {parcela.numero} — {parcela.vencimento.toLocaleDateString('pt-BR')}
+                        </span>
+                      ))}
+                      {parcelasOcultas > 0 && (
+                        <span className="font-medium text-gray-600">e mais {parcelasOcultas} parcelas</span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Ações */}
