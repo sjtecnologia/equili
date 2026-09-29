@@ -2,17 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+html, body, #root { margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { overflow-x: hidden; max-width: 100%; width: 100%; }
+
 :root {
   --safe-top: env(safe-area-inset-top);
   --safe-right: env(safe-area-inset-right);
   --safe-bottom: env(safe-area-inset-bottom);
   --safe-left: env(safe-area-inset-left);
+  --tabbar-height: 64px;
 }
 
 @layer base {
   html {
     height: 100%;
     background-color: #ffffff;
+    max-width: 100%;
+    width: 100%;
   }
   body {
     height: 100%;
@@ -23,6 +30,8 @@
     background-color: #F3F4F6;
     color: #1A1A2E;
     line-height: 1.6;
+    max-width: 100%;
+    width: 100%;
   }
   #root {
     height: 100%;
@@ -30,6 +39,8 @@
     overflow: hidden;
     overflow-x: hidden;
     background-color: #ffffff;
+    max-width: 100%;
+    width: 100%;
   }
 }
 
@@ -106,6 +117,85 @@
   }
 }
 
+/* Safe-area e contenção lateral global para iOS */
+header,
+.header,
+.topbar,
+.toolbar,
+.app-header,
+[class*="Header"] {
+  padding-left: 16px;
+  padding-right: max(var(--safe-right), 16px);
+}
+
+main,
+main > div,
+[class*="container"],
+[class*="Container"],
+[class*="page"],
+[class*="Page"],
+[class*="screen"],
+[class*="Screen"],
+[class*="content"],
+[class*="Content"],
+[class*="wrap"],
+[class*="Wrap"],
+[class*="dashboard"],
+[class*="Dashboard"],
+[class*="home"],
+[class*="Home"],
+[class*="card-list"],
+[class*="CardList"] {
+  width: 100%;
+  max-width: 100%;
+}
+
+nav {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 20;
+}
+
+#root > div > div > div.lg\:hidden.print\:hidden.flex-shrink-0 {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+#root > div > div > main {
+  padding-bottom: calc(var(--tabbar-height) + var(--safe-bottom));
+}
+
+button[aria-label="Assistente de voz"] {
+  position: fixed !important;
+  right: calc(var(--safe-right) + 16px) !important;
+  bottom: calc(var(--tabbar-height) + var(--safe-bottom) + 12px) !important;
+  z-index: 10 !important;
+}
+
+.tabular-nums,
+.tabular-nums *,
+p:has(> .tabular-nums),
+span:has(> .tabular-nums) {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+p:has(.tabular-nums),
+div:has(> .tabular-nums),
+div:has(> p > .tabular-nums),
+div:has(> span > .tabular-nums) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* ── Animated Splash Screen ────────────────────────────────────────────────
    FORA do @layer — garante que @keyframes funcione no Safari/WebKit iOS
    -------------------------------------------------------------------------- */
@@ -173,7 +263,7 @@
   will-change: transform, opacity;
 }
 .splash-ring-1 { width: 260px; height: 260px; -webkit-animation-delay: 0s;  animation-delay: 0s; }
-.splash-ring-2 { width: 400px; height: 400px; -webkit-animation-delay: 0.9s; animation-delay: 0.9s; }
+.splash-ring-2 { width: min(400px, 100%); height: min(400px, 100%); -webkit-animation-delay: 0.9s; animation-delay: 0.9s; }
 
 .splash-logo-wrap {
   position: relative;
