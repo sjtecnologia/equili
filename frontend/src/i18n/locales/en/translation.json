@@ -1,0 +1,50 @@
+{
+  "appName": "Equili",
+  "nav": {
+    "dashboard": "Dashboard",
+    "dividas": "Debts",
+    "receitas": "Income",
+    "contasPagar": "Bills to pay",
+    "relatorios": "Reports",
+    "configuracoes": "Settings",
+    "admin": "Administration"
+  },
+  "auth": {
+    "login": "Sign in",
+    "logout": "Sign out",
+    "email": "Email",
+    "password": "Password",
+    "loginGoogle": "Continue with Google",
+    "loginApple": "Continue with Apple",
+    "privacyPolicy": "By continuing, you agree to the Privacy Policy",
+    "userDisabled": "User deactivated. Contact the administrator."
+  },
+  "dividas": {
+    "title": "Debts",
+    "novaDivida": "New debt",
+    "verParcelas": "View installments",
+    "valor": "Amount",
+    "parcelas": "Installments",
+    "status": "Status",
+    "descricao": "Description"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "confirm": "Confirm",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success"
+  },
+  "admin": {
+    "title": "Manage Users",
+    "ativo": "Active",
+    "desativado": "Deactivated",
+    "desativar": "Deactivate",
+    "reativar": "Reactivate",
+    "excluir": "Delete",
+    "plano": "Plan"
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "appName": "Equili",
+  "nav": {
+    "dashboard": "Panel",
+    "dividas": "Deudas",
+    "receitas": "Ingresos",
+    "contasPagar": "Cuentas por pagar",
+    "relatorios": "Informes",
+    "configuracoes": "Configuración",
+    "admin": "Administración"
+  },
+  "auth": {
+    "login": "Iniciar sesión",
+    "logout": "Cerrar sesión",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "loginGoogle": "Continuar con Google",
+    "loginApple": "Continuar con Apple",
+    "privacyPolicy": "Al continuar, aceptas la Política de Privacidad",
+    "userDisabled": "Usuario desactivado. Contacta al administrador."
+  },
+  "dividas": {
+    "title": "Deudas",
+    "novaDivida": "Nueva deuda",
+    "verParcelas": "Ver cuotas",
+    "valor": "Valor",
+    "parcelas": "Cuotas",
+    "status": "Estado",
+    "descricao": "Descripción"
+  },
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "confirm": "Confirmar",
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito"
+  },
+  "admin": {
+    "title": "Gestionar Usuarios",
+    "ativo": "Activo",
+    "desativado": "Desactivado",
+    "desativar": "Desactivar",
+    "reativar": "Reactivar",
+    "excluir": "Eliminar",
+    "plano": "Plan"
+  }
+}
