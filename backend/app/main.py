@@ -126,6 +126,7 @@ app = FastAPI(
 
 # CORS — permitir apenas origins explícitas do frontend e do ambiente de produção.
 origins = [origin for origin in list(dict.fromkeys([*settings.ALLOWED_ORIGINS, settings.FRONTEND_URL])) if origin and origin != "*"]
+origins.extend(["capacitor://localhost", "https://localhost", "http://localhost"])
 if settings.DEBUG:
     origins.extend(["http://localhost:5173", "http://127.0.0.1:5173"])
 
