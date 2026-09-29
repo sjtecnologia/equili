@@ -73,9 +73,13 @@ export default function VoiceAssistant() {
         type="button"
         onClick={() => (isListening ? stop() : start())}
         className={[
-          'fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all duration-200 border border-white/40 lg:bottom-5',
+          'fixed z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all duration-200 border border-white/40',
           isListening ? 'bg-primary-500 scale-105' : 'bg-primary-600 hover:bg-primary-500',
         ].join(' ')}
+        style={{
+          right: 'calc(env(safe-area-inset-right) + 16px)',
+          bottom: 'calc(env(safe-area-inset-bottom) + 16px)',
+        }}
         aria-label="Assistente de voz"
       >
         {isListening ? <MicOff size={22} className="text-white" /> : <Mic size={22} className="text-white" />}

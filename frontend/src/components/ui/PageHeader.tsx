@@ -20,7 +20,10 @@ export function PageHeader({ title, subtitle, action }: PageHeaderProps) {
   const ActionIcon = action?.icon ?? Plus
 
   return (
-    <div className="flex items-center justify-between">
+    <div
+      className="flex items-center justify-between"
+      style={{ paddingLeft: '16px', paddingRight: 'max(env(safe-area-inset-right), 16px)' }}
+    >
       <div>
         <h1 className="text-xl font-bold text-gray-800">{title}</h1>
         {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}

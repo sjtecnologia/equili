@@ -258,7 +258,7 @@ export default function BaixasPage() {
                 key={b.id}
                 className="border border-gray-100 rounded-xl p-3"
               >
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start justify-between flex-wrap gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-gray-800 truncate">
                       {b.divida_descricao}
@@ -288,7 +288,7 @@ export default function BaixasPage() {
                   </div>
 
                   <div className="text-right shrink-0">
-                    <p className="font-semibold text-gray-800">{formatCurrency(b.valor_pago)}</p>
+                    <p className="font-semibold text-gray-800 whitespace-nowrap tabular-nums">{formatCurrency(b.valor_pago)}</p>
                     {diferenca !== 0 && (
                       <p
                         className={`text-xs ${diferenca > 0 ? 'text-danger-500' : 'text-success-600'}`}

@@ -171,7 +171,7 @@ export default function DividasPage() {
 
             return (
               <div key={divida.id} className={`card p-4 space-y-3 ${atrasadas > 0 ? 'border border-red-200' : ''}`}>
-                <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start justify-between flex-wrap gap-2">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-semibold text-gray-800 truncate">{divida.descricao}</p>
@@ -203,7 +203,7 @@ export default function DividasPage() {
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="font-bold text-danger-500">
+                    <p className="font-bold text-danger-500 whitespace-nowrap tabular-nums">
                       {formatCurrency(restante)}
                     </p>
                     {divida.taxa_juros_mensal && divida.taxa_juros_mensal > 0 && (

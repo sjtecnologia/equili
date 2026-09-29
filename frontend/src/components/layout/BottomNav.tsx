@@ -7,7 +7,12 @@ export default function BottomNav() {
   const items = ALL_NAV_ITEMS.filter((item) => shortcuts.includes(item.to))
 
   return (
-    <nav style={{ backgroundColor: '#ffffff', borderTop: '2px solid #2E7D5E' }}>
+    <nav style={{
+      backgroundColor: '#ffffff',
+      borderTop: '2px solid #2E7D5E',
+      paddingRight: 'env(safe-area-inset-right)',
+      paddingBottom: 'env(safe-area-inset-bottom)',
+    }}>
       <div className="flex justify-around px-1 py-1.5">
         {items.map(({ to, icon: Icon, label }) => (
           <NavLink
