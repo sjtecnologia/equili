@@ -3,10 +3,23 @@ from uuid import UUID
 
 from app.core.dependencies import CurrentAdmin, CurrentUserID, DBSession
 from app.core.security import get_password_hash, verify_password
+from app.models.conta import Alerta, ContaFixa
+from app.models.conta_bancaria import CartaoCredito, ContaBancaria
+from app.models.conta_lancamento import ContaAPagar, ContaAReceber
+from app.models.divida import Divida, DividaPagamento
+from app.models.investimento import Investimento
+from app.models.lancamento_cartao import LancamentoCartao
+from app.models.lancamento_conta import LancamentoConta
+from app.models.listas import ItemCompra, Tarefa
+from app.models.nfs_recebida import NfsRecebida
+from app.models.plano_acao import PlanoAcao
+from app.models.push_subscription import PushSubscription
+from app.models.renda import Renda
+from app.models.sessao import Sessao
 from app.models.usuario import Usuario
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 router = APIRouter()
 PLANOS_VALIDOS = {"gratuito", "premium", "pro"}
@@ -14,6 +27,22 @@ PLANOS_VALIDOS = {"gratuito", "premium", "pro"}
 
 class PlanoUpdateRequest(BaseModel):
     plano: str
+
+
+class UsuarioAtivoUpdateRequest(BaseModel):
+    ativo: bool
+
+
+def _usuario_admin_response(usuario: Usuario) -> dict:
+    return {
+        "id": str(usuario.id),
+        "nome": usuario.nome,
+        "email": usuario.email,
+        "plano": usuario.plano,
+        "is_admin": usuario.is_admin,
+        "ativo": usuario.ativo,
+        "criado_em": usuario.criado_em,
+    }
 
 
 class UpdatePerfilRequest(BaseModel):
@@ -182,18 +211,7 @@ async def excluir_conta(
 @router.get("/admin/usuarios")
 async def listar_usuarios_admin(_: Annotated[UUID, Depends(CurrentAdmin)], db: DBSession):
     result = await db.execute(select(Usuario).order_by(Usuario.criado_em))
-    return [
-        {
-            "id": str(u.id),
-            "nome": u.nome,
-            "email": u.email,
-            "plano": u.plano,
-            "is_admin": u.is_admin,
-            "ativo": u.ativo,
-            "criado_em": u.criado_em,
-        }
-        for u in result.scalars()
-    ]
+    return [_usuario_admin_response(u) for u in result.scalars()]
 
 
 @router.patch("/admin/usuarios/{usuario_id}/plano")
@@ -215,3 +233,79 @@ async def atualizar_plano_admin(
     await db.commit()
     await db.refresh(usuario)
     return {"id": str(usuario.id), "plano": usuario.plano}
+
+
+@router.patch("/admin/usuarios/{usuario_id}/ativo")
+async def atualizar_usuario_ativo_admin(
+    usuario_id: UUID,
+    data: UsuarioAtivoUpdateRequest,
+    admin_id: Annotated[UUID, Depends(CurrentAdmin)],
+    db: DBSession,
+):
+    if usuario_id == admin_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Você não pode desativar seu próprio usuário.",
+        )
+
+    usuario = await db.get(Usuario, usuario_id)
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+
+    usuario.ativo = data.ativo
+    await db.commit()
+    await db.refresh(usuario)
+    return _usuario_admin_response(usuario)
+
+
+@router.delete("/admin/usuarios/{usuario_id}", status_code=204)
+async def excluir_usuario_admin(
+    usuario_id: UUID,
+    admin_id: Annotated[UUID, Depends(CurrentAdmin)],
+    db: DBSession,
+):
+    if usuario_id == admin_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Você não pode excluir seu próprio usuário.",
+        )
+
+    usuario = await db.get(Usuario, usuario_id)
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+
+    try:
+        conta_ids = select(ContaBancaria.id).where(ContaBancaria.usuario_id == usuario_id)
+        cartao_ids = select(CartaoCredito.id).where(CartaoCredito.usuario_id == usuario_id)
+
+        await db.execute(delete(LancamentoConta).where(LancamentoConta.conta_bancaria_id.in_(conta_ids)))
+        await db.execute(delete(LancamentoCartao).where(LancamentoCartao.cartao_credito_id.in_(cartao_ids)))
+
+        for model in (
+            ContaAPagar,
+            ContaAReceber,
+            DividaPagamento,
+            ContaFixa,
+            Alerta,
+            Divida,
+            Renda,
+            PlanoAcao,
+            Investimento,
+            ContaBancaria,
+            CartaoCredito,
+            Tarefa,
+            ItemCompra,
+            PushSubscription,
+            Sessao,
+        ):
+            await db.execute(delete(model).where(model.usuario_id == usuario_id))
+
+        await db.execute(delete(NfsRecebida).where(NfsRecebida.user_id == usuario_id))
+        await db.delete(usuario)
+        await db.commit()
+    except Exception as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Não foi possível mapear todas as relações com segurança. Desative o usuário em vez de excluir.",
+        ) from exc

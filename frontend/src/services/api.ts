@@ -1,5 +1,8 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/authStore'
+import type { UsuarioAdmin } from '@/types/financeiro'
+
+const isNative = !!(window as any).Capacitor?.isNativePlatform
 
 function getCookie(name: string): string | null {
   const prefix = `${name}=`
@@ -8,19 +11,28 @@ function getCookie(name: string): string | null {
 }
 
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: isNative ? 'https://equili.com.br/api/v1' : '/api/v1',
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true, // necessário para enviar o httpOnly cookie do refresh
 })
 
-export async function listarUsuariosAdmin(): Promise<any> {
+export async function listarUsuariosAdmin(): Promise<UsuarioAdmin[]> {
   const { data } = await api.get('/usuarios/admin/usuarios')
   return data
 }
 
-export async function atualizarPlanoAdmin(usuarioId: string, plano: string): Promise<any> {
+export async function atualizarPlanoAdmin(usuarioId: string, plano: string): Promise<{ id: string; plano: string }> {
   const { data } = await api.patch(`/usuarios/admin/usuarios/${usuarioId}/plano`, { plano })
   return data
+}
+
+export async function toggleUsuarioAtivo(usuarioId: string, ativo: boolean): Promise<UsuarioAdmin> {
+  const { data } = await api.patch(`/usuarios/admin/usuarios/${usuarioId}/ativo`, { ativo })
+  return data
+}
+
+export async function excluirUsuario(usuarioId: string): Promise<void> {
+  await api.delete(`/usuarios/admin/usuarios/${usuarioId}`)
 }
 
 // Interceptor: adiciona o access token em cada requisição

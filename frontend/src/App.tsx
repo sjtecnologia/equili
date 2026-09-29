@@ -29,6 +29,7 @@ import AnimatedSplash from '@/components/shared/AnimatedSplash'
 import ListasPage from '@/pages/listas/ListasPage'
 import NfsPage from '@/pages/NfsPage'
 import AdminUsuariosPage from '@/pages/admin/AdminUsuariosPage'
+import PoliticaDePrivacidade from '@/pages/PoliticaDePrivacidade'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const status = useAuthStore((s) => s.status)
@@ -98,6 +99,7 @@ export default function App() {
         {/* Rotas públicas */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/cadastro" element={<CadastroPage />} />
+        <Route path="/privacidade" element={<PoliticaDePrivacidade />} />
 
         {/* Rotas protegidas */}
         <Route

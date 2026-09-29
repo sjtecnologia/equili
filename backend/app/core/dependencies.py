@@ -13,7 +13,10 @@ bearer_scheme = HTTPBearer()
 
 async def get_current_user_id(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
+    db: Annotated[AsyncSession, Depends(get_session)],
 ) -> UUID:
+    from app.models.usuario import Usuario
+
     token = credentials.credentials
     payload = decode_token(token)
 
@@ -32,6 +35,18 @@ async def get_current_user_id(
             detail="Token inválido.",
         )
 
+    usuario = await db.get(Usuario, user_id)
+    if not usuario:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuário não encontrado.",
+        )
+    if usuario.ativo is False:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Usuário desativado. Contate o administrador.",
+        )
+
     return user_id
 
 
@@ -44,6 +59,11 @@ async def CurrentAdmin(usuario_id: CurrentUserID, db: DBSession) -> UUID:
     from app.models.usuario import Usuario
 
     usuario = await db.get(Usuario, usuario_id)
+    if usuario and usuario.ativo is False:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Usuário desativado. Contate o administrador.",
+        )
     if not usuario or not usuario.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

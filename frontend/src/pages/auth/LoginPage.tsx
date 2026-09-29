@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2, Eye, EyeOff, ScanFace } from 'lucide-react'
 import { Capacitor } from '@capacitor/core'
+import { SignInWithApple } from '@capacitor-community/apple-sign-in'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'
 import { useBiometricAuth } from '@/hooks/useBiometricAuth'
@@ -33,6 +34,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
   const { getIdToken, loading: googleLoading } = useGoogleAuth()
+  const [appleLoading, setAppleLoading] = useState(false)
   const [bioDisponivel, setBioDisponivel] = useState(false)
   const [bioHabilitado, setBioHabilitado] = useState(false)
 
@@ -115,6 +117,26 @@ export default function LoginPage() {
     }
   }
 
+  async function loginApple() {
+    setServerError(null)
+    setAppleLoading(true)
+    try {
+      const result = await SignInWithApple.authorize({
+        clientId: 'br.com.equili.app',
+        scopes: 'email name',
+        redirectURI: 'https://equili.com.br',
+      })
+      const res = await api.post<{ access_token: string }>('/auth/google', {
+        id_token: result.response.identityToken,
+      })
+      await finalizarLogin(res.data.access_token)
+    } catch {
+      setServerError('Erro ao entrar com Apple. Tente novamente.')
+    } finally {
+      setAppleLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
@@ -137,14 +159,24 @@ export default function LoginPage() {
           )}
 
           {isNative && (
-            <button
-              onClick={loginGoogle}
-              disabled={googleLoading}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              {googleLoading ? <Loader2 size={16} className="animate-spin" /> : <IconGoogle />}
-              Google
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={loginGoogle}
+                disabled={googleLoading || appleLoading}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                {googleLoading ? <Loader2 size={16} className="animate-spin" /> : <IconGoogle />}
+                Google
+              </button>
+              <button
+                onClick={loginApple}
+                disabled={googleLoading || appleLoading}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                {appleLoading ? <Loader2 size={16} className="animate-spin" /> : null}
+                Continuar com Apple
+              </button>
+            </div>
           )}
 
           {isNative && (
@@ -214,6 +246,13 @@ export default function LoginPage() {
           <Link to="/cadastro" className="text-primary-500 font-medium hover:underline">
             Criar conta gratuita
           </Link>
+        </p>
+        <p className="text-center text-xs text-gray-500 mt-3">
+          Ao continuar, você concorda com a{' '}
+          <Link to="/privacidade" className="text-primary-500 font-medium hover:underline">
+            Política de Privacidade
+          </Link>
+          .
         </p>
       </div>
     </div>

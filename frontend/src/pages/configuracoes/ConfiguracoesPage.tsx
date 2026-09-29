@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -457,6 +457,12 @@ function SecaoPrivacidade() {
         Conforme a Lei Geral de Proteção de Dados (Lei 13.709/2018), você tem direito de acessar,
         exportar e solicitar a exclusão dos seus dados pessoais.
       </p>
+      <Link
+        to="/privacidade"
+        className="block text-sm font-medium text-primary-500 hover:underline"
+      >
+        Política de Privacidade
+      </Link>
 
       {/* Exportar dados */}
       <button

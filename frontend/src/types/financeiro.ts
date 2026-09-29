@@ -185,6 +185,22 @@ export interface Renda {
   ativo: boolean
 }
 
+// ─── Administração ───────────────────────────────────────────────────────────
+
+export interface UsuarioAdmin {
+  id: string
+  nome: string
+  email: string
+  plano: string
+  is_admin: boolean
+  ativo: boolean
+  criado_em: string
+}
+
+export interface UsuarioAtivoUpdate {
+  ativo: boolean
+}
+
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
 export interface DashboardResumo {

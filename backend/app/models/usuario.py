@@ -23,7 +23,7 @@ class Usuario(Base):
     plano: Mapped[str] = mapped_column(String(20), nullable=False, default="gratuito")
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     email_verificado: Mapped[bool] = mapped_column(Boolean, default=False)
-    ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     criado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

@@ -287,12 +287,15 @@ async def login(data: LoginRequest, response: Response, db: DBSession, request: 
             detail="Email ou senha incorretos.",
         )
 
-    if not usuario.ativo:
+    if usuario.ativo is False:
         await rastro_client.send_warning_event(
             message="Tentativa de login em conta desativada.",
             fingerprint="equili:auth:login:inactive_account",
         )
-        raise HTTPException(status_code=403, detail="Conta desativada.")
+        raise HTTPException(
+            status_code=403,
+            detail="Usuário desativado. Contate o administrador.",
+        )
 
     access_token = create_access_token(str(usuario.id))
     await _issue_refresh_and_session(db, response, request, usuario.id)
@@ -368,6 +371,12 @@ async def login_google(data: SocialGoogleRequest, response: Response, db: DBSess
                 google_id=google_id,
             )
             db.add(usuario)
+
+    if usuario.ativo is False:
+        raise HTTPException(
+            status_code=403,
+            detail="Usuário desativado. Contate o administrador.",
+        )
 
     usuario.email_verificado = True
     await db.commit()
@@ -488,6 +497,12 @@ async def login_apple(data: SocialAppleRequest, response: Response, db: DBSessio
         )
         db.add(usuario)
 
+    if usuario.ativo is False:
+        raise HTTPException(
+            status_code=403,
+            detail="Usuário desativado. Contate o administrador.",
+        )
+
     usuario.email_verificado = True
     await db.commit()
     await db.refresh(usuario)
@@ -531,8 +546,13 @@ async def refresh_token(
         raise HTTPException(status_code=401, detail="Refresh token inválido. Faça login novamente.")
 
     usuario = await db.get(Usuario, usuario_uuid)
-    if not usuario or not usuario.ativo:
+    if not usuario:
         raise HTTPException(status_code=401, detail="Usuário não encontrado.")
+    if usuario.ativo is False:
+        raise HTTPException(
+            status_code=403,
+            detail="Usuário desativado. Contate o administrador.",
+        )
 
     sessao = await db.scalar(select(Sessao).where(Sessao.jti == UUID(jti)))
     agora = datetime.now(timezone.utc)

@@ -28,14 +28,16 @@ export function useGoogleAuth() {
 
     setLoading(true)
     try {
-      const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
-      const gUser = await GoogleAuth.signIn()
-      const token = gUser.authentication.idToken
+      const { GoogleSignIn } = await import('@capawesome/capacitor-google-sign-in')
+      const gUser = await GoogleSignIn.signIn()
+      const token = gUser.idToken
       if (!token) throw new Error('Token Google não recebido.')
       return { token, error: null }
     } catch (e: unknown) {
-      const err = e as { message?: string }
-      if (err.message?.includes('cancel')) return { token: null, error: null }
+      const err = e as { code?: string; message?: string }
+      if (err.code === 'SIGN_IN_CANCELED' || err.message?.toLowerCase().includes('cancel')) {
+        return { token: null, error: null }
+      }
       return { token: null, error: 'Erro ao autenticar com Google. Tente novamente.' }
     } finally {
       setLoading(false)
