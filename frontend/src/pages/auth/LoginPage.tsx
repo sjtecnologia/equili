@@ -10,6 +10,7 @@ import api from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'
 import { useBiometricAuth } from '@/hooks/useBiometricAuth'
 import { useGoogleAuth } from '@/hooks/useGoogleAuth'
+import { parseApiError } from '@/utils/api'
 import logo from '@/assets/logo.png'
 
 const IconGoogle = () => (
@@ -72,14 +73,22 @@ export default function LoginPage() {
 
       await finalizarLogin(res.data.access_token)
     } catch (e: unknown) {
-      const status = (e as { response?: { status?: number } })?.response?.status
-      if (status === 401 || status === 403) {
-        setServerError('E-mail ou senha incorretos. Tente novamente.')
-      } else if (!status) {
-        setServerError('Servidor indisponível. Tente novamente em instantes.')
-      } else {
-        setServerError('Erro ao entrar. Tente novamente.')
+      const error = e as {
+        name?: string
+        message?: string
+        code?: string
+        response?: { status?: number }
+        config?: { url?: string }
+        request?: { responseURL?: string }
       }
+      console.error('[LOGIN_DEBUG]', JSON.stringify({
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        responseStatus: error.response?.status ?? null,
+        url: error.config?.url ?? error.request?.responseURL ?? null,
+      }, null, 2))
+      setServerError(parseApiError(e))
     }
   }
 

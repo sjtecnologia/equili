@@ -9,7 +9,11 @@ export function parseApiError(err: unknown): string {
   const status = e.response?.status
   const detail = e.response?.data?.detail
 
-  if (status === 401 || status === 403) {
+  if (status === 401) {
+    if (typeof detail === 'string') return detail
+    return 'Email ou senha incorretos.'
+  }
+  if (status === 403) {
     if (typeof detail === 'string') return detail
     return 'Acesso negado.'
   }
@@ -18,11 +22,12 @@ export function parseApiError(err: unknown): string {
     return 'Este item já existe.'
   }
   if (status === 422) {
-    if (Array.isArray(detail)) return detail[0]?.msg ?? 'Dados inválidos.'
-    if (typeof detail === 'string') return detail
-    return 'Dados inválidos.'
+    return 'Verifique os dados informados.'
+  }
+  if (typeof status === 'number' && status >= 500) {
+    return 'Servidor indisponível. Tente novamente em instantes.'
   }
   if (typeof detail === 'string') return detail
-  if (!status) return 'Servidor indisponível. Tente novamente em instantes.'
+  if (!status) return 'Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.'
   return 'Erro ao processar. Tente novamente.'
 }
