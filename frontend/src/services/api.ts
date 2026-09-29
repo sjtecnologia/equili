@@ -58,7 +58,14 @@ api.interceptors.response.use(
   async (error) => {
     const original = error.config
     const isAuthEndpoint = original?.url?.includes('/auth/')
-    if (error.response?.status === 401 && !original._retry && !isAuthEndpoint) {
+    const status = error.response?.status
+    if ((status === 401 || status === 403) && !isAuthEndpoint) {
+      if (status === 403 || original._retry) {
+        useAuthStore.getState().logout()
+        window.location.href = '/login'
+        return Promise.reject(error)
+      }
+
       original._retry = true
       try {
         const csrf = getCookie('csrf_token')
@@ -76,6 +83,7 @@ api.interceptors.response.use(
       } catch {
         useAuthStore.getState().logout()
         window.location.href = '/login'
+        return Promise.reject(error)
       }
     }
     return Promise.reject(error)

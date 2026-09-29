@@ -8,7 +8,7 @@ import logo from '@/assets/logo.png'
 const mainNavItems = ALL_NAV_ITEMS.filter((item) => item.to !== '/configuracoes')
 
 function avatarLetters(nome: string) {
-  return nome
+  return (nome ?? '')
     .split(' ')
     .slice(0, 2)
     .map((n) => n[0])

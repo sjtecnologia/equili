@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2, Eye, EyeOff, ScanFace } from 'lucide-react'
 import { Capacitor } from '@capacitor/core'
-import { SignInWithApple } from '@capacitor-community/apple-sign-in'
+import { AppleSignIn, SignInScope } from '@capawesome/capacitor-apple-sign-in'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'
 import { useBiometricAuth } from '@/hooks/useBiometricAuth'
@@ -121,13 +121,12 @@ export default function LoginPage() {
     setServerError(null)
     setAppleLoading(true)
     try {
-      const result = await SignInWithApple.authorize({
-        clientId: 'br.com.equili.app',
-        scopes: 'email name',
-        redirectURI: 'https://equili.com.br',
+      const result = await AppleSignIn.signIn({
+        scopes: [SignInScope.Email, SignInScope.FullName],
+        redirectUrl: 'https://equili.com.br',
       })
       const res = await api.post<{ access_token: string }>('/auth/google', {
-        id_token: result.response.identityToken,
+        id_token: result.idToken,
       })
       await finalizarLogin(res.data.access_token)
     } catch {
@@ -142,7 +141,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <img src={logo} alt="Equili" className="h-24 w-auto mx-auto" />
-          <p className="text-gray-500 mt-1 text-sm">Equilíbrio financeiro para sua família</p>
+          <p className="text-gray-500 mt-1 text-sm">Equilíbrio financeiro para sua família e empresa</p>
         </div>
 
         <div className="card p-6 space-y-4">

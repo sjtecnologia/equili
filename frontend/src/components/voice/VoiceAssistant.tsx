@@ -73,7 +73,7 @@ export default function VoiceAssistant() {
         type="button"
         onClick={() => (isListening ? stop() : start())}
         className={[
-          'fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all duration-200 border border-white/40',
+          'fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all duration-200 border border-white/40 lg:bottom-5',
           isListening ? 'bg-primary-500 scale-105' : 'bg-primary-600 hover:bg-primary-500',
         ].join(' ')}
         aria-label="Assistente de voz"
@@ -81,7 +81,7 @@ export default function VoiceAssistant() {
         {isListening ? <MicOff size={22} className="text-white" /> : <Mic size={22} className="text-white" />}
       </button>
 
-      <div className="pointer-events-none fixed bottom-20 right-5 z-40">
+      <div className="pointer-events-none fixed bottom-[calc(8rem+env(safe-area-inset-bottom))] right-5 z-40 lg:bottom-20">
         {isListening && (
           <div className="flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-gray-700 shadow-md ring-1 ring-gray-200 backdrop-blur-sm">
             <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-primary-500" />

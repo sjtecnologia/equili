@@ -7,17 +7,24 @@ import App from './App'
 import './index.css'
 import { queryClient } from '@/lib/queryClient'
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          duration: 4000,
-          style: { fontSize: '14px', maxWidth: '360px' },
-        }}
-      />
-    </QueryClientProvider>
-  </React.StrictMode>,
-)
+window.addEventListener('error', (ev) => console.error('[GLOBAL_ERROR]', ev.error))
+window.addEventListener('unhandledrejection', (ev) => console.error('[UNHANDLED]', ev.reason))
+
+try {
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <App />
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            duration: 4000,
+            style: { fontSize: '14px', maxWidth: '360px' },
+          }}
+        />
+      </QueryClientProvider>
+    </React.StrictMode>,
+  )
+} catch (error) {
+  console.error('[BOOT_ERROR]', error)
+}

@@ -10,7 +10,7 @@ import { useAuthStore } from '@/stores/authStore'
 import logo from '@/assets/logo.png'
 
 function avatarLetters(nome: string) {
-  return nome.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()
+  return (nome ?? '').split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()
 }
 
 export default function AppLayout() {

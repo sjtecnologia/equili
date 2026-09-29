@@ -356,7 +356,7 @@ export default function ConfiguracoesPage() {
   }
 
   function avatarLetters(nome: string) {
-    return nome.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()
+    return (nome ?? '').split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()
   }
 
   return (

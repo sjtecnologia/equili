@@ -1,7 +1,9 @@
 import React from 'react'
 import { TrendingUp, TrendingDown, CreditCard, Sparkles, AlertTriangle, Clock, Wallet, Calendar, Landmark } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useDashboard } from '@/hooks/useDashboard'
+import { useAuthStore } from '@/stores/authStore'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 
@@ -40,6 +42,8 @@ const MetricCard = React.memo(function MetricCard({
 })
 
 export default function DashboardPage() {
+  const navigate = useNavigate()
+  const logout = useAuthStore((s) => s.logout)
   const { resumo, contas: contasQuery, cartoes: cartoesQuery } = useDashboard()
   const { data, isLoading, isError } = resumo
   const contas = contasQuery.data ?? []
@@ -63,6 +67,15 @@ export default function DashboardPage() {
           className="btn-primary px-6"
         >
           Recarregar
+        </button>
+        <button
+          onClick={() => {
+            logout()
+            navigate('/login', { replace: true })
+          }}
+          className="mt-3 rounded-lg border border-gray-300 px-6 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          Sair
         </button>
       </div>
     )
