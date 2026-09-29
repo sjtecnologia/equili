@@ -19,7 +19,7 @@ export default function AppLayout() {
 
   return (
     // 100dvh = dynamic viewport height, certo em iOS WebView
-    <div className="overflow-hidden bg-gray-100 flex" style={{ height: '100dvh' }}>
+    <div className="overflow-y-hidden overflow-x-clip bg-gray-100 flex" style={{ height: '100dvh' }}>
       <DrawerNav open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       {/* Sidebar — apenas desktop */}
       <aside className="hidden lg:flex print:hidden h-full">

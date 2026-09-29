@@ -79,7 +79,7 @@ export default function DividasPage() {
   )
 
   return (
-    <div className="p-4 space-y-4 max-w-2xl mx-auto">
+    <div className="w-full max-w-2xl box-border overflow-x-hidden p-4 space-y-4 mx-auto">
       <PageHeader
         title="Dívidas"
         subtitle={`${dividasAtivas.length} dívida(s) ativa(s)`}
@@ -103,14 +103,14 @@ export default function DividasPage() {
       {/* Total */}
       <div className="card p-4">
         <p className="text-sm text-gray-500">Total em dívidas</p>
-        <p className="text-2xl font-bold text-danger-500">{formatCurrency(totalDevido)}</p>
+        <p className="text-2xl font-bold text-danger-500 whitespace-nowrap tabular-nums">{formatCurrency(totalDevido)}</p>
       </div>
 
       {/* Banner de parcelas atrasadas */}
       {parcelasAtrasadasTotal > 0 && (
         <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-3">
           <AlertTriangle size={16} className="text-red-500 shrink-0 mt-0.5" />
-          <div>
+          <div className="min-w-0 max-w-full">
             <p className="text-sm font-semibold text-red-700">
               {parcelasAtrasadasTotal === 1
                 ? '1 parcela em atraso'
@@ -118,7 +118,7 @@ export default function DividasPage() {
               {dividasComAtraso > 1 ? ` em ${dividasComAtraso} dívidas` : ''}
             </p>
             <p className="text-xs text-red-600 mt-0.5">
-              Total em aberto: <strong>{formatCurrency(valorAtrasado)}</strong> — registre os pagamentos e informe a data correta de cada parcela.
+              Total em aberto: <strong className="whitespace-nowrap tabular-nums">{formatCurrency(valorAtrasado)}</strong> — registre os pagamentos e informe a data correta de cada parcela.
             </p>
           </div>
         </div>
@@ -135,7 +135,7 @@ export default function DividasPage() {
             </span>
           </div>
           {contasFixasAtrasadas.map((conta) => (
-            <div key={conta.descricao} className="card p-4 border border-amber-200 bg-amber-50/30 flex items-start justify-between gap-3">
+            <div key={conta.descricao} className="card w-full max-w-full box-border overflow-x-hidden p-4 border border-amber-200 bg-amber-50/30 flex items-start justify-between flex-wrap gap-3">
               <div className="min-w-0">
                 <p className="font-semibold text-gray-800 truncate">{conta.descricao}</p>
                 <p className="text-xs text-amber-700 mt-0.5">
@@ -144,7 +144,7 @@ export default function DividasPage() {
                 </p>
               </div>
               <div className="text-right shrink-0">
-                <p className="font-bold text-amber-600">{formatCurrency(conta.total)}</p>
+                <p className="font-bold text-amber-600 whitespace-nowrap tabular-nums">{formatCurrency(conta.total)}</p>
                 <a href="/contas-pagar" className="text-xs text-primary-500 hover:underline">Ver contas</a>
               </div>
             </div>
@@ -158,7 +158,7 @@ export default function DividasPage() {
       ) : dividas.length === 0 ? (
         <EmptyState icon={CheckCircle} title="Nenhuma dívida cadastrada" description="Adicione uma dívida para acompanhar suas parcelas." />
       ) : (
-        <div className="space-y-3">
+        <div className="w-full max-w-full box-border overflow-x-hidden space-y-3">
           {dividas.map((divida) => {
             const restante = divida.valor_parcela * divida.parcelas_restantes
             const progresso =
@@ -170,7 +170,7 @@ export default function DividasPage() {
             const mostrarParcelas = parcelasVisiveis[divida.id]
 
             return (
-              <div key={divida.id} className={`card p-4 space-y-3 ${atrasadas > 0 ? 'border border-red-200' : ''}`}>
+              <div key={divida.id} className={`card w-full max-w-full box-border overflow-x-hidden p-4 space-y-3 ${atrasadas > 0 ? 'border border-red-200' : ''}`}>
                 <div className="flex items-start justify-between flex-wrap gap-2">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
@@ -195,7 +195,7 @@ export default function DividasPage() {
                         ? `Venceu em: ${formatDate(divida.data_primeira_atrasada ?? divida.data_prox_vencimento)}`
                         : `Próx. vencimento: ${formatDate(divida.data_prox_vencimento)}`}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 flex flex-wrap gap-2">
                       {divida.parcelas_totais
                         ? `${divida.parcelas_restantes} de ${divida.parcelas_totais} parcelas restantes · ${formatCurrency(divida.valor_parcela)}/mês`
                         : `${divida.parcelas_restantes} parcela(s) restante(s) · ${formatCurrency(divida.valor_parcela)}/mês`
@@ -214,9 +214,9 @@ export default function DividasPage() {
 
                 {/* Barra de progresso */}
                 <div>
-                  <div className="flex justify-between text-xs text-gray-400 mb-1">
+                  <div className="flex justify-between flex-wrap gap-2 text-xs text-gray-400 mb-1">
                     <span>{Math.round(progresso)}% pago</span>
-                    <span>{formatCurrency(divida.valor_total)}</span>
+                    <span className="whitespace-nowrap tabular-nums">{formatCurrency(divida.valor_total)}</span>
                   </div>
                   <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                     <div

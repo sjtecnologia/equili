@@ -114,7 +114,7 @@ export default function RelatoriosPage() {
   } = useRelatorios()
 
   return (
-    <div className="p-4 space-y-4 max-w-3xl mx-auto">
+    <div className="w-full max-w-3xl box-border overflow-x-hidden p-4 space-y-4 mx-auto">
       {/* Header */}
       <div>
         <h1 className="text-xl font-bold text-gray-800 print:hidden">Relatórios</h1>
@@ -132,7 +132,7 @@ export default function RelatoriosPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 p-1 bg-gray-100 rounded-xl print:hidden">
+      <div className="flex w-full max-w-full gap-1 overflow-x-hidden p-1 bg-gray-100 rounded-xl print:hidden">
         {[
           { key: 'fluxo', label: 'Fluxo de Caixa' },
           { key: 'detalhado', label: 'Detalhado' },
@@ -142,7 +142,7 @@ export default function RelatoriosPage() {
           <button
             key={t.key}
             onClick={() => handleTabChange(t.key as 'fluxo' | 'detalhado' | 'extrato' | 'dia')}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
+            className={`flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap py-2 text-sm font-medium rounded-lg transition-colors ${
               tab === t.key
                 ? 'bg-white text-primary-500 shadow-sm'
                 : 'text-gray-600 hover:text-gray-800'
@@ -155,7 +155,7 @@ export default function RelatoriosPage() {
 
       {/* ===== Tab: Fluxo de Caixa ===== */}
       {tab === 'fluxo' && (
-        <div className="space-y-4">
+        <div className="w-full max-w-full box-border overflow-x-hidden space-y-4">
           {/* Controles */}
           <div className="flex items-center justify-between gap-3 flex-wrap print:hidden">
             <div className="flex items-center gap-2">
@@ -190,18 +190,18 @@ export default function RelatoriosPage() {
           </div>
 
           {/* Cards resumo anual */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="card p-4">
+          <div className="grid w-full max-w-full grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="card min-w-0 max-w-full box-border overflow-x-hidden p-4">
               <p className="text-xs text-gray-500 mb-1">Total entradas</p>
-              <p className="text-base font-bold text-success-500">{formatCurrency(totalEntradas)}</p>
+              <p className="text-base font-bold text-success-500 whitespace-nowrap tabular-nums">{formatCurrency(totalEntradas)}</p>
             </div>
-            <div className="card p-4">
+            <div className="card min-w-0 max-w-full box-border overflow-x-hidden p-4">
               <p className="text-xs text-gray-500 mb-1">Total saídas</p>
-              <p className="text-base font-bold text-danger-500">{formatCurrency(totalSaidas)}</p>
+              <p className="text-base font-bold text-danger-500 whitespace-nowrap tabular-nums">{formatCurrency(totalSaidas)}</p>
             </div>
-            <div className="card p-4">
+            <div className="card min-w-0 max-w-full box-border overflow-x-hidden p-4">
               <p className="text-xs text-gray-500 mb-1">Saldo anual</p>
-              <p className={`text-base font-bold ${saldoAnual >= 0 ? 'text-success-500' : 'text-danger-500'}`}>
+              <p className={`text-base font-bold whitespace-nowrap tabular-nums ${saldoAnual >= 0 ? 'text-success-500' : 'text-danger-500'}`}>
                 {formatCurrency(saldoAnual)}
               </p>
             </div>
@@ -213,7 +213,7 @@ export default function RelatoriosPage() {
               <Loader2 size={24} className="animate-spin text-gray-400" />
             </div>
           ) : (
-            <div className="card p-4">
+            <div className="card w-full max-w-full box-border overflow-x-hidden p-4">
               <h3 className="text-sm font-semibold text-gray-700 mb-4">
                 Entradas vs Saídas — {anoFluxo}
               </h3>
@@ -239,8 +239,8 @@ export default function RelatoriosPage() {
           )}
 
           {/* Tabela mensal */}
-          <div className="card overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="card w-full max-w-full box-border overflow-x-hidden">
+            <table className="w-full max-w-full table-fixed text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
@@ -261,14 +261,14 @@ export default function RelatoriosPage() {
                 {(fluxoData ?? []).map((d) => (
                   <tr key={d.mes} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 font-medium text-gray-700">{MESES_FULL[d.mes - 1]}</td>
-                    <td className="px-4 py-3 text-right text-success-500 font-medium">
+                    <td className="px-2 sm:px-4 py-3 text-right text-success-500 font-medium whitespace-nowrap tabular-nums">
                       {formatCurrency(d.entradas)}
                     </td>
-                    <td className="px-4 py-3 text-right text-danger-500 font-medium">
+                    <td className="px-2 sm:px-4 py-3 text-right text-danger-500 font-medium whitespace-nowrap tabular-nums">
                       {formatCurrency(d.saidas)}
                     </td>
                     <td
-                      className={`px-4 py-3 text-right font-semibold ${
+                      className={`px-2 sm:px-4 py-3 text-right font-semibold whitespace-nowrap tabular-nums ${
                         d.saldo >= 0 ? 'text-success-500' : 'text-danger-500'
                       }`}
                     >
@@ -284,7 +284,7 @@ export default function RelatoriosPage() {
 
       {/* ===== Tab: Relatório Detalhado ===== */}
       {tab === 'detalhado' && (
-        <div className="space-y-4">
+        <div className="w-full max-w-full box-border overflow-x-hidden space-y-4">
           {/* Controles */}
           <div className="flex items-center justify-between flex-wrap gap-3 print:hidden">
             <div className="flex items-center gap-2">
@@ -334,38 +334,38 @@ export default function RelatoriosPage() {
           ) : detalhado ? (
             <>
               {/* Cards resumo do mês */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="card p-4">
+              <div className="grid w-full max-w-full grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="card min-w-0 max-w-full box-border overflow-x-hidden p-4">
                   <div className="flex items-center gap-1.5 mb-1">
                     <TrendingUp size={13} className="text-success-500" />
                     <p className="text-xs text-gray-500">A receber</p>
                   </div>
-                  <p className="text-base font-bold text-success-500">
+                  <p className="text-base font-bold text-success-500 whitespace-nowrap tabular-nums">
                     {formatCurrency(detalhado.totais.total_receber)}
                   </p>
                   <p className="text-xs text-gray-400 mt-0.5">
                     {detalhado.contas_receber.length} lançamento(s)
                   </p>
                 </div>
-                <div className="card p-4">
+                <div className="card min-w-0 max-w-full box-border overflow-x-hidden p-4">
                   <div className="flex items-center gap-1.5 mb-1">
                     <TrendingDown size={13} className="text-danger-500" />
                     <p className="text-xs text-gray-500">A pagar</p>
                   </div>
-                  <p className="text-base font-bold text-danger-500">
+                  <p className="text-base font-bold text-danger-500 whitespace-nowrap tabular-nums">
                     {formatCurrency(detalhado.totais.total_pagar)}
                   </p>
                   <p className="text-xs text-gray-400 mt-0.5">
                     {detalhado.contas_pagar.length} lançamento(s)
                   </p>
                 </div>
-                <div className="card p-4">
+                <div className="card min-w-0 max-w-full box-border overflow-x-hidden p-4">
                   <div className="flex items-center gap-1.5 mb-1">
                     <Scale size={13} className="text-gray-500" />
                     <p className="text-xs text-gray-500">Saldo</p>
                   </div>
                   <p
-                    className={`text-base font-bold ${
+                    className={`text-base font-bold whitespace-nowrap tabular-nums ${
                       detalhado.totais.saldo >= 0 ? 'text-success-500' : 'text-danger-500'
                     }`}
                   >
@@ -375,7 +375,7 @@ export default function RelatoriosPage() {
               </div>
 
               {/* Tabela: Contas a Receber */}
-              <div className="card overflow-hidden">
+              <div className="card w-full max-w-full box-border overflow-x-hidden">
                 <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
                   <TrendingUp size={15} className="text-success-500" />
                   <h3 className="font-semibold text-gray-700">Contas a Receber</h3>
@@ -388,8 +388,8 @@ export default function RelatoriosPage() {
                     Nenhum lançamento neste mês.
                   </p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                  <div className="w-full max-w-full overflow-x-hidden">
+                    <table className="w-full max-w-full table-fixed text-sm">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-100">
                           <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500">Descrição</th>
@@ -408,7 +408,7 @@ export default function RelatoriosPage() {
                             <td className="px-4 py-2.5 text-gray-500">
                               {ORIGENS_LABEL[c.origem] ?? c.origem}
                             </td>
-                            <td className="px-4 py-2.5 text-right font-medium text-success-500">
+                            <td className="px-2 sm:px-4 py-2.5 text-right font-medium text-success-500 whitespace-nowrap tabular-nums">
                               {formatCurrency(c.valor)}
                             </td>
                             <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">
@@ -432,7 +432,7 @@ export default function RelatoriosPage() {
               </div>
 
               {/* Tabela: Contas a Pagar */}
-              <div className="card overflow-hidden">
+              <div className="card w-full max-w-full box-border overflow-x-hidden">
                 <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
                   <TrendingDown size={15} className="text-danger-500" />
                   <h3 className="font-semibold text-gray-700">Contas a Pagar</h3>
@@ -445,8 +445,8 @@ export default function RelatoriosPage() {
                     Nenhum lançamento neste mês.
                   </p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                  <div className="w-full max-w-full overflow-x-hidden">
+                    <table className="w-full max-w-full table-fixed text-sm">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-100">
                           <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500">Descrição</th>
@@ -465,7 +465,7 @@ export default function RelatoriosPage() {
                             <td className="px-4 py-2.5 text-gray-500">
                               {CATEGORIAS_LABEL[c.categoria] ?? c.categoria}
                             </td>
-                            <td className="px-4 py-2.5 text-right font-medium text-danger-500">
+                            <td className="px-2 sm:px-4 py-2.5 text-right font-medium text-danger-500 whitespace-nowrap tabular-nums">
                               {formatCurrency(c.valor)}
                             </td>
                             <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">
@@ -527,7 +527,7 @@ export default function RelatoriosPage() {
         }
 
         return (
-          <div className="space-y-4">
+          <div className="w-full max-w-full box-border overflow-x-hidden space-y-4">
             {/* Info de impressão: conta/cartão e mês selecionados */}
             <div className="hidden print:block text-sm text-gray-500 -mt-2 mb-1">
               {tipoExtrato === 'conta'
@@ -537,7 +537,7 @@ export default function RelatoriosPage() {
               {mesEfetivo ? (() => { const [y, mo] = mesEfetivo.split('-'); return `${MESES_LABEL[parseInt(mo)-1]}/${y}` })() : ''}
             </div>
             {/* Tipo conta/cartão */}
-            <div className="flex gap-2 print:hidden">
+            <div className="flex w-full max-w-full flex-wrap gap-2 print:hidden">
               {(['conta', 'cartao'] as const).map((t) => (
                 <button key={t}
                   onClick={() => trocarTipoExtrato(t)}
@@ -604,9 +604,9 @@ export default function RelatoriosPage() {
                 <p className="text-sm">Nenhum lançamento encontrado</p>
               </div>
             ) : lancamentosExtrato.length > 0 ? (
-              <div className="card overflow-hidden">
+              <div className="card w-full max-w-full box-border overflow-x-hidden">
                 {/* Filtro mês + CSV */}
-                <div className="flex items-center gap-3 p-4 border-b print:hidden">
+                <div className="flex w-full max-w-full flex-wrap items-center gap-3 p-4 border-b print:hidden">
                   <label className="text-sm font-medium text-gray-600 shrink-0">Mês:</label>
                   <select className="input-field flex-1 text-sm py-1.5" value={mesEfetivo}
                     onChange={(e) => setMesExtrato(e.target.value)}>
@@ -628,27 +628,27 @@ export default function RelatoriosPage() {
                 </div>
 
                 {/* Resumo */}
-                <div className={`grid gap-2 px-4 py-3 border-b text-center ${
-                  tipoExtrato === 'conta' ? 'grid-cols-3' : 'grid-cols-3'
+                <div className={`grid w-full max-w-full gap-2 px-4 py-3 border-b text-center ${
+                  tipoExtrato === 'conta' ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1 sm:grid-cols-3'
                 }`}>
                   {tipoExtrato === 'conta' ? (
                     <>
                       <div><p className="text-xs text-gray-400">Saldo anterior</p>
-                        <p className={`text-sm font-bold ${saldoAntesDoMes >= 0 ? 'text-gray-700' : 'text-red-600'}`}>
+                        <p className={`text-sm font-bold whitespace-nowrap tabular-nums ${saldoAntesDoMes >= 0 ? 'text-gray-700' : 'text-red-600'}`}>
                           {formatCurrency(saldoAntesDoMes)}</p></div>
                       <div><p className="text-xs text-green-600">+ Entradas</p>
-                        <p className="text-sm font-bold text-green-600">{formatCurrency(totalEntC)}</p></div>
+                        <p className="text-sm font-bold text-green-600 whitespace-nowrap tabular-nums">{formatCurrency(totalEntC)}</p></div>
                       <div><p className="text-xs text-red-500">− Saídas</p>
-                        <p className="text-sm font-bold text-red-500">{formatCurrency(totalSaiC)}</p></div>
+                        <p className="text-sm font-bold text-red-500 whitespace-nowrap tabular-nums">{formatCurrency(totalSaiC)}</p></div>
                     </>
                   ) : (
                     <>
                       <div><p className="text-xs text-red-500">Compras</p>
-                        <p className="text-sm font-bold text-red-600">{formatCurrency(totalCompras)}</p></div>
+                        <p className="text-sm font-bold text-red-600 whitespace-nowrap tabular-nums">{formatCurrency(totalCompras)}</p></div>
                       <div><p className="text-xs text-green-600">Pagamentos</p>
-                        <p className="text-sm font-bold text-green-600">{formatCurrency(totalPagamentosCartao)}</p></div>
+                        <p className="text-sm font-bold text-green-600 whitespace-nowrap tabular-nums">{formatCurrency(totalPagamentosCartao)}</p></div>
                       <div><p className="text-xs text-gray-500">Fatura</p>
-                        <p className={`text-sm font-bold ${totalCompras - totalPagamentosCartao > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        <p className={`text-sm font-bold whitespace-nowrap tabular-nums ${totalCompras - totalPagamentosCartao > 0 ? 'text-red-600' : 'text-green-600'}`}>
                           {formatCurrency(Math.abs(totalCompras - totalPagamentosCartao))}</p></div>
                     </>
                   )}
@@ -657,9 +657,9 @@ export default function RelatoriosPage() {
                 {/* Lista */}
                 <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto print-scroll-none">
                   {tipoExtrato === 'conta' && (
-                    <div className="flex items-center justify-between px-4 py-2 bg-gray-50 text-xs text-gray-500">
+                    <div className="flex items-center justify-between flex-wrap gap-2 px-4 py-2 bg-gray-50 text-xs text-gray-500">
                       <span className="font-medium">Saldo anterior ao mês</span>
-                      <span className={`font-bold ${saldoAntesDoMes >= 0 ? 'text-gray-700' : 'text-red-600'}`}>
+                      <span className={`font-bold whitespace-nowrap tabular-nums ${saldoAntesDoMes >= 0 ? 'text-gray-700' : 'text-red-600'}`}>
                         {formatCurrency(saldoAntesDoMes)}
                       </span>
                     </div>
@@ -673,10 +673,10 @@ export default function RelatoriosPage() {
                             <p className="text-xs text-gray-400">{l.data.split('-').reverse().join('/')}{l.categoria ? ` · ${l.categoria}` : ''}</p>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className={`text-sm font-bold ${l.tipo === 'entrada' ? 'text-green-600' : 'text-red-600'}`}>
+                            <p className={`text-sm font-bold whitespace-nowrap tabular-nums ${l.tipo === 'entrada' ? 'text-green-600' : 'text-red-600'}`}>
                               {l.tipo === 'entrada' ? '+' : '−'}{formatCurrency(l.valor)}
                             </p>
-                            <p className={`text-xs ${saldo >= 0 ? 'text-gray-400' : 'text-red-400'}`}>{formatCurrency(saldo)}</p>
+                            <p className={`text-xs whitespace-nowrap tabular-nums ${saldo >= 0 ? 'text-gray-400' : 'text-red-400'}`}>{formatCurrency(saldo)}</p>
                           </div>
                         </div>
                       ))
@@ -688,7 +688,7 @@ export default function RelatoriosPage() {
                             <p className="text-xs text-gray-400">{l.data.split('-').reverse().join('/')}{l.categoria ? ` · ${l.categoria}` : ''}</p>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className={`text-sm font-bold ${l.tipo === 'pagamento' ? 'text-green-600' : 'text-red-600'}`}>
+                            <p className={`text-sm font-bold whitespace-nowrap tabular-nums ${l.tipo === 'pagamento' ? 'text-green-600' : 'text-red-600'}`}>
                               {l.tipo === 'pagamento' ? '−' : '+'}{formatCurrency(l.valor)}
                             </p>
                             <p className="text-xs text-gray-400 capitalize">{l.tipo}</p>
@@ -697,9 +697,9 @@ export default function RelatoriosPage() {
                       ))
                   }
                   {tipoExtrato === 'conta' && linhasConta.length > 0 && (
-                    <div className="flex items-center justify-between px-4 py-2 bg-gray-50 text-xs">
+                    <div className="flex items-center justify-between flex-wrap gap-2 px-4 py-2 bg-gray-50 text-xs">
                       <span className="font-semibold text-gray-600">Saldo final do mês</span>
-                      <span className={`font-bold text-sm ${
+                      <span className={`font-bold text-sm whitespace-nowrap tabular-nums ${
                         (linhasConta[linhasConta.length - 1]?.saldo ?? 0) >= 0 ? 'text-gray-800' : 'text-red-600'
                       }`}>
                         {formatCurrency(linhasConta[linhasConta.length - 1]?.saldo ?? saldoAntesDoMes)}
@@ -719,7 +719,7 @@ export default function RelatoriosPage() {
       })()}
       {/* ===== Tab: Contas a Pagar Por Dia ===== */}
       {tab === 'dia' && (
-        <div className="space-y-4">
+        <div className="w-full max-w-full box-border overflow-x-hidden space-y-4">
           {/* Controles */}
           <div className="flex items-center justify-between flex-wrap gap-3 print:hidden">
             <div className="flex items-center gap-2">
@@ -748,10 +748,10 @@ export default function RelatoriosPage() {
           ) : contasDia ? (
             <>
               {/* Card total */}
-              <div className="card p-4 flex items-center justify-between">
+              <div className="card w-full max-w-full box-border overflow-x-hidden p-4 flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <p className="text-xs text-gray-500 mb-0.5">Total a pagar em {dataDia.split('-').reverse().join('/')}</p>
-                  <p className="text-xl font-bold text-danger-500">{formatCurrency(contasDia.total)}</p>
+                  <p className="text-xl font-bold text-danger-500 whitespace-nowrap tabular-nums">{formatCurrency(contasDia.total)}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-gray-400">{contasDia.contas.length} conta(s)</p>
@@ -764,8 +764,8 @@ export default function RelatoriosPage() {
                   <p className="text-sm">Nenhuma conta a pagar nesta data.</p>
                 </div>
               ) : (
-                <div className="card overflow-hidden">
-                  <table className="w-full text-sm">
+                <div className="card w-full max-w-full box-border overflow-x-hidden">
+                  <table className="w-full max-w-full table-fixed text-sm">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-100">
                         <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Descrição</th>
@@ -781,7 +781,7 @@ export default function RelatoriosPage() {
                           <td className="px-4 py-3 font-medium text-gray-700 max-w-[160px] truncate">{c.descricao}</td>
                           <td className="px-4 py-3 text-gray-500">{CATEGORIAS_LABEL[c.categoria] ?? c.categoria}</td>
                           <td className="px-4 py-3 text-gray-500 capitalize">{c.tipo}</td>
-                          <td className="px-4 py-3 text-right font-semibold text-danger-500">{formatCurrency(c.valor)}</td>
+                          <td className="px-2 sm:px-4 py-3 text-right font-semibold text-danger-500 whitespace-nowrap tabular-nums">{formatCurrency(c.valor)}</td>
                           <td className="px-4 py-3">
                             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                               STATUS_PAGAR[c.status]?.classes ?? 'bg-gray-100 text-gray-600'
@@ -795,7 +795,7 @@ export default function RelatoriosPage() {
                     <tfoot>
                       <tr className="bg-gray-50 border-t border-gray-200">
                         <td colSpan={3} className="px-4 py-3 text-sm font-semibold text-gray-700">Total</td>
-                        <td className="px-4 py-3 text-right font-bold text-danger-500">{formatCurrency(contasDia.total)}</td>
+                        <td className="px-2 sm:px-4 py-3 text-right font-bold text-danger-500 whitespace-nowrap tabular-nums">{formatCurrency(contasDia.total)}</td>
                         <td />
                       </tr>
                     </tfoot>

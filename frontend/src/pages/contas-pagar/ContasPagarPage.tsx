@@ -70,7 +70,7 @@ export default function ContasPagarPage() {
   }), [contas])
 
   return (
-    <div className="p-4 space-y-4 max-w-2xl mx-auto">
+    <div className="w-full max-w-2xl box-border overflow-x-hidden p-4 space-y-4 mx-auto">
       <PageHeader
         title="Contas a Pagar"
         subtitle={`${contas.filter((c) => c.status !== 'pago').length} conta(s) pendente(s)`}
@@ -78,14 +78,14 @@ export default function ContasPagarPage() {
       />
 
       {/* Resumo */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="card p-4">
+      <div className="grid w-full max-w-full grid-cols-2 gap-3">
+        <div className="card min-w-0 max-w-full box-border overflow-x-hidden p-4">
           <p className="text-xs text-gray-500 mb-1">A pagar</p>
-          <p className="text-xl font-bold text-danger-500">{formatCurrency(totalPendente)}</p>
+          <p className="text-xl font-bold text-danger-500 whitespace-nowrap tabular-nums">{formatCurrency(totalPendente)}</p>
         </div>
-        <div className="card p-4">
+        <div className="card min-w-0 max-w-full box-border overflow-x-hidden p-4">
           <p className="text-xs text-gray-500 mb-1">Já pago</p>
-          <p className="text-xl font-bold text-success-500">{formatCurrency(totalPago)}</p>
+          <p className="text-xl font-bold text-success-500 whitespace-nowrap tabular-nums">{formatCurrency(totalPago)}</p>
         </div>
       </div>
 
@@ -116,16 +116,16 @@ export default function ContasPagarPage() {
           action={filtroStatus === 'todos' ? { label: 'Adicionar primeira conta', onClick: () => dispatchModal({ type: 'OPEN_CREATE' }) } : undefined}
         />
       ) : (
-        <div className="space-y-3">
+        <div className="w-full max-w-full box-border overflow-x-hidden space-y-3">
           {contasFiltradas.map((conta) => {
             const statusInfo = STATUS_LABELS[conta.status]
             const isVencido = conta.status === 'vencido'
             return (
               <div
                 key={conta.id}
-                className={`card p-4 space-y-3 ${isVencido ? 'border border-red-200' : ''}`}
+                className={`card w-full max-w-full box-border overflow-x-hidden p-4 space-y-3 ${isVencido ? 'border border-red-200' : ''}`}
               >
-                <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start justify-between flex-wrap gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold text-gray-800 truncate">{conta.descricao}</p>
@@ -154,7 +154,7 @@ export default function ContasPagarPage() {
                       </div>
                     )}
                   </div>
-                  <p className="font-bold text-gray-800 whitespace-nowrap shrink-0">
+                  <p className="font-bold text-gray-800 whitespace-nowrap tabular-nums shrink-0">
                     {formatCurrency(conta.valor)}
                   </p>
                 </div>
