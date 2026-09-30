@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, field_validator, model_validator
 from sqlalchemy import func, select
 
+from app.api.v1.routes.lancamentos_cartao import aplicar_efeito_lancamento
 from app.core.dependencies import CurrentUserID, DBSession
 from app.models.conta_bancaria import CartaoCredito, ContaBancaria
 from app.models.conta_lancamento import ContaAPagar
@@ -304,6 +305,7 @@ async def marcar_como_pago(
             data=data_pagto,
             categoria=conta.categoria,
         ))
+        aplicar_efeito_lancamento(cc, "compra", float(conta.valor))
 
     await db.commit()
     await db.refresh(conta)

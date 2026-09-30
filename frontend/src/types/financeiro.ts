@@ -30,6 +30,8 @@ export interface CartaoCredito {
   nome: string
   bandeira: BandeiraCartao
   limite: number
+  limite_atual: number
+  limite_utilizado?: number
   limite_disponivel?: number
   dia_fechamento: number
   dia_vencimento: number
@@ -71,6 +73,7 @@ export interface ContaLancamentosData {
 export interface CartaoLancamentosData {
   lancamentos: CartaoLancamento[]
   limite_total: number
+  limite_atual: number
   limite_disponivel: number
   limite_usado: number
   nome: string

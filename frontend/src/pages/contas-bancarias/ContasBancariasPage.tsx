@@ -98,6 +98,18 @@ function CartaoCreditoCard({
   onDelete,
 }: CartaoCreditoCardProps) {
   const navigate = useNavigate()
+  const limiteUtilizado = cartao.limite - cartao.limite_atual
+  const percentUtilizado = cartao.limite > 0 ? Math.min(100, Math.max(0, (limiteUtilizado / cartao.limite) * 100)) : 0
+  const percentDisponivel = cartao.limite > 0 ? (cartao.limite_atual / cartao.limite) * 100 : 0
+  const corLimiteAtual =
+    cartao.limite_atual < 0
+      ? 'text-red-600'
+      : percentDisponivel < 30
+      ? 'text-amber-500'
+      : 'text-success-600'
+  const corBarra =
+    cartao.limite_atual < 0 ? 'bg-red-500' : percentDisponivel < 30 ? 'bg-amber-400' : 'bg-success-500'
+
   return (
     <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100">
       {/* Topo colorido — clicável para lançamentos */}
@@ -122,6 +134,22 @@ function CartaoCreditoCard({
           <span className="text-xs opacity-70 flex items-center gap-1">
             Ver lançamentos <ArrowRight size={12} />
           </span>
+        </div>
+      </div>
+      {/* Limite atual / utilizado */}
+      <div className="bg-white px-4 py-3 border-b border-gray-100">
+        <div className="flex justify-between text-sm mb-1.5">
+          <span className="text-gray-500">Limite atual</span>
+          <span className={`font-bold ${corLimiteAtual}`}>{formatCurrency(cartao.limite_atual)}</span>
+        </div>
+        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all ${corBarra}`}
+            style={{ width: `${percentUtilizado}%` }}
+          />
+        </div>
+        <div className="flex justify-between text-xs text-gray-400 mt-1.5">
+          <span>Utilizado: {formatCurrency(limiteUtilizado)} ({percentUtilizado.toFixed(0)}%)</span>
         </div>
       </div>
       {/* Rodapé */}

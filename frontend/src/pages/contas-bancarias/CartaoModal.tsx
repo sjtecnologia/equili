@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
+import { useEffect } from 'react'
 import api from '@/services/api'
 import { ModalDialog } from '@/components/ui/ModalDialog'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
@@ -40,16 +41,25 @@ export function CartaoModal({
     handleSubmit,
     watch,
     setValue,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, dirtyFields },
   } = useForm<CartaoFormData>({
     resolver: zodResolver(cartaoSchema),
     defaultValues: cartao
-      ? { nome: cartao.nome, bandeira: cartao.bandeira as CartaoFormData['bandeira'], limite: cartao.limite, dia_fechamento: cartao.dia_fechamento, dia_vencimento: cartao.dia_vencimento, cor: cartao.cor }
-      : { bandeira: 'visa', dia_fechamento: 1, dia_vencimento: 10, cor: '#1A3C5E' },
+      ? { nome: cartao.nome, bandeira: cartao.bandeira as CartaoFormData['bandeira'], limite: cartao.limite, limite_atual: cartao.limite_atual, dia_fechamento: cartao.dia_fechamento, dia_vencimento: cartao.dia_vencimento, cor: cartao.cor }
+      : { limite: 0, limite_atual: 0, bandeira: 'visa', dia_fechamento: 1, dia_vencimento: 10, cor: '#1A3C5E' },
   })
 
   const corAtual = watch('cor')
+  const limiteAtualForm = watch('limite')
   const { submit, error: erro } = useFormSubmit()
+
+  // Ao criar um cartão novo, pré-preenche "Limite atual" com o limite total
+  // enquanto o usuário não tiver editado esse campo manualmente.
+  useEffect(() => {
+    if (!isEdit && !dirtyFields.limite_atual) {
+      setValue('limite_atual', limiteAtualForm)
+    }
+  }, [isEdit, limiteAtualForm, dirtyFields.limite_atual, setValue])
 
   async function onSubmit(data: CartaoFormData) {
     await submit(async () => {
@@ -99,6 +109,18 @@ export function CartaoModal({
                 {...register('limite')}
               />
               {errors.limite && <p className="text-xs text-danger-600 mt-1">{errors.limite.message}</p>}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Limite atual (R$)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                className={`input-field ${errors.limite_atual ? 'border-danger-500' : ''}`}
+                placeholder="0,00"
+                {...register('limite_atual')}
+              />
+              {errors.limite_atual && <p className="text-xs text-danger-600 mt-1">{errors.limite_atual.message}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Dia fechamento</label>

@@ -11,14 +11,20 @@ export const contaBancariaSchema = z.object({
 })
 export type ContaBancariaFormData = z.infer<typeof contaBancariaSchema>
 
-export const cartaoCreditoSchema = z.object({
-  nome: z.string().min(1, 'Nome obrigatório'),
-  bandeira: z.enum(['visa', 'mastercard', 'elo', 'amex', 'hipercard', 'outro']),
-  limite: z.coerce.number().positive('Limite deve ser positivo'),
-  dia_fechamento: z.coerce.number().int().min(1).max(31),
-  dia_vencimento: z.coerce.number().int().min(1).max(31),
-  cor: z.string().default('#1A3C5E'),
-})
+export const cartaoCreditoSchema = z
+  .object({
+    nome: z.string().min(1, 'Nome obrigatório'),
+    bandeira: z.enum(['visa', 'mastercard', 'elo', 'amex', 'hipercard', 'outro']),
+    limite: z.coerce.number().positive('Limite deve ser positivo'),
+    limite_atual: z.coerce.number().min(0, 'Limite atual não pode ser negativo'),
+    dia_fechamento: z.coerce.number().int().min(1).max(31),
+    dia_vencimento: z.coerce.number().int().min(1).max(31),
+    cor: z.string().default('#1A3C5E'),
+  })
+  .refine((d) => d.limite_atual <= d.limite, {
+    message: 'Limite atual não pode ser maior que o limite total',
+    path: ['limite_atual'],
+  })
 export type CartaoCreditoFormData = z.infer<typeof cartaoCreditoSchema>
 
 // ─── Contas a Pagar ───────────────────────────────────────────────────────────

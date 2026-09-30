@@ -37,6 +37,7 @@ class CartaoCredito(Base):
     nome: Mapped[str] = mapped_column(String(100), nullable=False)
     bandeira: Mapped[str] = mapped_column(String(30), nullable=False)  # visa | mastercard | elo | amex | hipercard | outro
     limite: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    limite_atual: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     dia_fechamento: Mapped[int] = mapped_column(Integer, nullable=False)
     dia_vencimento: Mapped[int] = mapped_column(Integer, nullable=False)
     cor: Mapped[str] = mapped_column(String(20), nullable=False, default="#1A3C5E")

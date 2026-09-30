@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, field_validator
-from sqlalchemy import case, func as sql_func, select
+from sqlalchemy import select
 
 from app.core.dependencies import CurrentUserID, DBSession
 from app.models.conta_bancaria import CartaoCredito
@@ -52,22 +52,24 @@ async def _get_cartao_or_404(cartao_id: UUID, usuario_id: UUID, db: DBSession) -
     return cartao
 
 
-async def _calcular_limite_disponivel(cartao_id: UUID, limite: float, db: DBSession) -> float:
-    result = await db.execute(
-        select(
-            sql_func.coalesce(
-                sql_func.sum(
-                    case(
-                        (LancamentoCartao.tipo == "compra", LancamentoCartao.valor),
-                        else_=-LancamentoCartao.valor,
-                    )
-                ),
-                0.0,
-            )
-        ).where(LancamentoCartao.cartao_credito_id == cartao_id)
-    )
-    usado = float(result.scalar() or 0)
-    return max(0.0, limite - usado)
+def aplicar_efeito_lancamento(cartao: CartaoCredito, tipo: str, valor: float) -> None:
+    """Atualiza limite_atual ao registrar um lançamento (compra decrementa, pagamento incrementa).
+
+    Compra pode deixar limite_atual negativo (estouro é permitido).
+    Pagamento nunca eleva limite_atual acima de limite (limite_total).
+    """
+    if tipo == "compra":
+        cartao.limite_atual = float(cartao.limite_atual) - float(valor)
+    else:  # pagamento
+        cartao.limite_atual = min(float(cartao.limite_atual) + float(valor), float(cartao.limite))
+
+
+def reverter_efeito_lancamento(cartao: CartaoCredito, tipo: str, valor: float) -> None:
+    """Desfaz o efeito de um lançamento no limite_atual (usado na exclusão)."""
+    if tipo == "compra":
+        cartao.limite_atual = min(float(cartao.limite_atual) + float(valor), float(cartao.limite))
+    else:  # pagamento
+        cartao.limite_atual = float(cartao.limite_atual) - float(valor)
 
 
 # ─── Routes ─────────────────────────────────────────────────────────────────
@@ -81,7 +83,7 @@ async def listar_lancamentos_cartao(cartao_id: UUID, usuario_id: CurrentUserID, 
         .order_by(LancamentoCartao.data.desc(), LancamentoCartao.criado_em.desc())
     )
     lancamentos = result.scalars().all()
-    limite_disponivel = await _calcular_limite_disponivel(cartao_id, float(cartao.limite), db)
+    limite_atual = float(cartao.limite_atual)
     return {
         "lancamentos": [
             {
@@ -95,8 +97,9 @@ async def listar_lancamentos_cartao(cartao_id: UUID, usuario_id: CurrentUserID, 
             for l in lancamentos
         ],
         "limite_total": float(cartao.limite),
-        "limite_disponivel": limite_disponivel,
-        "limite_usado": float(cartao.limite) - limite_disponivel,
+        "limite_atual": limite_atual,
+        "limite_disponivel": limite_atual,
+        "limite_usado": float(cartao.limite) - limite_atual,
         "nome": cartao.nome,
         "bandeira": cartao.bandeira,
         "cor": cartao.cor,
@@ -112,7 +115,7 @@ async def criar_lancamento_cartao(
     usuario_id: CurrentUserID,
     db: DBSession,
 ):
-    await _get_cartao_or_404(cartao_id, usuario_id, db)
+    cartao = await _get_cartao_or_404(cartao_id, usuario_id, db)
     lancamento = LancamentoCartao(
         cartao_credito_id=cartao_id,
         descricao=body.descricao,
@@ -122,6 +125,7 @@ async def criar_lancamento_cartao(
         categoria=body.categoria,
     )
     db.add(lancamento)
+    aplicar_efeito_lancamento(cartao, body.tipo, body.valor)
     await db.commit()
     await db.refresh(lancamento)
     return {
@@ -141,7 +145,7 @@ async def deletar_lancamento_cartao(
     usuario_id: CurrentUserID,
     db: DBSession,
 ):
-    await _get_cartao_or_404(cartao_id, usuario_id, db)
+    cartao = await _get_cartao_or_404(cartao_id, usuario_id, db)
     result = await db.execute(
         select(LancamentoCartao).where(
             LancamentoCartao.id == lancamento_id,
@@ -151,5 +155,6 @@ async def deletar_lancamento_cartao(
     lancamento = result.scalar_one_or_none()
     if not lancamento:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lançamento não encontrado.")
+    reverter_efeito_lancamento(cartao, lancamento.tipo, float(lancamento.valor))
     await db.delete(lancamento)
     await db.commit()
