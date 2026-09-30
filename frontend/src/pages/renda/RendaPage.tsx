@@ -44,18 +44,20 @@ export default function RendaPage() {
       ) : (
         <div className="space-y-3">
           {rendas.map((renda) => (
-            <div key={renda.id} className="card p-4 flex items-center gap-3">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-800 truncate">{renda.descricao}</p>
-                <p className="text-xs text-gray-500 capitalize">
-                  {TIPOS.find((t) => t.value === renda.tipo)?.label ?? renda.tipo}
-                  {' · '}
-                  {FREQUENCIAS.find((f) => f.value === renda.frequencia)?.label ?? renda.frequencia}
+            <div key={renda.id} className="card p-4 flex flex-wrap items-start gap-3">
+              <div className="flex flex-col items-start w-full max-w-full box-border overflow-hidden">
+                <p className="static font-bold text-success-500 whitespace-nowrap">
+                  {formatCurrency(renda.valor)}
                 </p>
+                <div className="w-full min-w-0 max-w-full">
+                  <p className="font-medium text-gray-800 truncate leading-[1.4]">{renda.descricao}</p>
+                  <p className="text-xs text-gray-500 capitalize leading-[1.4]">
+                    {TIPOS.find((t) => t.value === renda.tipo)?.label ?? renda.tipo}
+                    {' · '}
+                    {FREQUENCIAS.find((f) => f.value === renda.frequencia)?.label ?? renda.frequencia}
+                  </p>
+                </div>
               </div>
-              <p className="font-bold text-success-500 whitespace-nowrap">
-                {formatCurrency(renda.valor)}
-              </p>
               <button
                 onClick={() => setEditando(renda)}
                 className="text-gray-300 hover:text-primary-500 transition-colors"

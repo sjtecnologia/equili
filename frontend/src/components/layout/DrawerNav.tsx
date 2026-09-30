@@ -54,15 +54,15 @@ export default function DrawerNav({ open, onClose }: Props) {
               end={requiresExactActiveMatch(to)}
               onClick={onClose}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-xl mb-0.5 text-sm font-medium transition-colors ${
+                `flex items-center justify-start gap-2 min-h-12 px-4 py-3 box-border leading-normal rounded-xl mb-0.5 text-sm font-medium transition-colors ${
                   isActive
                     ? 'bg-primary-100 text-primary-600'
                     : 'text-gray-600 hover:bg-gray-100'
                 }`
               }
             >
-              <Icon size={20} />
-              {label}
+              <Icon size={20} className="self-center align-middle shrink-0" />
+              <span className="leading-[1.2]">{label}</span>
             </NavLink>
           ))}
         </nav>
