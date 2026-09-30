@@ -43,7 +43,21 @@ export default function AppLayout() {
           </div>
           <div className="flex items-center gap-3">
             {user && (
-              <span className="text-sm text-gray-600 font-medium hidden sm:block truncate max-w-[140px]">
+              <span
+                className="text-sm text-gray-600 font-medium hidden sm:block max-w-[140px]"
+                style={{
+                  writingMode: 'horizontal-tb',
+                  transform: 'none',
+                  rotate: 'none',
+                  whiteSpace: 'normal',
+                  width: 'auto',
+                  maxWidth: '100%',
+                  letterSpacing: 'normal',
+                  position: 'static',
+                  zIndex: 1,
+                  overflow: 'visible',
+                }}
+              >
                 {user.nome}
               </span>
             )}
