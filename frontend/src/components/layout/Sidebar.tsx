@@ -48,35 +48,35 @@ export default function Sidebar() {
       )}
 
       {/* Nav */}
-      <nav className="sidebar-nav flex-1 min-h-0 overflow-y-auto p-4 space-y-1">
+      <nav className="sidebar-nav flex flex-col w-full max-w-full box-border p-0 m-0 list-none flex-1 min-h-0 overflow-y-auto">
         {mainNavItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
             end={requiresExactActiveMatch(to)}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-colors duration-150 ${
+              `flex flex-row items-center justify-start gap-2 w-full min-h-12 px-4 py-3 box-border leading-normal text-left m-0 rounded text-sm font-medium transition-colors duration-150 ${
                 isActive
                   ? 'bg-primary-100 text-primary-500'
                   : 'text-gray-600 hover:bg-gray-100'
               }`
             }
           >
-            <Icon size={20} />
-            {label}
+            <Icon size={24} className="inline-flex items-center justify-center w-6 h-6 align-middle shrink-0 m-0 box-border" />
+            <span className="inline text-sm leading-[1.2] align-middle whitespace-nowrap overflow-hidden text-ellipsis flex-[1_1_auto] m-0 p-0 box-border">{label}</span>
           </NavLink>
         ))}
         {user?.is_admin === true && (
           <NavLink
             to="/admin/usuarios"
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-colors duration-150 ${
+              `flex flex-row items-center justify-start gap-2 w-full min-h-12 px-4 py-3 box-border leading-normal text-left m-0 rounded text-sm font-medium transition-colors duration-150 ${
                 isActive ? 'bg-primary-100 text-primary-500' : 'text-gray-600 hover:bg-gray-100'
               }`
             }
           >
-            <ShieldCheck size={20} />
-            Gerenciar Planos
+            <ShieldCheck size={24} className="inline-flex items-center justify-center w-6 h-6 align-middle shrink-0 m-0 box-border" />
+            <span className="inline text-sm leading-[1.2] align-middle whitespace-nowrap overflow-hidden text-ellipsis flex-[1_1_auto] m-0 p-0 box-border">Gerenciar Planos</span>
           </NavLink>
         )}
       </nav>

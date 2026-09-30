@@ -46,7 +46,7 @@ export default function DrawerNav({ open, onClose }: Props) {
         </div>
 
         {/* Itens de navegação */}
-        <nav className="flex-1 overflow-y-auto px-3 py-3">
+        <nav className="flex flex-col w-full max-w-full box-border p-0 m-0 list-none flex-1 overflow-y-auto">
           {ALL_NAV_ITEMS.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
@@ -54,15 +54,15 @@ export default function DrawerNav({ open, onClose }: Props) {
               end={requiresExactActiveMatch(to)}
               onClick={onClose}
               className={({ isActive }) =>
-                `flex items-center justify-start gap-2 min-h-12 px-4 py-3 box-border leading-normal rounded-xl mb-0.5 text-sm font-medium transition-colors ${
+                `flex flex-row items-center justify-start gap-2 w-full min-h-12 px-4 py-3 box-border leading-normal text-left m-0 rounded-xl text-sm font-medium transition-colors ${
                   isActive
                     ? 'bg-primary-100 text-primary-600'
                     : 'text-gray-600 hover:bg-gray-100'
                 }`
               }
             >
-              <Icon size={20} className="self-center align-middle shrink-0" />
-              <span className="leading-[1.2]">{label}</span>
+              <Icon size={24} className="inline-flex items-center justify-center w-6 h-6 align-middle shrink-0 m-0 box-border" />
+              <span className="inline text-sm leading-[1.2] align-middle whitespace-nowrap overflow-hidden text-ellipsis flex-[1_1_auto] m-0 p-0 box-border">{label}</span>
             </NavLink>
           ))}
         </nav>
