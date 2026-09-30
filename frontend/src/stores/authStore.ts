@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import axios from 'axios'
 import { queryClient } from '@/lib/queryClient'
+import { clearBiometricCredentials } from '@/services/biometrics'
 
 export interface AuthUser {
   id: string
@@ -20,7 +21,7 @@ interface AuthStore {
   setUser: (user: AuthUser) => void
   authenticateWithToken: (token: string) => Promise<void>
   bootstrapSession: () => Promise<boolean>
-  logout: () => void
+  logout: () => Promise<void>
 }
 
 export const useAuthStore = create<AuthStore>((set) => ({
@@ -56,8 +57,13 @@ export const useAuthStore = create<AuthStore>((set) => ({
       return false
     }
   },
-  logout: () => {
+  logout: async () => {
     queryClient.clear()
     set({ accessToken: null, user: null, status: 'unauthenticated' })
+    try {
+      await clearBiometricCredentials()
+    } catch (err) {
+      console.error('[biometria] falha ao remover credenciais no logout', err)
+    }
   },
 }))

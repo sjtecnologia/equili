@@ -52,6 +52,6 @@
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>O Equili usa reconhecimento de voz para entender seus comandos financeiros</string>
 	<key>NSFaceIDUsageDescription</key>
-	<string>Use o Face ID para entrar no Equili com segurança</string>
+	<string>O Equili usa o Face ID para você entrar rapidamente.</string>
 </dict>
 </plist>

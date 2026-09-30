@@ -28,6 +28,7 @@
     "@capacitor/status-bar": "^8.0.2",
     "@capawesome/capacitor-apple-sign-in": "^0.1.4",
     "@capawesome/capacitor-google-sign-in": "^0.1.4",
+    "@capgo/capacitor-native-biometric": "^8.7.0",
     "@hookform/resolvers": "^3.3.4",
     "@tanstack/react-query": "^5.28.4",
     "axios": "^1.16.1",

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -7,6 +7,7 @@ import { Loader2, Eye, EyeOff, ScanFace } from 'lucide-react'
 import { Capacitor } from '@capacitor/core'
 import { AppleSignIn, SignInScope } from '@capawesome/capacitor-apple-sign-in'
 import api from '@/services/api'
+import { biometricLogin, isBiometricReady, saveBiometricCredentials } from '../../services/biometrics'
 import { useAuthStore } from '@/stores/authStore'
 import { useBiometricAuth } from '@/hooks/useBiometricAuth'
 import { useGoogleAuth } from '@/hooks/useGoogleAuth'
@@ -38,6 +39,9 @@ export default function LoginPage() {
   const [appleLoading, setAppleLoading] = useState(false)
   const [bioDisponivel, setBioDisponivel] = useState(false)
   const [bioHabilitado, setBioHabilitado] = useState(false)
+  const [biometricReady, setBiometricReady] = useState(false)
+  const [biometricLoading, setBiometricLoading] = useState(false)
+  const autoBiometricTried = useRef(false)
 
   const bio = useBiometricAuth()
   const isNative = Capacitor.isNativePlatform()
@@ -61,10 +65,10 @@ export default function LoginPage() {
     navigate('/dashboard', { replace: true })
   }
 
-  async function onSubmit(data: FormData) {
+  async function doLogin(email: string, password: string) {
     setServerError(null)
     try {
-      const res = await api.post<{ access_token: string }>('/auth/login', data)
+      const res = await api.post<{ access_token: string }>('/auth/login', { email, senha: password })
 
       if (isNative && bioDisponivel && !bioHabilitado) {
         const ok = window.confirm('Deseja habilitar o login com Face ID / biometria?')
@@ -72,6 +76,11 @@ export default function LoginPage() {
       }
 
       await finalizarLogin(res.data.access_token)
+      try {
+        await saveBiometricCredentials(email, password)
+      } catch (err) {
+        console.error('[biometria] falha ao salvar credenciais', err)
+      }
     } catch (e: unknown) {
       const error = e as {
         name?: string
@@ -91,6 +100,37 @@ export default function LoginPage() {
       setServerError(parseApiError(e))
     }
   }
+
+  async function onSubmit(data: FormData) {
+    await doLogin(data.email, data.senha)
+  }
+
+  async function handleBiometricLogin(): Promise<void> {
+    if (biometricLoading) return
+    setBiometricLoading(true)
+    try {
+      const creds = await biometricLogin()
+      if (creds) {
+        await doLogin(creds.username, creds.password)
+      }
+    } finally {
+      setBiometricLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    let active = true
+    ;(async () => {
+      const ready = await isBiometricReady()
+      if (!active) return
+      setBiometricReady(ready)
+      if (ready && !autoBiometricTried.current) {
+        autoBiometricTried.current = true
+        setTimeout(() => { void handleBiometricLogin() }, 400)
+      }
+    })()
+    return () => { active = false }
+  }, [])
 
   async function loginComBiometria() {
     setServerError(null)
@@ -246,6 +286,12 @@ export default function LoginPage() {
               {isSubmitting && <Loader2 size={16} className="animate-spin" />}
               {isSubmitting ? 'Entrando...' : 'Entrar'}
             </button>
+            {biometricReady && (
+              <button type="button" onClick={handleBiometricLogin} disabled={biometricLoading}
+                className="btn-primary w-full flex items-center justify-center gap-2">
+                {biometricLoading ? 'Verificando...' : '🔓 Entrar com biometria'}
+              </button>
+            )}
           </form>
         </div>
 
