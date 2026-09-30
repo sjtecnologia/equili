@@ -252,7 +252,7 @@ export default function DashboardPage() {
       )}
 
       {/* Banner de Plano IA */}
-      <div className="card w-full max-w-full box-border border-2 border-dashed border-primary-200 p-3 px-4 pb-20 flex flex-col items-stretch gap-3">
+      <div className="card mt-6 w-full max-w-full box-border border-2 border-dashed border-primary-200 p-3 px-4 pb-20 flex flex-col items-stretch gap-3">
         <div className="p-1.5 rounded-full bg-primary-100 text-primary-500 shrink-0">
           <Sparkles size={16} />
         </div>
