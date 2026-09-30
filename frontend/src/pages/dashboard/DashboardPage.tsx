@@ -252,11 +252,11 @@ export default function DashboardPage() {
       )}
 
       {/* Banner de Plano IA */}
-      <div className="card w-full max-w-full box-border border-2 border-dashed border-primary-200 p-3 px-4 pb-20 flex items-center gap-3">
+      <div className="card w-full max-w-full box-border border-2 border-dashed border-primary-200 p-3 px-4 pb-20 flex flex-col items-stretch gap-3">
         <div className="p-1.5 rounded-full bg-primary-100 text-primary-500 shrink-0">
           <Sparkles size={16} />
         </div>
-        <div className="flex-1 min-w-0 w-full max-w-full box-border px-4 break-words [word-break:normal]">
+        <div className="flex-1 min-w-0 w-full max-w-full box-border px-4 whitespace-normal break-words [word-break:normal] [writing-mode:horizontal-tb]">
           <p className="font-semibold text-gray-800 text-xs">
             {data?.plano_gerado ? 'Plano de ação ativo' : 'Gere seu plano de ação com IA'}
           </p>
@@ -268,7 +268,7 @@ export default function DashboardPage() {
         </div>
         <Link
           to="/plano-de-acao"
-          className="btn-primary text-xs px-3 py-1.5 whitespace-nowrap self-center"
+          className="btn-primary text-xs w-full max-w-full box-border h-[50px] px-4 py-0 whitespace-nowrap self-stretch flex items-center justify-center"
         >
           {data?.plano_gerado ? 'Ver plano' : 'Gerar'}
         </Link>
