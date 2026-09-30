@@ -252,15 +252,15 @@ export default function DashboardPage() {
       )}
 
       {/* Banner de Plano IA */}
-      <div className="card border-2 border-dashed border-primary-200 p-3 flex items-center gap-3">
+      <div className="card w-full max-w-full box-border border-2 border-dashed border-primary-200 p-3 px-4 pb-20 flex items-center gap-3">
         <div className="p-1.5 rounded-full bg-primary-100 text-primary-500 shrink-0">
           <Sparkles size={16} />
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 w-full max-w-full box-border px-4 break-words [word-break:normal]">
           <p className="font-semibold text-gray-800 text-xs">
             {data?.plano_gerado ? 'Plano de ação ativo' : 'Gere seu plano de ação com IA'}
           </p>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 break-words [word-break:normal]">
             {data?.plano_gerado
               ? 'Continue seguindo as recomendações para alcançar seu objetivo.'
               : 'Nossa IA analisa sua situação e cria um plano personalizado para quitar suas dívidas.'}

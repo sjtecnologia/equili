@@ -73,12 +73,14 @@ export default function VoiceAssistant() {
         type="button"
         onClick={() => (isListening ? stop() : start())}
         className={[
-          'fixed z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all duration-200 border border-white/40',
+          'flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all duration-200 border border-white/40',
           isListening ? 'bg-primary-500 scale-105' : 'bg-primary-600 hover:bg-primary-500',
         ].join(' ')}
         style={{
+          position: 'fixed',
           right: 'calc(env(safe-area-inset-right) + 16px)',
           bottom: 'calc(env(safe-area-inset-bottom) + 16px)',
+          zIndex: 10,
         }}
         aria-label="Assistente de voz"
       >
