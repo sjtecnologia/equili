@@ -1,4 +1,4 @@
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,10 +20,22 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     EMAIL_VERIFY_TOKEN_EXPIRE_HOURS: int = 24
 
-    # GitHub Models (LLM)
+    # GitHub Models (LLM) — variáveis legadas, mantidas para compatibilidade (ex: assistente de voz)
     GITHUB_TOKEN: str = ""
     GITHUB_MODELS_ENDPOINT: str = "https://models.inference.ai.azure.com"
     GITHUB_MODELS_MODEL: str = "gpt-4o-mini"
+
+    # GitHub Models (https://models.github.ai/) — API compatível com OpenAI
+    GITHUB_MODELS_BASE_URL: str = "https://models.github.ai/inference/v1"
+    GITHUB_MODELS_API_KEY: str = ""
+    GITHUB_MODELS_CHAT_MODEL: str = ""
+
+    @model_validator(mode="after")
+    def _fallback_github_models_api_key(self) -> "Settings":
+        # Compatibilidade: se GITHUB_MODELS_API_KEY não foi definido, reaproveita GITHUB_TOKEN
+        if not self.GITHUB_MODELS_API_KEY and self.GITHUB_TOKEN:
+            self.GITHUB_MODELS_API_KEY = self.GITHUB_TOKEN
+        return self
 
     # Email (Resend)
     RESEND_API_KEY: str = ""

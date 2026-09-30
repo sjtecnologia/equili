@@ -12,12 +12,12 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from app.core.config import settings
 from app.core.dependencies import CurrentUserID, DBSession
 from app.core.rastro_client import rastro_client
 from app.models.conta_lancamento import ContaAPagar, ContaAReceber
 from app.models.divida import Divida
 from app.models.renda import Renda
+from app.services.github_models import GitHubModelsNotConfigured, chamar_github_models
 
 router = APIRouter(prefix="/chat", tags=["Chat IA"])
 logger = logging.getLogger(__name__)
@@ -144,13 +144,6 @@ async def chat(
     usuario_id: CurrentUserID,
     db: DBSession,
 ):
-    if not settings.GITHUB_TOKEN:
-        await rastro_client.send_warning_event(
-            message="Endpoint de chat IA chamado sem GITHUB_TOKEN configurado.",
-            fingerprint="equili:chat:config:missing_github_token",
-        )
-        raise HTTPException(status_code=503, detail="Assistente IA não configurado.")
-
     if not body.messages:
         raise HTTPException(status_code=422, detail="Envie ao menos uma mensagem.")
 
@@ -166,36 +159,45 @@ async def chat(
     contexto = await _contexto_financeiro(usuario_id, db)
     system = SYSTEM_PROMPT.format(contexto=contexto)
 
-    payload = {
-        "model": settings.GITHUB_MODELS_MODEL,
-        "messages": [
-            {"role": "system", "content": system},
-            *[{"role": m.role, "content": m.content} for m in messages],
-        ],
-        "temperature": 0.7,
-        "max_tokens": 600,
-    }
+    historico_texto = "\n".join(f"[{m.role}] {m.content}" for m in messages[:-1])
+    ultima_mensagem = messages[-1].content
+    user_prompt = (
+        f"Histórico da conversa:\n{historico_texto}\n\nMensagem atual do usuário:\n{ultima_mensagem}"
+        if historico_texto else ultima_mensagem
+    )
 
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(
-                f"{settings.GITHUB_MODELS_ENDPOINT}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {settings.GITHUB_TOKEN}",
-                    "Content-Type": "application/json",
-                },
-                json=payload,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            reply = data["choices"][0]["message"]["content"].strip()
-            return ChatResponse(reply=reply)
-
+        reply = await chamar_github_models(
+            system_prompt=system,
+            user_prompt=user_prompt,
+            temperature=0.7,
+            max_tokens=600,
+        )
+        return ChatResponse(reply=reply.strip())
+    except GitHubModelsNotConfigured:
+        await rastro_client.send_warning_event(
+            message="Endpoint de chat IA chamado sem GITHUB_MODELS_API_KEY configurado.",
+            fingerprint="equili:chat:config:missing_github_token",
+        )
+        raise HTTPException(status_code=503, detail="Assistente IA não configurado — defina GITHUB_MODELS_API_KEY no .env.")
+    except TimeoutError:
+        await rastro_client.send_warning_event(
+            message="Timeout ao chamar provedor de IA do chat.",
+            fingerprint="equili:chat:provider:timeout",
+        )
+        raise HTTPException(status_code=503, detail="Erro ao contatar a IA. Tente novamente.")
     except httpx.HTTPStatusError as exc:
         logger.error(f"[chat] HTTP error: {exc.response.status_code} — {exc.response.text}")
         await rastro_client.send_warning_event(
             message=f"Falha HTTP no provedor de IA do chat: status {exc.response.status_code}.",
             fingerprint=f"equili:chat:provider:http_status:{exc.response.status_code}",
+        )
+        raise HTTPException(status_code=502, detail="Erro ao contatar a IA. Tente novamente.")
+    except ValueError as exc:
+        logger.error(f"[chat] Resposta inválida do provedor de IA: {exc}")
+        await rastro_client.send_warning_event(
+            message="Resposta inválida recebida do provedor de IA no chat.",
+            fingerprint="equili:chat:provider:invalid_response",
         )
         raise HTTPException(status_code=502, detail="Erro ao contatar a IA. Tente novamente.")
     except Exception as exc:

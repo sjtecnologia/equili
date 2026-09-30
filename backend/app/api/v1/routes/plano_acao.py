@@ -16,6 +16,7 @@ from app.models.conta_lancamento import ContaAPagar, ContaAReceber
 from app.models.divida import Divida
 from app.models.plano_acao import PlanoAcao
 from app.models.renda import Renda
+from app.services.github_models import GitHubModelsNotConfigured, chamar_github_models_com_uso
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -205,34 +206,21 @@ Data atual: {hoje.strftime("%d/%m/%Y")}
 {"Crie o plano de ação para esta família sair das dívidas, levando em conta o fluxo de caixa real." if dividas else "Esta família não tem dívidas mas possui contas a pagar pendentes. Crie um plano de ação financeiro para organizar o fluxo de caixa, garantir o pagamento em dia e começar a poupar."}
 """
 
-    if not settings.GITHUB_TOKEN:
+    try:
+        conteudo_texto, tokens_usados = await chamar_github_models_com_uso(
+            system_prompt=SYSTEM_PROMPT,
+            user_prompt=user_prompt,
+            temperature=0.3,
+            max_tokens=1500,
+            response_format={"type": "json_object"},
+        )
+    except GitHubModelsNotConfigured:
         await rastro_client.send_warning_event(
-            message="Serviço de plano de ação chamado sem GITHUB_TOKEN configurado.",
+            message="Serviço de plano de ação chamado sem GITHUB_MODELS_API_KEY configurado.",
             fingerprint="equili:plano_acao:config:missing_github_token",
         )
-        raise HTTPException(status_code=503, detail="Serviço de IA não configurado. Verifique o GITHUB_TOKEN.")
-
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                f"{settings.GITHUB_MODELS_ENDPOINT}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {settings.GITHUB_TOKEN}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": settings.GITHUB_MODELS_MODEL,
-                    "messages": [
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    "response_format": {"type": "json_object"},
-                    "temperature": 0.3,
-                    "max_tokens": 1500,
-                },
-            )
-            response.raise_for_status()
-    except httpx.TimeoutException:
+        raise HTTPException(status_code=503, detail="Serviço de IA não configurado. Verifique o GITHUB_MODELS_API_KEY.")
+    except TimeoutError:
         await rastro_client.send_warning_event(
             message="Timeout ao chamar provedor de IA do plano de ação.",
             fingerprint="equili:plano_acao:provider:timeout",
@@ -245,10 +233,12 @@ Data atual: {hoje.strftime("%d/%m/%Y")}
             fingerprint=f"equili:plano_acao:provider:http_status:{e.response.status_code}",
         )
         raise HTTPException(status_code=503, detail="Serviço de IA indisponível no momento.")
-
-    result_data = response.json()
-    tokens_usados = result_data.get("usage", {}).get("total_tokens")
-    conteudo_texto = result_data["choices"][0]["message"]["content"]
+    except ValueError:
+        await rastro_client.send_warning_event(
+            message="Resposta não-JSON recebida do provedor de IA no plano de ação.",
+            fingerprint="equili:plano_acao:provider:invalid_json",
+        )
+        raise HTTPException(status_code=503, detail="Resposta inválida do serviço de IA.")
 
     try:
         conteudo_json = json.loads(conteudo_texto)

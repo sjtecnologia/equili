@@ -77,6 +77,7 @@ async def _create_sqlite_schema(conn) -> None:
             id TEXT PRIMARY KEY,
             usuario_id TEXT NOT NULL,
             conta_fixa_id TEXT,
+            divida_id TEXT,
             descricao TEXT NOT NULL,
             categoria TEXT NOT NULL,
             valor REAL NOT NULL,

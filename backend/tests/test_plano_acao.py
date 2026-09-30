@@ -50,6 +50,7 @@ def test_gerar_plano_acao_usa_fluxo_de_caixa(finance_client, monkeypatch):
     config_module.settings.GITHUB_TOKEN = "test-token"
     config_module.settings.GITHUB_MODELS_ENDPOINT = "https://example.com"
     config_module.settings.GITHUB_MODELS_MODEL = "gpt-test"
+    config_module.settings.GITHUB_MODELS_API_KEY = "test-token"
     monkeypatch.setattr("app.core.rastro_client.rastro_client.send_warning_event", _fake_warning_event)
     _mock_ai_response(monkeypatch)
 
@@ -111,6 +112,7 @@ def test_plano_gratuito_limita_cota_mensal(finance_client, monkeypatch):
     config_module.settings.GITHUB_TOKEN = "test-token"
     config_module.settings.GITHUB_MODELS_ENDPOINT = "https://example.com"
     config_module.settings.GITHUB_MODELS_MODEL = "gpt-test"
+    config_module.settings.GITHUB_MODELS_API_KEY = "test-token"
     config_module.settings.PLANO_GRATIS_MAX_PLANOS_IA_MES = 1
     monkeypatch.setattr("app.core.rastro_client.rastro_client.send_warning_event", _fake_warning_event)
 
