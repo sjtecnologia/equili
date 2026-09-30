@@ -157,6 +157,20 @@ nav {
   z-index: 20;
 }
 
+nav a[href="/dashboard"] {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: left;
+  padding-left: 16px;
+  width: 100%;
+}
+
+nav a[href="/dashboard"] > span {
+  text-align: left;
+}
+
 #root > div > div > div.lg\:hidden.print\:hidden.flex-shrink-0 {
   position: fixed;
   left: 0;
