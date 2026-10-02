@@ -15,6 +15,7 @@ import RendaPage from '@/pages/renda/RendaPage'
 import PlanoAcaoPage from '@/pages/plano-de-acao/PlanoAcaoPage'
 import OnboardingPage from '@/pages/onboarding/OnboardingPage'
 import ContasPagarPage from '@/pages/contas-pagar/ContasPagarPage'
+import CategoriasPage from '@/pages/categorias/CategoriasPage'
 import ContasReceberPage from '@/pages/contas-receber/ContasReceberPage'
 import ContasBancariasPage from '@/pages/contas-bancarias/ContasBancariasPage'
 import ContaLancamentosPage from '@/pages/contas-bancarias/ContaLancamentosPage'
@@ -117,6 +118,7 @@ export default function App() {
           <Route path="dividas" element={<DividasPage />} />
           <Route path="dividas/baixas" element={<BaixasPage />} />
           <Route path="contas-pagar" element={<ContasPagarPage />} />
+          <Route path="categorias" element={<CategoriasPage />} />
           <Route path="contas-receber" element={<ContasReceberPage />} />
           <Route path="contas-bancarias" element={<ContasBancariasPage />} />
           <Route path="contas-bancarias/:contaId/lancamentos" element={<ContaLancamentosPage />} />

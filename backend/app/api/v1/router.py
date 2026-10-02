@@ -20,6 +20,7 @@ from app.api.v1.routes import (
     lancamentos_cartao,
     listas,
     nfs,
+    categorias,
 )
 
 api_router = APIRouter()
@@ -43,3 +44,4 @@ api_router.include_router(lancamentos_conta.router, prefix="/contas-bancarias", 
 api_router.include_router(lancamentos_cartao.router, prefix="/cartoes-credito", tags=["Lançamentos Cartão"])
 api_router.include_router(listas.router, prefix="/listas", tags=["Listas"])
 api_router.include_router(nfs.router, prefix="/nfs", tags=["Notas Fiscais"])
+api_router.include_router(categorias.router, prefix="/categorias", tags=["Categorias"])

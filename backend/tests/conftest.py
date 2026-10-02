@@ -212,6 +212,22 @@ async def _create_sqlite_schema(conn) -> None:
     )
     await conn.exec_driver_sql(
         """
+        CREATE TABLE IF NOT EXISTS categorias (
+            id TEXT PRIMARY KEY,
+            usuario_id TEXT NOT NULL,
+            nome TEXT NOT NULL,
+            tipo TEXT NOT NULL,
+            cor TEXT,
+            icone TEXT,
+            ativo INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT,
+            updated_at TEXT,
+            UNIQUE (usuario_id, tipo, nome)
+        )
+        """
+    )
+    await conn.exec_driver_sql(
+        """
         CREATE TABLE IF NOT EXISTS planos_acao (
             id TEXT PRIMARY KEY,
             usuario_id TEXT NOT NULL,
