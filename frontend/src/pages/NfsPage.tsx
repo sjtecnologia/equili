@@ -4,7 +4,15 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import NfsQrReader from '@/components/nfs/NfsQrReader'
 import api from '@/services/api'
 import { formatCurrency } from '@/utils/format'
+import { FiltrosBarra, limparFiltrosVazios, CAMPOS_PERIODO, type CampoFiltro } from '@/components/shared/FiltrosBarra'
 import type { NfsQrData } from '@/services/nfsQrParser'
+
+const CAMPOS_FILTRO: CampoFiltro[] = [
+  { key: 'q', tipo: 'busca', placeholder: 'Buscar (número, série, chave ou CPF/CNPJ)' },
+  { key: 'valor_min', tipo: 'numero', label: 'Valor mínimo', step: '0.01' },
+  { key: 'valor_max', tipo: 'numero', label: 'Valor máximo', step: '0.01' },
+  ...CAMPOS_PERIODO.map((c) => ({ ...c, label: c.key === 'data_inicio' ? 'Emissão de' : 'Emissão até' }) as CampoFiltro),
+]
 
 interface NfsNota {
   id: string
@@ -29,11 +37,13 @@ export default function NfsPage() {
   const [loading, setLoading] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [removendoId, setRemovendoId] = useState<string | null>(null)
+  const [filtros, setFiltros] = useState<Record<string, string>>({})
+  const temFiltro = Object.keys(filtros).length > 0
 
-  const carregarNotas = async () => {
+  const carregarNotas = async (params: Record<string, string> = filtros) => {
     setLoading(true)
     try {
-      const { data } = await api.get('/nfs')
+      const { data } = await api.get('/nfs', { params })
       setNotas(data)
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Não foi possível carregar as notas fiscais.'
@@ -43,9 +53,11 @@ export default function NfsPage() {
     }
   }
 
+  // Refaz a busca sempre que os filtros mudam
   useEffect(() => {
-    void carregarNotas()
-  }, [])
+    void carregarNotas(filtros)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtros])
 
   const handleLancarNota = async () => {
     if (!dadosLidos) {
@@ -172,6 +184,8 @@ export default function NfsPage() {
         </div>
       )}
 
+      <FiltrosBarra campos={CAMPOS_FILTRO} onFiltrar={(f) => setFiltros(limparFiltrosVazios(f))} />
+
       <div className="card p-4 space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -188,7 +202,7 @@ export default function NfsPage() {
         ) : notas.length === 0 ? (
           <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
             <FileText className="mx-auto mb-3 text-gray-300" size={28} />
-            <p className="text-sm font-medium text-gray-600">Nenhuma nota lançada ainda.</p>
+            <p className="text-sm font-medium text-gray-600">{temFiltro ? 'Nenhuma nota encontrada para os filtros informados.' : 'Nenhuma nota lançada ainda.'}</p>
           </div>
         ) : (
           <div className="space-y-3">

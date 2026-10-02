@@ -7,9 +7,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from app.core.dependencies import CurrentUserID, DBSession
+from app.core.filtros import contem
 from app.models.investimento import Investimento
 
 router = APIRouter(prefix="/investimentos", tags=["Investimentos"])
@@ -82,12 +83,24 @@ def _validar_tipo(tipo: str) -> None:
 # ─── Endpoints ───────────────────────────────────────────────────────────────
 
 @router.get("", response_model=list[InvestimentoOut])
-async def listar(db: DBSession, usuario_id: CurrentUserID):
-    result = await db.execute(
-        select(Investimento)
-        .where(Investimento.usuario_id == usuario_id)
-        .order_by(Investimento.tipo, Investimento.nome)
-    )
+async def listar(
+    db: DBSession,
+    usuario_id: CurrentUserID,
+    tipo: str | None = None,
+    q: str | None = None,
+    data_inicio: date | None = None,
+    data_fim: date | None = None,
+):
+    query = select(Investimento).where(Investimento.usuario_id == usuario_id)
+    if tipo:
+        query = query.where(Investimento.tipo == tipo)
+    if q and q.strip():
+        query = query.where(or_(contem(Investimento.nome, q), contem(Investimento.instituicao, q)))
+    if data_inicio:
+        query = query.where(Investimento.data_aplicacao >= data_inicio)
+    if data_fim:
+        query = query.where(Investimento.data_aplicacao <= data_fim)
+    result = await db.execute(query.order_by(Investimento.tipo, Investimento.nome))
     return result.scalars().all()
 
 

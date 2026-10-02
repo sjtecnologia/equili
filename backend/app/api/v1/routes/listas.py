@@ -2,9 +2,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, field_validator
-from sqlalchemy import case, select
+from sqlalchemy import case, or_, select
 
 from app.core.dependencies import CurrentUserID, DBSession
+from app.core.filtros import contem
 from app.models.listas import ItemCompra, Tarefa
 
 router = APIRouter()
@@ -85,11 +86,16 @@ class ItemCompraUpdate(BaseModel):
 
 
 @router.get("/tarefas")
-async def listar_tarefas(usuario_id: CurrentUserID, db: DBSession):
+async def listar_tarefas(
+    usuario_id: CurrentUserID, db: DBSession, concluida: bool | None = None, q: str | None = None
+):
+    query = select(Tarefa).where(Tarefa.usuario_id == usuario_id)
+    if concluida is not None:
+        query = query.where(Tarefa.concluida == concluida)
+    if q and q.strip():
+        query = query.where(contem(Tarefa.titulo, q))
     result = await db.execute(
-        select(Tarefa)
-        .where(Tarefa.usuario_id == usuario_id)
-        .order_by(case((Tarefa.concluida.is_(False), 0), else_=1), Tarefa.criado_em.desc())
+        query.order_by(case((Tarefa.concluida.is_(False), 0), else_=1), Tarefa.criado_em.desc())
     )
     return result.scalars().all()
 
@@ -133,11 +139,16 @@ async def remover_tarefa(tarefa_id: UUID, usuario_id: CurrentUserID, db: DBSessi
 
 
 @router.get("/compras")
-async def listar_itens_compra(usuario_id: CurrentUserID, db: DBSession):
+async def listar_itens_compra(
+    usuario_id: CurrentUserID, db: DBSession, comprado: bool | None = None, q: str | None = None
+):
+    query = select(ItemCompra).where(ItemCompra.usuario_id == usuario_id)
+    if comprado is not None:
+        query = query.where(ItemCompra.comprado == comprado)
+    if q and q.strip():
+        query = query.where(or_(contem(ItemCompra.nome, q), contem(ItemCompra.observacao, q)))
     result = await db.execute(
-        select(ItemCompra)
-        .where(ItemCompra.usuario_id == usuario_id)
-        .order_by(case((ItemCompra.comprado.is_(False), 0), else_=1), ItemCompra.criado_em.desc())
+        query.order_by(case((ItemCompra.comprado.is_(False), 0), else_=1), ItemCompra.criado_em.desc())
     )
     return result.scalars().all()
 

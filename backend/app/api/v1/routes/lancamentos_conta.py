@@ -7,6 +7,7 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy import case, func as sql_func, select
 
 from app.core.dependencies import CurrentUserID, DBSession
+from app.core.filtros import contem
 from app.models.conta_bancaria import ContaBancaria
 from app.models.lancamento_conta import LancamentoConta
 
@@ -118,14 +119,31 @@ def _parse_ofx(content: str) -> list[dict]:
 # ─── Routes ─────────────────────────────────────────────────────────────────
 
 @router.get("/{conta_id}/lancamentos")
-async def listar_lancamentos_conta(conta_id: UUID, usuario_id: CurrentUserID, db: DBSession):
+async def listar_lancamentos_conta(
+    conta_id: UUID,
+    usuario_id: CurrentUserID,
+    db: DBSession,
+    tipo: str | None = None,
+    categoria: str | None = None,
+    q: str | None = None,
+    data_inicio: date | None = None,
+    data_fim: date | None = None,
+):
     conta = await _get_conta_or_404(conta_id, usuario_id, db)
-    result = await db.execute(
-        select(LancamentoConta)
-        .where(LancamentoConta.conta_bancaria_id == conta_id)
-        .order_by(LancamentoConta.data.desc(), LancamentoConta.criado_em.desc())
-    )
+    query = select(LancamentoConta).where(LancamentoConta.conta_bancaria_id == conta_id)
+    if tipo in ("entrada", "saida"):
+        query = query.where(LancamentoConta.tipo == tipo)
+    if categoria and categoria.strip():
+        query = query.where(sql_func.lower(sql_func.trim(LancamentoConta.categoria)) == categoria.strip().lower())
+    if q and q.strip():
+        query = query.where(contem(LancamentoConta.descricao, q))
+    if data_inicio:
+        query = query.where(LancamentoConta.data >= data_inicio)
+    if data_fim:
+        query = query.where(LancamentoConta.data <= data_fim)
+    result = await db.execute(query.order_by(LancamentoConta.data.desc(), LancamentoConta.criado_em.desc()))
     lancamentos = result.scalars().all()
+    # saldo_atual segue sendo o saldo real da conta, independente dos filtros
     saldo = await _saldo_atual(conta_id, float(conta.saldo_inicial), db)
     return {
         "lancamentos": [

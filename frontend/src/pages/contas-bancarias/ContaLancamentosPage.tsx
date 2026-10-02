@@ -11,6 +11,7 @@ import { formatCurrency } from '@/utils/format'
 import { parseApiError } from '@/utils/api'
 import { ModalDialog } from '@/components/ui/ModalDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { FiltrosBarra, limparFiltrosVazios, CAMPOS_PERIODO, type CampoFiltro } from '@/components/shared/FiltrosBarra'
 import { lancamentoContaSchema } from '@/lib/schemas/financeiro'
 import type { LancamentoContaFormData } from '@/lib/schemas/financeiro'
 import type { Lancamento } from '@/types/financeiro'
@@ -23,6 +24,16 @@ type LancamentoForm = LancamentoContaFormData
 const CATEGORIAS_CONTA = [
   'Alimentação', 'Transporte', 'Moradia', 'Saúde', 'Educação',
   'Lazer', 'Salário', 'Transferência', 'Investimento', 'Outros',
+]
+
+const CAMPOS_FILTRO: CampoFiltro[] = [
+  { key: 'q', tipo: 'busca', placeholder: 'Buscar (descrição)' },
+  { key: 'tipo', tipo: 'select', label: 'Tipo', opcoes: [{ value: 'entrada', label: 'Entrada' }, { value: 'saida', label: 'Saída' }] },
+  {
+    key: 'categoria', tipo: 'select', label: 'Categoria', todasLabel: 'Todas',
+    opcoes: CATEGORIAS_CONTA.map((c) => ({ value: c, label: c })),
+  },
+  ...CAMPOS_PERIODO,
 ]
 
 /* ─── Modal novo lançamento ─── */
@@ -368,7 +379,9 @@ function ExtratoContaModal({
 /* ─── Página principal ─── */
 export default function ContaLancamentosPage() {
   const { contaId } = useParams<{ contaId: string }>()
-  const { data, isLoading, isError, deletar, invalidate } = useContaLancamentos(contaId)
+  const [filtros, setFiltros] = useState<Record<string, string>>({})
+  const temFiltro = Object.keys(filtros).length > 0
+  const { data, completo, isLoading, isError, deletar, invalidate } = useContaLancamentos(contaId, filtros)
   const [showNovo, setShowNovo] = useState(false)
   const [showOFX, setShowOFX] = useState(false)
   const [showExtrato, setShowExtrato] = useState(false)
@@ -469,12 +482,14 @@ export default function ContaLancamentosPage() {
         </button>
         <button
           onClick={() => setShowExtrato(true)}
-          disabled={lancamentos.length === 0}
+          disabled={completo.length === 0}
           className="btn-secondary flex items-center gap-2 py-2 px-3 text-sm disabled:opacity-40"
         >
           <FileText size={16} /> Extrato
         </button>
       </div>
+
+      <FiltrosBarra campos={CAMPOS_FILTRO} onFiltrar={(f) => setFiltros(limparFiltrosVazios(f))} />
 
       {/* Lista */}
       {isLoading ? (
@@ -496,8 +511,8 @@ export default function ContaLancamentosPage() {
       ) : lancamentos.length === 0 ? (
         <EmptyState
           icon={TrendingUp}
-          title="Nenhum lançamento ainda"
-          description="Adicione entradas e saídas manualmente ou importe um extrato OFX"
+          title={temFiltro ? 'Nenhum lançamento encontrado para os filtros informados.' : 'Nenhum lançamento ainda'}
+          description={temFiltro ? undefined : 'Adicione entradas e saídas manualmente ou importe um extrato OFX'}
         />
       ) : (
         <div className="space-y-4">
@@ -562,7 +577,7 @@ export default function ContaLancamentosPage() {
       )}
       {showExtrato && (
         <ExtratoContaModal
-          lancamentos={lancamentos}
+          lancamentos={completo}
           saldoInicial={data?.saldo_inicial ?? 0}
           nomeConta={data?.nome ?? ''}
           onClose={() => setShowExtrato(false)}

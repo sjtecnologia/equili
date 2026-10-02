@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { ModalDialog } from '@/components/ui/ModalDialog'
+import { FiltrosBarra, limparFiltrosVazios, type CampoFiltro } from '@/components/shared/FiltrosBarra'
 
 interface Categoria {
   id: string
@@ -125,14 +126,22 @@ function CategoriaModal({
   )
 }
 
+const CAMPOS_FILTRO: CampoFiltro[] = [
+  { key: 'q', tipo: 'busca', placeholder: 'Buscar por nome' },
+  { key: 'tipo', tipo: 'select', label: 'Tipo', opcoes: [{ value: 'despesa', label: 'Despesa' }, { value: 'receita', label: 'Receita' }] },
+  { key: 'ativo', tipo: 'select', label: 'Situação', opcoes: [{ value: 'true', label: 'Ativas' }, { value: 'false', label: 'Inativas' }] },
+]
+
 export default function CategoriasPage() {
   const qc = useQueryClient()
-  const [filtroTipo, setFiltroTipo] = useState<'' | 'despesa' | 'receita'>('')
+  const [filtros, setFiltros] = useState<Record<string, string>>({})
+  const filtroTipo = (filtros.tipo ?? '') as '' | 'despesa' | 'receita'
+  const temFiltro = Object.keys(filtros).length > 0
   const [modal, setModal] = useState<{ open: boolean; categoria: Categoria | null }>({ open: false, categoria: null })
 
   const { data: categorias = [], isLoading } = useQuery<Categoria[]>({
-    queryKey: ['categorias', filtroTipo],
-    queryFn: () => api.get('/categorias', { params: filtroTipo ? { tipo: filtroTipo } : {} }).then((r) => r.data),
+    queryKey: ['categorias', 'lista', filtros],
+    queryFn: () => api.get('/categorias', { params: filtros }).then((r) => r.data),
   })
 
   const recarregar = () => qc.invalidateQueries({ queryKey: ['categorias'], refetchType: 'all' })
@@ -166,29 +175,15 @@ export default function CategoriasPage() {
         action={{ label: 'Nova categoria', onClick: () => setModal({ open: true, categoria: null }) }}
       />
 
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {([['', 'Todas'], ['despesa', 'Despesa'], ['receita', 'Receita']] as const).map(([value, label]) => (
-          <button
-            key={value}
-            onClick={() => setFiltroTipo(value)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition-colors ${
-              filtroTipo === value
-                ? 'bg-primary-500 text-white border-primary-500'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-primary-500'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <FiltrosBarra campos={CAMPOS_FILTRO} onFiltrar={(f) => setFiltros(limparFiltrosVazios(f))} />
 
       {isLoading ? (
         <SkeletonList count={3} height="h-16" />
       ) : categorias.length === 0 ? (
         <EmptyState
           icon={Tags}
-          title="Nenhuma categoria encontrada."
-          action={{ label: 'Nova categoria', onClick: () => setModal({ open: true, categoria: null }) }}
+          title={temFiltro ? 'Nenhuma categoria encontrada para os filtros informados.' : 'Nenhuma categoria encontrada.'}
+          action={temFiltro ? undefined : { label: 'Nova categoria', onClick: () => setModal({ open: true, categoria: null }) }}
         />
       ) : (
         <div className="space-y-3">

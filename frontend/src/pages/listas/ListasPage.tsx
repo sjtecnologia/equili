@@ -4,6 +4,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { useListas } from '@/hooks/useListas'
+import { FiltrosBarra, limparFiltrosVazios, type CampoFiltro } from '@/components/shared/FiltrosBarra'
 
 type Aba = 'tarefas' | 'compras'
 
@@ -21,10 +22,14 @@ export default function ListasPage() {
   const [novoItemNome, setNovoItemNome] = useState('')
   const [novoItemQuantidade, setNovoItemQuantidade] = useState('1')
   const [novoItemUnidade, setNovoItemUnidade] = useState('')
+  const [filtros, setFiltros] = useState<Record<string, string>>({})
+  const temFiltro = Object.keys(filtros).length > 0
 
   const {
     tarefas,
     compras,
+    tarefasTodas,
+    comprasTodas,
     isLoading,
     criarTarefa,
     atualizarTarefa,
@@ -32,16 +37,27 @@ export default function ListasPage() {
     criarItemCompra,
     atualizarItemCompra,
     removerItemCompra,
-  } = useListas()
+  } = useListas(filtros)
+
+  const camposFiltro: CampoFiltro[] = [
+    { key: 'q', tipo: 'busca', placeholder: aba === 'tarefas' ? 'Buscar afazer' : 'Buscar item (nome ou observação)' },
+    {
+      key: 'status', tipo: 'select', label: 'Status', span2: true,
+      opcoes: [
+        { value: 'pendente', label: 'Pendentes' },
+        { value: 'concluido', label: aba === 'tarefas' ? 'Concluídas' : 'Comprados' },
+      ],
+    },
+  ]
 
   const tarefasPendentes = useMemo(
-    () => tarefas.filter((tarefa) => !tarefa.concluida).length,
-    [tarefas]
+    () => tarefasTodas.filter((tarefa) => !tarefa.concluida).length,
+    [tarefasTodas]
   )
 
   const itensPendentes = useMemo(
-    () => compras.filter((item) => !item.comprado).length,
-    [compras]
+    () => comprasTodas.filter((item) => !item.comprado).length,
+    [comprasTodas]
   )
 
   async function handleCriarTarefa(event: FormEvent<HTMLFormElement>) {
@@ -81,7 +97,7 @@ export default function ListasPage() {
 
       <div className="grid grid-cols-2 gap-3">
         <button
-          onClick={() => setAba('tarefas')}
+          onClick={() => { setAba('tarefas'); setFiltros({}) }}
           className={`card p-4 text-left border transition-colors ${
             aba === 'tarefas' ? 'border-primary-500 bg-primary-50' : 'border-transparent'
           }`}
@@ -96,7 +112,7 @@ export default function ListasPage() {
         </button>
 
         <button
-          onClick={() => setAba('compras')}
+          onClick={() => { setAba('compras'); setFiltros({}) }}
           className={`card p-4 text-left border transition-colors ${
             aba === 'compras' ? 'border-primary-500 bg-primary-50' : 'border-transparent'
           }`}
@@ -110,6 +126,8 @@ export default function ListasPage() {
           </p>
         </button>
       </div>
+
+      <FiltrosBarra key={aba} campos={camposFiltro} onFiltrar={(f) => setFiltros(limparFiltrosVazios(f))} />
 
       {aba === 'tarefas' && (
         <>
@@ -135,8 +153,8 @@ export default function ListasPage() {
           ) : tarefas.length === 0 ? (
             <EmptyState
               icon={ListTodo}
-              title="Nenhum afazer por enquanto."
-              description="Crie sua primeira tarefa para organizar o dia."
+              title={temFiltro ? 'Nenhum afazer encontrado para os filtros informados.' : 'Nenhum afazer por enquanto.'}
+              description={temFiltro ? undefined : 'Crie sua primeira tarefa para organizar o dia.'}
             />
           ) : (
             <div className="space-y-2">
@@ -211,8 +229,8 @@ export default function ListasPage() {
           ) : compras.length === 0 ? (
             <EmptyState
               icon={ShoppingCart}
-              title="Sua lista de compras está vazia."
-              description="Adicione itens para não esquecer nada no mercado."
+              title={temFiltro ? 'Nenhum item encontrado para os filtros informados.' : 'Sua lista de compras está vazia.'}
+              description={temFiltro ? undefined : 'Adicione itens para não esquecer nada no mercado.'}
             />
           ) : (
             <div className="space-y-2">

@@ -233,6 +233,70 @@ async def _create_sqlite_schema(conn) -> None:
     )
     await conn.exec_driver_sql(
         """
+        CREATE TABLE IF NOT EXISTS investimentos (
+            id TEXT PRIMARY KEY,
+            usuario_id TEXT NOT NULL,
+            nome TEXT NOT NULL,
+            tipo TEXT NOT NULL,
+            instituicao TEXT,
+            quantidade REAL,
+            preco_medio REAL,
+            valor_investido REAL NOT NULL,
+            valor_atual REAL NOT NULL,
+            data_aplicacao TEXT NOT NULL,
+            observacao TEXT,
+            criado_em TEXT,
+            atualizado_em TEXT
+        )
+        """
+    )
+    await conn.exec_driver_sql(
+        """
+        CREATE TABLE IF NOT EXISTS tarefas (
+            id TEXT PRIMARY KEY,
+            usuario_id TEXT NOT NULL,
+            titulo TEXT NOT NULL,
+            concluida INTEGER NOT NULL DEFAULT 0,
+            criado_em TEXT,
+            atualizado_em TEXT
+        )
+        """
+    )
+    await conn.exec_driver_sql(
+        """
+        CREATE TABLE IF NOT EXISTS itens_compra (
+            id TEXT PRIMARY KEY,
+            usuario_id TEXT NOT NULL,
+            nome TEXT NOT NULL,
+            quantidade REAL NOT NULL DEFAULT 1,
+            unidade TEXT,
+            comprado INTEGER NOT NULL DEFAULT 0,
+            observacao TEXT,
+            criado_em TEXT,
+            atualizado_em TEXT
+        )
+        """
+    )
+    await conn.exec_driver_sql(
+        """
+        CREATE TABLE IF NOT EXISTS nfs_recebidas (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            numero TEXT NOT NULL,
+            serie TEXT,
+            valor REAL NOT NULL,
+            chave_acesso TEXT NOT NULL,
+            codigo_verificacao TEXT,
+            cpf_cnpj TEXT,
+            inscricao_municipal TEXT,
+            url_consulta TEXT,
+            data_emissao TEXT,
+            created_at TEXT
+        )
+        """
+    )
+    await conn.exec_driver_sql(
+        """
         CREATE TABLE IF NOT EXISTS planos_acao (
             id TEXT PRIMARY KEY,
             usuario_id TEXT NOT NULL,

@@ -1,17 +1,28 @@
 import { useCallback, useMemo } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import api from '@/services/api'
 import type { CartaoLancamentosData } from '@/types/financeiro'
 
-export function useCartaoLancamentos(cartaoId: string | undefined) {
+export function useCartaoLancamentos(cartaoId: string | undefined, filtros: Record<string, string> = {}) {
   const qc = useQueryClient()
+  // Chave base: invalidar por ela atinge todas as variantes filtradas
   const queryKey = useMemo(() => ['cartao-lancamentos', cartaoId], [cartaoId])
+  const temFiltro = Object.keys(filtros).length > 0
 
   const query = useQuery<CartaoLancamentosData>({
-    queryKey,
-    queryFn: () => api.get(`/cartoes-credito/${cartaoId}/lancamentos`).then((r) => r.data),
+    queryKey: [...queryKey, filtros],
+    queryFn: () => api.get(`/cartoes-credito/${cartaoId}/lancamentos`, { params: filtros }).then((r) => r.data),
     enabled: !!cartaoId,
     retry: 1,
+    staleTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
+  })
+
+  // Extrato e totais precisam da lista completa, independente dos filtros
+  const completoQuery = useQuery<CartaoLancamentosData>({
+    queryKey: [...queryKey, {}],
+    queryFn: () => api.get(`/cartoes-credito/${cartaoId}/lancamentos`).then((r) => r.data),
+    enabled: !!cartaoId && temFiltro,
     staleTime: 5 * 60_000,
   })
 
@@ -28,5 +39,7 @@ export function useCartaoLancamentos(cartaoId: string | undefined) {
     qc.invalidateQueries({ queryKey: ['cartoes-credito'] })
   }, [qc, queryKey])
 
-  return { ...query, deletar, invalidate }
+  const completo = (temFiltro ? completoQuery.data : query.data)?.lancamentos ?? []
+
+  return { ...query, completo, deletar, invalidate }
 }

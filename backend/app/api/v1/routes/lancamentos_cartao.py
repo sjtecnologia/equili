@@ -3,9 +3,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, field_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.core.dependencies import CurrentUserID, DBSession
+from app.core.filtros import contem
 from app.models.conta_bancaria import CartaoCredito
 from app.models.lancamento_cartao import LancamentoCartao
 
@@ -75,13 +76,29 @@ def reverter_efeito_lancamento(cartao: CartaoCredito, tipo: str, valor: float) -
 # ─── Routes ─────────────────────────────────────────────────────────────────
 
 @router.get("/{cartao_id}/lancamentos")
-async def listar_lancamentos_cartao(cartao_id: UUID, usuario_id: CurrentUserID, db: DBSession):
+async def listar_lancamentos_cartao(
+    cartao_id: UUID,
+    usuario_id: CurrentUserID,
+    db: DBSession,
+    tipo: str | None = None,
+    categoria: str | None = None,
+    q: str | None = None,
+    data_inicio: date | None = None,
+    data_fim: date | None = None,
+):
     cartao = await _get_cartao_or_404(cartao_id, usuario_id, db)
-    result = await db.execute(
-        select(LancamentoCartao)
-        .where(LancamentoCartao.cartao_credito_id == cartao_id)
-        .order_by(LancamentoCartao.data.desc(), LancamentoCartao.criado_em.desc())
-    )
+    query = select(LancamentoCartao).where(LancamentoCartao.cartao_credito_id == cartao_id)
+    if tipo in ("compra", "pagamento"):
+        query = query.where(LancamentoCartao.tipo == tipo)
+    if categoria and categoria.strip():
+        query = query.where(func.lower(func.trim(LancamentoCartao.categoria)) == categoria.strip().lower())
+    if q and q.strip():
+        query = query.where(contem(LancamentoCartao.descricao, q))
+    if data_inicio:
+        query = query.where(LancamentoCartao.data >= data_inicio)
+    if data_fim:
+        query = query.where(LancamentoCartao.data <= data_fim)
+    result = await db.execute(query.order_by(LancamentoCartao.data.desc(), LancamentoCartao.criado_em.desc()))
     lancamentos = result.scalars().all()
     limite_atual = float(cartao.limite_atual)
     return {

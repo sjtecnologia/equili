@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select
 
 from app.core.dependencies import CurrentUserID, DBSession
+from app.core.filtros import contem
 from app.models.categoria import Categoria
 from app.models.conta_lancamento import ContaAPagar, ContaAReceber
 from app.schemas.categoria import CategoriaCreate, CategoriaOut, CategoriaUpdate
@@ -59,6 +60,7 @@ async def listar_categorias(
     db: DBSession,
     tipo: str | None = None,
     ativo: bool | None = None,
+    q: str | None = None,
 ):
     if tipo is not None and tipo not in ("despesa", "receita"):
         raise HTTPException(status_code=422, detail="Tipo inválido. Use: despesa ou receita.")
@@ -67,6 +69,8 @@ async def listar_categorias(
         query = query.where(Categoria.tipo == tipo)
     if ativo is not None:
         query = query.where(Categoria.ativo == ativo)
+    if q and q.strip():
+        query = query.where(contem(Categoria.nome, q))
     result = await db.execute(query.order_by(Categoria.tipo, Categoria.nome))
     return result.scalars().all()
 

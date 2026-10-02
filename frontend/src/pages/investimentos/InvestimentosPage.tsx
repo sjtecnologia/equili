@@ -3,9 +3,20 @@ import { TrendingUp, TrendingDown, Pencil, Trash2, Loader2, PieChart } from 'luc
 import { formatCurrency } from '@/utils/format'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { FiltrosBarra, limparFiltrosVazios, type CampoFiltro } from '@/components/shared/FiltrosBarra'
 import { useInvestimentos } from '@/hooks/useInvestimentos'
 import type { Investimento } from '@/types/financeiro'
 import { InvestimentoModal, TIPO_LABELS, TIPO_COLORS } from './InvestimentoModal'
+
+const CAMPOS_FILTRO: CampoFiltro[] = [
+  { key: 'q', tipo: 'busca', placeholder: 'Buscar (nome ou instituição)' },
+  {
+    key: 'tipo', tipo: 'select', label: 'Tipo', span2: true,
+    opcoes: Object.entries(TIPO_LABELS).map(([value, label]) => ({ value, label })),
+  },
+  { key: 'data_inicio', tipo: 'data', label: 'Aplicação de' },
+  { key: 'data_fim', tipo: 'data', label: 'Aplicação até' },
+]
 
 function brl(v: number) {
   return formatCurrency(v)
@@ -16,8 +27,10 @@ function brl(v: number) {
 export default function InvestimentosPage() {
   const [modal, setModal] = useState(false)
   const [editando, setEditando] = useState<Investimento | null>(null)
+  const [filtros, setFiltros] = useState<Record<string, string>>({})
+  const temFiltro = Object.keys(filtros).length > 0
 
-  const { lista, resumo, isLoading, deletar } = useInvestimentos()
+  const { lista, resumo, isLoading, deletar } = useInvestimentos(filtros)
 
   const abrirEdicao = (inv: Investimento) => {
     setEditando(inv)
@@ -92,11 +105,16 @@ export default function InvestimentosPage() {
         </div>
       )}
 
+      {/* Filtros (a carteira acima continua sendo o total, sem filtro) */}
+      <FiltrosBarra campos={CAMPOS_FILTRO} onFiltrar={(f) => setFiltros(limparFiltrosVazios(f))} />
+
       {/* Lista */}
       {isLoading ? (
         <div className="flex justify-center py-8">
           <Loader2 className="animate-spin text-indigo-500" size={24} />
         </div>
+      ) : lista.length === 0 && temFiltro ? (
+        <EmptyState icon={TrendingUp} title="Nenhum investimento encontrado para os filtros informados." />
       ) : lista.length === 0 ? (
         <EmptyState
           icon={TrendingUp}

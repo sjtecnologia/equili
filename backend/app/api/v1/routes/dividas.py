@@ -4,10 +4,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, field_validator, model_validator
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from app.core.config import settings
 from app.core.dependencies import CurrentUserID, DBSession
+from app.core.filtros import contem
 from app.models.divida import Divida, DividaPagamento
 from app.models.conta_lancamento import ContaAPagar
 from app.models.usuario import Usuario
@@ -199,6 +200,9 @@ async def listar_dividas(
     usuario_id: CurrentUserID,
     db: DBSession,
     status: str = "todas",
+    q: str | None = None,
+    data_inicio: date | None = None,
+    data_fim: date | None = None,
 ):
     if status not in {"ativas", "todas", "quitadas"}:
         raise HTTPException(status_code=400, detail="Status inválido. Use: ativas, todas ou quitadas.")
@@ -207,6 +211,12 @@ async def listar_dividas(
         query = query.where(Divida.quitada == False)  # noqa: E712
     elif status == "quitadas":
         query = query.where(Divida.quitada == True)  # noqa: E712
+    if q and q.strip():
+        query = query.where(or_(contem(Divida.descricao, q), contem(Divida.credor, q)))
+    if data_inicio:
+        query = query.where(Divida.data_prox_vencimento >= data_inicio)
+    if data_fim:
+        query = query.where(Divida.data_prox_vencimento <= data_fim)
     result = await db.execute(query.order_by(Divida.data_prox_vencimento))
     dividas = result.scalars().all()
 
@@ -395,13 +405,33 @@ async def pagar_parcela(divida_id: UUID, data: PagarParcelaRequest, usuario_id: 
 
 
 @router.get("/pagamentos")
-async def listar_todos_pagamentos(usuario_id: CurrentUserID, db: DBSession):
-    result = await db.execute(
+async def listar_todos_pagamentos(
+    usuario_id: CurrentUserID,
+    db: DBSession,
+    q: str | None = None,
+    data_inicio: date | None = None,
+    data_fim: date | None = None,
+    valor_min: float | None = None,
+    valor_max: float | None = None,
+):
+    query = (
         select(DividaPagamento, Divida.descricao, Divida.credor)
         .join(Divida, DividaPagamento.divida_id == Divida.id)
         .where(DividaPagamento.usuario_id == usuario_id)
-        .order_by(DividaPagamento.data_referencia.desc())
     )
+    if q and q.strip():
+        query = query.where(or_(
+            contem(Divida.descricao, q), contem(Divida.credor, q), contem(DividaPagamento.observacao, q),
+        ))
+    if data_inicio:
+        query = query.where(DividaPagamento.data_pagamento >= data_inicio)
+    if data_fim:
+        query = query.where(DividaPagamento.data_pagamento <= data_fim)
+    if valor_min is not None:
+        query = query.where(DividaPagamento.valor_pago >= valor_min)
+    if valor_max is not None:
+        query = query.where(DividaPagamento.valor_pago <= valor_max)
+    result = await db.execute(query.order_by(DividaPagamento.data_referencia.desc()))
     rows = result.all()
     return [
         {

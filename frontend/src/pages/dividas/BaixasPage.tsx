@@ -1,21 +1,31 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Loader2, X, Pencil, Trash2, Search, History, AlertCircle, RefreshCcw } from 'lucide-react'
+import { Loader2, Pencil, Trash2, History, AlertCircle, RefreshCcw } from 'lucide-react'
 import api from '@/services/api'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { FiltrosBarra, limparFiltrosVazios, CAMPOS_PERIODO, type CampoFiltro } from '@/components/shared/FiltrosBarra'
 import type { Baixa } from '@/types/financeiro'
 import { useInlineEdit } from '@/hooks/useInlineEdit'
+
+const CAMPOS_FILTRO: CampoFiltro[] = [
+  { key: 'q', tipo: 'busca', placeholder: 'Buscar por dívida, credor ou observação...' },
+  { key: 'valor_min', tipo: 'numero', label: 'Valor mínimo', step: '0.01' },
+  { key: 'valor_max', tipo: 'numero', label: 'Valor máximo', step: '0.01' },
+  ...CAMPOS_PERIODO,
+]
 
 export default function BaixasPage() {
   const queryClient = useQueryClient()
   const queryKey = ['divida-baixas']
+  const [filtros, setFiltros] = useState<Record<string, string>>({})
+  const temFiltro = Object.keys(filtros).length > 0
 
   const { data: baixas = [], isLoading, isError, refetch } = useQuery<Baixa[]>({
-    queryKey,
+    queryKey: [...queryKey, filtros],
     queryFn: () =>
-      api.get('/dividas/pagamentos').then((r) => {
+      api.get('/dividas/pagamentos', { params: filtros }).then((r) => {
         const data = Array.isArray(r.data) ? r.data : []
         return data.map((item): Baixa => ({
           id: String(item?.id ?? ''),
@@ -33,7 +43,6 @@ export default function BaixasPage() {
     refetchOnMount: 'always',
   })
 
-  const [busca, setBusca] = useState('')
   const { editState, editDispatch } = useInlineEdit()
 
   const deleteMutation = useMutation({
@@ -82,18 +91,7 @@ export default function BaixasPage() {
     }
   }
 
-  const baixasFiltradas = useMemo(
-    () => baixas.filter((b) => {
-      if (!busca.trim()) return true
-      const termo = busca.toLowerCase()
-      return (
-        (b.divida_descricao || '').toLowerCase().includes(termo) ||
-        (b.divida_credor?.toLowerCase().includes(termo) ?? false) ||
-        (b.observacao?.toLowerCase().includes(termo) ?? false)
-      )
-    }),
-    [baixas, busca]
-  )
+  const baixasFiltradas = baixas
 
   function formatarMesReferencia(valor: string) {
     const dt = new Date(`${valor}T00:00:00`)
@@ -109,25 +107,8 @@ export default function BaixasPage() {
         <p className="text-sm text-gray-500">{baixas.length} pagamento(s) registrado(s)</p>
       </div>
 
-      {/* Busca */}
-      <div className="relative">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Buscar por dívida, credor ou observação..."
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          className="input-field pl-9"
-        />
-        {busca && (
-          <button
-            onClick={() => setBusca('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-          >
-            <X size={14} />
-          </button>
-        )}
-      </div>
+      {/* Filtros */}
+      <FiltrosBarra campos={CAMPOS_FILTRO} onFiltrar={(f) => setFiltros(limparFiltrosVazios(f))} />
 
       {/* Lista */}
       {isLoading ? (
@@ -149,7 +130,7 @@ export default function BaixasPage() {
       ) : baixasFiltradas.length === 0 ? (
         <EmptyState
           icon={History}
-          title={busca ? 'Nenhuma baixa encontrada para essa busca.' : 'Nenhuma baixa registrada ainda.'}
+          title={temFiltro ? 'Nenhuma baixa encontrada para essa busca.' : 'Nenhuma baixa registrada ainda.'}
         />
       ) : (
         <div className="space-y-2">

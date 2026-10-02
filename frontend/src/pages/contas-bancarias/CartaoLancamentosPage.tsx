@@ -10,6 +10,7 @@ import { formatCurrency } from '@/utils/format'
 import { parseApiError } from '@/utils/api'
 import { ModalDialog } from '@/components/ui/ModalDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { FiltrosBarra, limparFiltrosVazios, CAMPOS_PERIODO, type CampoFiltro } from '@/components/shared/FiltrosBarra'
 import { lancamentoCartaoSchema } from '@/lib/schemas/financeiro'
 import type { LancamentoCartaoFormData } from '@/lib/schemas/financeiro'
 import type { CartaoLancamento as Lancamento } from '@/types/financeiro'
@@ -22,6 +23,16 @@ type LancamentoForm = LancamentoCartaoFormData
 const CATEGORIAS = [
   'Alimentação', 'Transporte', 'Moradia', 'Saúde', 'Educação',
   'Lazer', 'Assinaturas', 'Vestuário', 'Viagem', 'Outros',
+]
+
+const CAMPOS_FILTRO: CampoFiltro[] = [
+  { key: 'q', tipo: 'busca', placeholder: 'Buscar (descrição)' },
+  { key: 'tipo', tipo: 'select', label: 'Tipo', opcoes: [{ value: 'compra', label: 'Compra' }, { value: 'pagamento', label: 'Pagamento' }] },
+  {
+    key: 'categoria', tipo: 'select', label: 'Categoria', todasLabel: 'Todas',
+    opcoes: CATEGORIAS.map((c) => ({ value: c, label: c })),
+  },
+  ...CAMPOS_PERIODO,
 ]
 
 /* ─── Modal ─── */
@@ -264,7 +275,9 @@ function ExtratoCartaoModal({
 /* ─── Página principal ─── */
 export default function CartaoLancamentosPage() {
   const { cartaoId } = useParams<{ cartaoId: string }>()
-  const { data, isLoading, isError, deletar, invalidate } = useCartaoLancamentos(cartaoId)
+  const [filtros, setFiltros] = useState<Record<string, string>>({})
+  const temFiltro = Object.keys(filtros).length > 0
+  const { data, completo, isLoading, isError, deletar, invalidate } = useCartaoLancamentos(cartaoId, filtros)
   const [modalTipo, setModalTipo] = useState<'compra' | 'pagamento' | null>(null)
   const [showExtrato, setShowExtrato] = useState(false)
 
@@ -354,12 +367,14 @@ export default function CartaoLancamentosPage() {
         </button>
         <button
           onClick={() => setShowExtrato(true)}
-          disabled={lancamentos.length === 0}
+          disabled={completo.length === 0}
           className="btn-secondary flex items-center gap-2 py-2 px-3 text-sm disabled:opacity-40"
         >
           <FileText size={16} /> Extrato
         </button>
       </div>
+
+      <FiltrosBarra campos={CAMPOS_FILTRO} onFiltrar={(f) => setFiltros(limparFiltrosVazios(f))} />
 
       {/* Lista */}
       {isLoading ? (
@@ -381,8 +396,8 @@ export default function CartaoLancamentosPage() {
       ) : lancamentos.length === 0 ? (
         <EmptyState
           icon={ShoppingCart}
-          title="Nenhuma movimentação ainda"
-          description="Registre compras ou pagamentos de fatura"
+          title={temFiltro ? 'Nenhuma movimentação encontrada para os filtros informados.' : 'Nenhuma movimentação ainda'}
+          description={temFiltro ? undefined : 'Registre compras ou pagamentos de fatura'}
         />
       ) : (
         <div className="space-y-4">
@@ -446,7 +461,7 @@ export default function CartaoLancamentosPage() {
       )}
       {showExtrato && (
         <ExtratoCartaoModal
-          lancamentos={lancamentos}
+          lancamentos={completo}
           nomeCartao={data?.nome ?? ''}
           diaFechamento={data?.dia_fechamento ?? 1}
           onClose={() => setShowExtrato(false)}

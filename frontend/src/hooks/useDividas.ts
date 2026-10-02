@@ -3,13 +3,22 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/services/api'
 import type { Divida, ContaFixaAtrasada } from '@/types/financeiro'
 
-export function useDividas() {
+export function useDividas(filtros: Record<string, string> = {}) {
   const qc = useQueryClient()
+  const temFiltro = Object.keys(filtros).length > 0
 
   const query = useQuery<Divida[]>({
-    queryKey: ['dividas'],
+    queryKey: ['dividas', filtros],
+    queryFn: () => api.get('/dividas', { params: filtros }).then((r) => r.data),
+    staleTime: 5 * 60_000,
+  })
+
+  // Resumo e limite do plano usam sempre a lista completa (mesma chave de cache quando não há filtro)
+  const todasQuery = useQuery<Divida[]>({
+    queryKey: ['dividas', {}],
     queryFn: () => api.get('/dividas').then((r) => r.data),
     staleTime: 5 * 60_000,
+    enabled: temFiltro,
   })
 
   const contasFixasAtrasadas = useQuery<ContaFixaAtrasada[]>({
@@ -28,6 +37,7 @@ export function useDividas() {
 
   return {
     ...query,
+    todas: (temFiltro ? todasQuery.data : query.data) ?? [],
     contasFixasAtrasadas: contasFixasAtrasadas.data ?? [],
     deletar,
     invalidate,

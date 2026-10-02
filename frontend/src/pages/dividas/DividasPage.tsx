@@ -5,6 +5,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { useDividas } from '@/hooks/useDividas'
+import { FiltrosBarra, limparFiltrosVazios, CAMPOS_PERIODO, type CampoFiltro } from '@/components/shared/FiltrosBarra'
 import { gerarAgendaParcelas } from '@/lib/parcelas'
 import type { Divida } from '@/types/financeiro'
 import { DividaModal, EditarDividaModal, PagarParcelaModal, HistoricoPagamentosModal } from './DividaModals'
@@ -57,13 +58,26 @@ function modalReducer(state: ModalState, action: ModalAction): ModalState {
 }
 
 
+const CAMPOS_FILTRO: CampoFiltro[] = [
+  { key: 'q', tipo: 'busca', placeholder: 'Buscar (descrição ou credor)' },
+  {
+    key: 'status', tipo: 'select', label: 'Status', span2: true,
+    opcoes: [{ value: 'ativas', label: 'Ativas' }, { value: 'quitadas', label: 'Quitadas' }],
+  },
+  ...CAMPOS_PERIODO.map((c) => ({ ...c, label: c.key === 'data_inicio' ? 'Vencimento de' : 'Vencimento até' }) as CampoFiltro),
+]
+
 export default function DividasPage() {
   const [modals, dispatchModal] = useReducer(modalReducer, initialModalState)
   const [parcelasVisiveis, setParcelasVisiveis] = useState<Record<string, boolean>>({})
 
-  const { data: dividas = [], isLoading, contasFixasAtrasadas, deletar: deleteMutation } = useDividas()
+  const [filtros, setFiltros] = useState<Record<string, string>>({})
+  const temFiltro = Object.keys(filtros).length > 0
 
-  const dividasAtivas = dividas.filter((d) => !d.quitada)
+  const { data: dividas = [], todas, isLoading, contasFixasAtrasadas, deletar: deleteMutation } = useDividas(filtros)
+
+  // Resumo, banner de atraso e limite do plano consideram todas as dívidas, não só as filtradas
+  const dividasAtivas = todas.filter((d) => !d.quitada)
   const totalDevido = dividasAtivas.reduce(
     (acc, d) => acc + d.valor_parcela * d.parcelas_restantes,
     0
@@ -152,9 +166,14 @@ export default function DividasPage() {
         </div>
       )}
 
+      {/* Filtros */}
+      <FiltrosBarra campos={CAMPOS_FILTRO} onFiltrar={(f) => setFiltros(limparFiltrosVazios(f))} />
+
       {/* Lista */}
       {isLoading ? (
         <SkeletonList count={3} height="h-24" />
+      ) : dividas.length === 0 && temFiltro ? (
+        <EmptyState icon={CheckCircle} title="Nenhuma dívida encontrada para os filtros informados." />
       ) : dividas.length === 0 ? (
         <EmptyState icon={CheckCircle} title="Nenhuma dívida cadastrada" description="Adicione uma dívida para acompanhar suas parcelas." />
       ) : (

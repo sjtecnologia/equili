@@ -2,12 +2,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/services/api'
 import type { Investimento, CarteiraResumo } from '@/types/financeiro'
 
-export function useInvestimentos() {
+export function useInvestimentos(filtros: Record<string, string> = {}) {
   const qc = useQueryClient()
 
   const listaQuery = useQuery<Investimento[]>({
-    queryKey: ['investimentos'],
-    queryFn: () => api.get('/investimentos').then((r) => r.data),
+    queryKey: ['investimentos', filtros],
+    queryFn: () => api.get('/investimentos', { params: filtros }).then((r) => r.data),
   })
 
   const resumoQuery = useQuery<CarteiraResumo>({
