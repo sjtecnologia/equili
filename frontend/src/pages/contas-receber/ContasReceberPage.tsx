@@ -4,6 +4,7 @@ import { formatCurrency, formatDate } from '@/utils/format'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { ContasFiltrosBar, limparFiltrosVazios } from '@/components/shared/ContasFiltrosBar'
 import { useContasReceber } from '@/hooks/useContasReceber'
 import type { ContaAReceber } from '@/types/financeiro'
 import { ORIGENS, EditarContaReceberModal, ReceberContaModal, ContaModal } from './ContaReceberModals'
@@ -55,14 +56,11 @@ const STATUS_LABELS: Record<string, { label: string; classes: string }> = {
 
 export default function ContasReceberPage() {
   const [modals, dispatchModal] = useReducer(modalReducer, initialModalState)
-  const [filtroStatus, setFiltroStatus] = useState<string>('todos')
+  const [filtros, setFiltros] = useState<Record<string, string>>({})
+  const temFiltro = Object.keys(filtros).length > 0
 
-  const { data: contas = [], isLoading, deletar: deleteMutation } = useContasReceber()
-
-  const contasFiltradas = useMemo(
-    () => filtroStatus === 'todos' ? contas : contas.filter((c) => c.status === filtroStatus),
-    [contas, filtroStatus]
-  )
+  const { data: contas = [], isLoading, deletar: deleteMutation } = useContasReceber(filtros)
+  const contasFiltradas = contas
 
   const { totalPendente, totalRecebido } = useMemo(() => ({
     totalPendente: contas.filter((c) => c.status !== 'recebido').reduce((acc, c) => acc + c.valor, 0),
@@ -90,21 +88,11 @@ export default function ContasReceberPage() {
       </div>
 
       {/* Filtros */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {['todos', 'pendente', 'atrasado', 'recebido'].map((f) => (
-          <button
-            key={f}
-            onClick={() => setFiltroStatus(f)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition-colors ${
-              filtroStatus === f
-                ? 'bg-primary-500 text-white border-primary-500'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-primary-500'
-            }`}
-          >
-            {f === 'todos' ? 'Todos' : STATUS_LABELS[f].label}
-          </button>
-        ))}
-      </div>
+      <ContasFiltrosBar
+        tipoCategoria="receita"
+        statusOptions={Object.entries(STATUS_LABELS).map(([value, s]) => ({ value, label: s.label }))}
+        onFiltrar={(f) => setFiltros(limparFiltrosVazios(f))}
+      />
 
       {/* Lista */}
       {isLoading ? (
@@ -112,8 +100,8 @@ export default function ContasReceberPage() {
       ) : contasFiltradas.length === 0 ? (
         <EmptyState
           icon={CheckCircle2}
-          title={filtroStatus === 'todos' ? 'Nenhuma conta cadastrada.' : `Nenhuma conta ${STATUS_LABELS[filtroStatus]?.label.toLowerCase()}.`}
-          action={filtroStatus === 'todos' ? { label: 'Adicionar primeira conta', onClick: () => dispatchModal({ type: 'OPEN_CREATE' }) } : undefined}
+          title={temFiltro ? 'Nenhuma conta encontrada para os filtros informados.' : 'Nenhuma conta cadastrada.'}
+          action={!temFiltro ? { label: 'Adicionar primeira conta', onClick: () => dispatchModal({ type: 'OPEN_CREATE' }) } : undefined}
         />
       ) : (
         <div className="space-y-3">

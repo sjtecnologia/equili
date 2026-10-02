@@ -4,12 +4,12 @@ import api from '@/services/api'
 import { invalidateContasReceberAndDashboard } from '@/lib/queryInvalidation'
 import type { ContaAReceber } from '@/types/financeiro'
 
-export function useContasReceber() {
+export function useContasReceber(params: Record<string, string> = {}) {
   const qc = useQueryClient()
 
   const query = useQuery<ContaAReceber[]>({
-    queryKey: ['contas-receber'],
-    queryFn: () => api.get('/contas-receber').then((r) => r.data),
+    queryKey: ['contas-receber', params],
+    queryFn: () => api.get('/contas-receber', { params }).then((r) => r.data),
     staleTime: 5 * 60_000,
   })
 

@@ -32,7 +32,7 @@ export type CartaoCreditoFormData = z.infer<typeof cartaoCreditoSchema>
 export const contaPagarSchema = z
   .object({
     descricao: z.string().min(1, 'Descrição obrigatória'),
-    categoria: z.string().min(1, 'Selecione a categoria'),
+    categoria: z.string(),
     valor: z.coerce.number().positive('Valor deve ser positivo'),
     data_vencimento: z.string().min(1, 'Data obrigatória'),
     modalidade: z.enum(['avulsa', 'recorrente', 'parcelada']),
@@ -47,7 +47,7 @@ export type ContaPagarFormData = z.infer<typeof contaPagarSchema>
 
 export const editarContaPagarSchema = z.object({
   descricao: z.string().min(1, 'Descrição obrigatória'),
-  categoria: z.string().min(1),
+  categoria: z.string(),
   valor: z.coerce.number().positive('Valor deve ser positivo'),
   data_vencimento: z.string().min(1, 'Data obrigatória'),
   tipo: z.enum(['avulsa', 'fixa', 'variavel']),
@@ -60,7 +60,7 @@ export type EditarContaPagarFormData = z.infer<typeof editarContaPagarSchema>
 export const contaReceberSchema = z
   .object({
     descricao: z.string().min(1, 'Descrição obrigatória'),
-    origem: z.string().min(1, 'Selecione a origem'),
+    origem: z.string(),
     valor: z.coerce.number().positive('Valor deve ser positivo'),
     data_prevista: z.string().min(1, 'Data obrigatória'),
     modalidade: z.enum(['avulsa', 'recorrente', 'parcelada']),
@@ -76,7 +76,7 @@ export type ContaReceberFormData = z.infer<typeof contaReceberSchema>
 
 export const editarContaReceberSchema = z.object({
   descricao: z.string().min(1, 'Descrição obrigatória'),
-  origem: z.string().min(1),
+  origem: z.string(),
   valor: z.coerce.number().positive('Valor deve ser positivo'),
   data_prevista: z.string().min(1, 'Data obrigatória'),
   tipo: z.enum(['avulsa', 'recorrente', 'parcelada']),

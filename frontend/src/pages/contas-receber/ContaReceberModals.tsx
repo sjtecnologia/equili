@@ -8,6 +8,7 @@ import { formatCurrency } from '@/utils/format'
 import { parseApiError } from '@/utils/api'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
 import { ModalDialog } from '@/components/ui/ModalDialog'
+import { CategoriaSelect } from '@/components/shared/CategoriaSelect'
 import { notify } from '@/utils/notify'
 import { invalidateContasReceberAndDashboard } from '@/lib/queryInvalidation'
 import { contaReceberSchema, editarContaReceberSchema } from '@/lib/schemas/financeiro'
@@ -53,6 +54,7 @@ export function EditarContaReceberModal({
     register,
     control,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<EditFormData>({
     resolver: zodResolver(editSchema),
@@ -104,9 +106,7 @@ export function EditarContaReceberModal({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Origem</label>
-            <select className="input-field" {...register('origem')}>
-              {ORIGENS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+            <CategoriaSelect tipo="receita" fallback={ORIGENS} valorAtual={watch('origem')} {...register('origem')} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de lançamento</label>
@@ -232,7 +232,7 @@ export function ContaModal({ onClose }: ContaReceberModalProps) {
     formState: { errors, isSubmitting },
   } = useForm<ContaFormData>({
     resolver: zodResolver(schema),
-    defaultValues: { origem: 'outro', modalidade: 'avulsa' },
+    defaultValues: { origem: '', modalidade: 'avulsa' },
   })
 
   const modalidade = watch('modalidade')
@@ -358,11 +358,7 @@ export function ContaModal({ onClose }: ContaReceberModalProps) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Origem</label>
-            <select className="input-field" {...register('origem')}>
-              {ORIGENS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+            <CategoriaSelect tipo="receita" fallback={ORIGENS} valorAtual={watch('origem')} {...register('origem')} />
           </div>
 
           <div>

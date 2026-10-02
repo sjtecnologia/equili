@@ -19,10 +19,6 @@ from app.models.lancamento_conta import LancamentoConta
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-CATEGORIAS_VALIDAS = {
-    "moradia", "transporte", "saude", "educacao",
-    "alimentacao", "lazer", "outro",
-}
 STATUS_VALIDOS = {"pendente", "pago", "vencido"}
 MODALIDADES_VALIDAS = {"avulsa", "recorrente", "parcelada"}
 
@@ -38,7 +34,7 @@ def _add_months(dt: date, months: int) -> date:
 
 class ContaAPagarCreate(BaseModel):
     descricao: str
-    categoria: str
+    categoria: str | None = ""
     valor: float
     data_vencimento: date
     modalidade: str = "avulsa"   # avulsa | recorrente | parcelada
@@ -52,11 +48,12 @@ class ContaAPagarCreate(BaseModel):
             raise ValueError("Valor deve ser maior que zero.")
         return v
 
-    @field_validator("categoria")
+    @field_validator("categoria", mode="before")
     @classmethod
-    def categoria_valida(cls, v: str) -> str:
-        if v not in CATEGORIAS_VALIDAS:
-            raise ValueError(f"Categoria inválida. Use: {', '.join(sorted(CATEGORIAS_VALIDAS))}")
+    def categoria_livre(cls, v) -> str:
+        v = "" if v is None else str(v).strip()
+        if len(v) > 50:
+            raise ValueError("Categoria deve ter no máximo 50 caracteres.")
         return v
 
     @field_validator("modalidade")
@@ -105,6 +102,16 @@ class ContaAPagarUpdate(BaseModel):
     data_vencimento: date | None = None
     tipo: str | None = None  # avulsa | fixa | variavel
     observacao: str | None = None
+
+    @field_validator("categoria", mode="before")
+    @classmethod
+    def categoria_livre(cls, v):
+        if v is None:
+            return None
+        v = str(v).strip()
+        if len(v) > 50:
+            raise ValueError("Categoria deve ter no máximo 50 caracteres.")
+        return v
 
     @field_validator("tipo")
     @classmethod
@@ -163,10 +170,31 @@ async def listar_contas_pagar(
     status: str | None = None,
     mes: int | None = None,
     ano: int | None = None,
+    q: str | None = None,
+    parcela: int | None = None,
+    categoria: str | None = None,
+    data_inicio: date | None = None,
+    data_fim: date | None = None,
 ):
     query = select(ContaAPagar).where(ContaAPagar.usuario_id == usuario_id)
     if status and status in STATUS_VALIDOS:
         query = query.where(ContaAPagar.status == status)
+    if categoria and categoria.strip():
+        query = query.where(func.lower(func.trim(ContaAPagar.categoria)) == categoria.strip().lower())
+    if data_inicio:
+        query = query.where(ContaAPagar.data_vencimento >= data_inicio)
+    if data_fim:
+        query = query.where(ContaAPagar.data_vencimento <= data_fim)
+    # Parcela é gravada como "(N/total)" ao final da descrição
+    if parcela is not None:
+        query = query.where(ContaAPagar.descricao.like(f"%({parcela}/%"))
+    if q and q.strip():
+        termo = q.strip()
+        escaped = termo.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        cond = ContaAPagar.descricao.ilike(f"%{escaped}%", escape="\\")
+        if termo.isdigit():
+            cond = cond | ContaAPagar.descricao.like(f"%({int(termo)}/%")
+        query = query.where(cond)
     if mes and ano:
         from sqlalchemy import extract
         query = query.where(

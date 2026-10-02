@@ -9,6 +9,7 @@ import { formatCurrency } from '@/utils/format'
 import { parseApiError } from '@/utils/api'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
 import { ModalDialog } from '@/components/ui/ModalDialog'
+import { CategoriaSelect } from '@/components/shared/CategoriaSelect'
 import { invalidateContasPagarAndDashboard } from '@/lib/queryInvalidation'
 import { contaPagarSchema, editarContaPagarSchema } from '@/lib/schemas/financeiro'
 import type { ContaPagarFormData, EditarContaPagarFormData } from '@/lib/schemas/financeiro'
@@ -86,6 +87,7 @@ export function EditarContaModal({
     register,
     control,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<EditFormData>({
     resolver: zodResolver(editSchema),
@@ -136,9 +138,7 @@ export function EditarContaModal({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-            <select className="input-field" {...register('categoria')}>
-              {CATEGORIAS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-            </select>
+            <CategoriaSelect tipo="despesa" fallback={CATEGORIAS} valorAtual={watch('categoria')} {...register('categoria')} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de lançamento</label>
@@ -293,7 +293,7 @@ export function ContaModal({ onClose }: ContaModalProps) {
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { categoria: 'outro', modalidade: 'avulsa' },
+    defaultValues: { categoria: '', modalidade: 'avulsa' },
   })
 
   const modalidade = watch('modalidade')
@@ -419,11 +419,7 @@ export function ContaModal({ onClose }: ContaModalProps) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-            <select className="input-field" {...register('categoria')}>
-              {CATEGORIAS.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
+            <CategoriaSelect tipo="despesa" fallback={CATEGORIAS} valorAtual={watch('categoria')} {...register('categoria')} />
           </div>
 
           <div>

@@ -4,12 +4,12 @@ import api from '@/services/api'
 import { invalidateContasPagarAndDashboard } from '@/lib/queryInvalidation'
 import type { ContaAPagar } from '@/types/financeiro'
 
-export function useContasPagar() {
+export function useContasPagar(params: Record<string, string> = {}) {
   const qc = useQueryClient()
 
   const query = useQuery<ContaAPagar[]>({
-    queryKey: ['contas-pagar'],
-    queryFn: () => api.get('/contas-pagar').then((r) => r.data),
+    queryKey: ['contas-pagar', params],
+    queryFn: () => api.get('/contas-pagar', { params }).then((r) => r.data),
     staleTime: 5 * 60_000,
   })
 

@@ -7,7 +7,7 @@ from uuid import UUID as PyUUID
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, field_validator, model_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.core.dependencies import CurrentUserID, DBSession
 from app.models.conta_bancaria import ContaBancaria
@@ -17,7 +17,6 @@ from app.models.lancamento_conta import LancamentoConta
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-ORIGENS_VALIDAS = {"salario", "freela", "venda", "emprestimo", "outro"}
 STATUS_VALIDOS = {"pendente", "recebido", "atrasado"}
 MODALIDADES_VALIDAS = {"avulsa", "recorrente", "parcelada"}
 
@@ -33,7 +32,7 @@ def _add_months(dt: date, months: int) -> date:
 
 class ContaAReceberCreate(BaseModel):
     descricao: str
-    origem: str
+    origem: str | None = ""
     valor: float
     data_prevista: date
     modalidade: str = "avulsa"  # avulsa | recorrente | parcelada
@@ -48,11 +47,12 @@ class ContaAReceberCreate(BaseModel):
             raise ValueError("Valor deve ser maior que zero.")
         return v
 
-    @field_validator("origem")
+    @field_validator("origem", mode="before")
     @classmethod
-    def origem_valida(cls, v: str) -> str:
-        if v not in ORIGENS_VALIDAS:
-            raise ValueError(f"Origem inválida. Use: {', '.join(sorted(ORIGENS_VALIDAS))}")
+    def origem_livre(cls, v) -> str:
+        v = "" if v is None else str(v).strip()
+        if len(v) > 30:
+            raise ValueError("Origem deve ter no máximo 30 caracteres.")
         return v
 
     @field_validator("modalidade")
@@ -103,6 +103,16 @@ class ContaAReceberUpdate(BaseModel):
     devedor: str | None = None
     observacao: str | None = None
 
+    @field_validator("origem", mode="before")
+    @classmethod
+    def origem_livre(cls, v):
+        if v is None:
+            return None
+        v = str(v).strip()
+        if len(v) > 30:
+            raise ValueError("Origem deve ter no máximo 30 caracteres.")
+        return v
+
     @field_validator("tipo")
     @classmethod
     def tipo_valido(cls, v: str | None) -> str | None:
@@ -123,10 +133,31 @@ async def listar_contas_receber(
     status: str | None = None,
     mes: int | None = None,
     ano: int | None = None,
+    q: str | None = None,
+    parcela: int | None = None,
+    categoria: str | None = None,
+    data_inicio: date | None = None,
+    data_fim: date | None = None,
 ):
     query = select(ContaAReceber).where(ContaAReceber.usuario_id == usuario_id)
     if status and status in STATUS_VALIDOS:
         query = query.where(ContaAReceber.status == status)
+    if categoria and categoria.strip():
+        query = query.where(func.lower(func.trim(ContaAReceber.origem)) == categoria.strip().lower())
+    if data_inicio:
+        query = query.where(ContaAReceber.data_prevista >= data_inicio)
+    if data_fim:
+        query = query.where(ContaAReceber.data_prevista <= data_fim)
+    # Parcela é gravada como "(N/total)" ao final da descrição
+    if parcela is not None:
+        query = query.where(ContaAReceber.descricao.like(f"%({parcela}/%"))
+    if q and q.strip():
+        termo = q.strip()
+        escaped = termo.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        cond = ContaAReceber.descricao.ilike(f"%{escaped}%", escape="\\")
+        if termo.isdigit():
+            cond = cond | ContaAReceber.descricao.like(f"%({int(termo)}/%")
+        query = query.where(cond)
     if mes and ano:
         from sqlalchemy import extract
         query = query.where(
