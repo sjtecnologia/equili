@@ -36,6 +36,7 @@ async def _chamar_github_models_raw(
     temperature: float,
     max_tokens: int,
     response_format: dict | None,
+    timeout: float = 30.0,
 ) -> dict:
     """Faz a chamada HTTP em si e retorna o corpo JSON bruto da resposta.
 
@@ -68,7 +69,7 @@ async def _chamar_github_models_raw(
 
     for tentativa in range(len(RETRY_DELAYS_SECONDS) + 1):
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=timeout) as client:
                 response = await client.post(
                     f"{base_url}/chat/completions",
                     headers=headers,
@@ -120,13 +121,14 @@ async def chamar_github_models(
     temperature: float = 0.7,
     max_tokens: int = 2048,
     response_format: dict | None = None,
+    timeout: float = 30.0,
 ) -> str:
     """Chama {base_url}/chat/completions no GitHub Models e retorna o texto da resposta.
 
     Trata httpx.TimeoutException com retry e levanta TimeoutError após timeouts esgotados.
     Levanta GitHubModelsNotConfigured, httpx.HTTPStatusError ou ValueError.
     """
-    data = await _chamar_github_models_raw(system_prompt, user_prompt, temperature, max_tokens, response_format)
+    data = await _chamar_github_models_raw(system_prompt, user_prompt, temperature, max_tokens, response_format, timeout)
     try:
         return data["choices"][0]["message"]["content"]
     except (KeyError, IndexError) as exc:
@@ -140,9 +142,10 @@ async def chamar_github_models_com_uso(
     temperature: float = 0.7,
     max_tokens: int = 2048,
     response_format: dict | None = None,
+    timeout: float = 30.0,
 ) -> tuple[str, int | None]:
     """Mesma chamada de chamar_github_models, mas também retorna o total de tokens usados."""
-    data = await _chamar_github_models_raw(system_prompt, user_prompt, temperature, max_tokens, response_format)
+    data = await _chamar_github_models_raw(system_prompt, user_prompt, temperature, max_tokens, response_format, timeout)
     try:
         conteudo = data["choices"][0]["message"]["content"]
     except (KeyError, IndexError) as exc:

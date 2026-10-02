@@ -23,20 +23,18 @@ class _FakeAIResponse:
         return self._payload
 
 
-def _mock_ai_response(monkeypatch):
+CONTEUDO_IA = (
+    '{"resumo_situacao": "Você está no caminho certo.", "prioridades": ["Quitar o financiamento"], '
+    '"plano": [{"acao": "Pagar parcela", "valor_estimado": "R$ 1200", "prazo": "este mês", "prioridade": "alta"}], '
+    '"projecao": "Caixa positivo nos próximos 3 meses."}'
+)
+
+
+def _mock_ai_response(monkeypatch, conteudo=CONTEUDO_IA, capturado=None):
     async def fake_post(self, url, headers=None, json=None, **kwargs):
-        return _FakeAIResponse(
-            {
-                "usage": {"total_tokens": 512},
-                "choices": [
-                    {
-                        "message": {
-                            "content": '{"resumo_situacao": "Você está no caminho certo.", "estrategia": "avalanche", "justificativa_estrategia": "Priorizar juros maiores.", "valor_mensal_para_dividas": 1500.0, "saldo_disponivel_real": 700.0, "ordem_quitacao": [{"ordem": 1, "descricao": "Financiamento", "data_quitacao_estimada": "2026-03", "motivo_prioridade": "Maior juros"}], "data_livre_prevista": "2026-04", "meses_ate_liberdade": 3, "sugestoes_economia": ["Reduzir gastos", "Usar reserva"], "mensagem_motivacional": "Você consegue.", "alerta_fluxo_caixa": null}'
-                        }
-                    }
-                ],
-            }
-        )
+        if capturado is not None:
+            capturado.append(json)
+        return _FakeAIResponse({"usage": {"total_tokens": 512}, "choices": [{"message": {"content": conteudo}}]})
 
     monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
 
@@ -52,7 +50,8 @@ def test_gerar_plano_acao_usa_fluxo_de_caixa(finance_client, monkeypatch):
     config_module.settings.GITHUB_MODELS_MODEL = "gpt-test"
     config_module.settings.GITHUB_MODELS_API_KEY = "test-token"
     monkeypatch.setattr("app.core.rastro_client.rastro_client.send_warning_event", _fake_warning_event)
-    _mock_ai_response(monkeypatch)
+    enviados: list = []
+    _mock_ai_response(monkeypatch, capturado=enviados)
 
     async def seed_business_state():
         hoje = date.today()
@@ -102,9 +101,20 @@ def test_gerar_plano_acao_usa_fluxo_de_caixa(finance_client, monkeypatch):
 
     assert response.status_code == 201, response.text
     payload = response.json()
-    assert payload["conteudo"]["estrategia"] == "avalanche"
-    assert payload["conteudo"]["saldo_disponivel_real"] == 700.0
+    conteudo = payload["conteudo"]
+    assert conteudo["resumo_situacao"] == "Você está no caminho certo."
+    assert conteudo["plano"][0]["prioridade"] == "alta"
+    assert conteudo["estrategia"] == "avalanche"
+    # 0 em contas + 2500 a receber em 30d - 1200 a pagar em 30d
+    assert conteudo["saldo_disponivel_real"] == 1300.0
+    assert conteudo["ordem_quitacao"][0]["descricao"] == "Financiamento"
     assert payload["tokens_usados"] == 512
+
+    # a IA recebe o resumo compacto e pede JSON, com parâmetros ajustados
+    corpo = enviados[0]
+    assert corpo["temperature"] == 0.3 and corpo["max_tokens"] == 1500
+    assert corpo["response_format"] == {"type": "json_object"}
+    assert '"renda_mensal_total":5000.0' in corpo["messages"][1]["content"]
 
 
 def test_plano_gratuito_limita_cota_mensal(finance_client, monkeypatch):
