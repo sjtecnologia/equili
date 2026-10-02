@@ -2,6 +2,7 @@
 
 Usado pelo gerador de Plano de Ação e pelo Assistente IA (chat).
 """
+import asyncio
 import logging
 
 import httpx
@@ -11,6 +12,8 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 FALLBACK_MODEL = "openai/gpt-4o-mini"
+RETRYABLE_STATUS_CODES = {429, 503}
+RETRY_DELAYS_SECONDS = (1, 2)
 
 
 class GitHubModelsNotConfigured(Exception):
@@ -34,7 +37,11 @@ async def _chamar_github_models_raw(
     max_tokens: int,
     response_format: dict | None,
 ) -> dict:
-    """Faz a chamada HTTP em si e retorna o corpo JSON bruto da resposta."""
+    """Faz a chamada HTTP em si e retorna o corpo JSON bruto da resposta.
+
+    Trata httpx.TimeoutException com retry e levanta TimeoutError após timeouts esgotados.
+    Levanta httpx.HTTPStatusError em erro HTTP.
+    """
     base_url, api_key, model = get_github_models_config()
     if not api_key:
         raise GitHubModelsNotConfigured(
@@ -59,32 +66,52 @@ async def _chamar_github_models_raw(
         "Accept": "application/json",
     }
 
-    response: httpx.Response | None = None
-    max_tentativas = 2  # 1 tentativa original + 1 retry em caso de timeout
-    for tentativa in range(max_tentativas):
+    for tentativa in range(len(RETRY_DELAYS_SECONDS) + 1):
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(f"{base_url}/chat/completions", headers=headers, json=payload)
+                response = await client.post(
+                    f"{base_url}/chat/completions",
+                    headers=headers,
+                    json=payload,
+                )
             response.raise_for_status()
-            break
+            try:
+                return response.json()
+            except ValueError as exc:
+                logger.error("Resposta não-JSON do GitHub Models.")
+                raise ValueError("Resposta inválida do GitHub Models.") from exc
         except httpx.TimeoutException:
-            logger.warning("Timeout ao chamar GitHub Models (tentativa %s/%s).", tentativa + 1, max_tentativas)
-            if tentativa + 1 >= max_tentativas:
-                raise TimeoutError("O GitHub Models demorou muito para responder.")
+            if tentativa < len(RETRY_DELAYS_SECONDS):
+                delay = RETRY_DELAYS_SECONDS[tentativa]
+                logger.warning(
+                    "Timeout ao chamar GitHub Models (tentativa %s/3) — aguardando %ss",
+                    tentativa + 1,
+                    delay,
+                )
+                await asyncio.sleep(delay)
+                continue
+
+            logger.error("Timeout ao chamar GitHub Models após todas as tentativas.")
+            raise TimeoutError("O GitHub Models demorou muito para responder.")
         except httpx.HTTPStatusError as exc:
+            status_code = exc.response.status_code
+            if status_code in RETRYABLE_STATUS_CODES and tentativa < len(RETRY_DELAYS_SECONDS):
+                delay = RETRY_DELAYS_SECONDS[tentativa]
+                logger.warning(
+                    "Retry %s/2 em %s — aguardando %ss",
+                    tentativa + 1,
+                    status_code,
+                    delay,
+                )
+                await asyncio.sleep(delay)
+                continue
+
             logger.error(
                 "Erro HTTP do GitHub Models: status %s — corpo: %s",
-                exc.response.status_code,
+                status_code,
                 exc.response.text,
             )
             raise
-
-    assert response is not None
-    try:
-        return response.json()
-    except ValueError as exc:
-        logger.error("Resposta não-JSON do GitHub Models.")
-        raise ValueError("Resposta inválida do GitHub Models.") from exc
 
 
 async def chamar_github_models(
@@ -96,7 +123,8 @@ async def chamar_github_models(
 ) -> str:
     """Chama {base_url}/chat/completions no GitHub Models e retorna o texto da resposta.
 
-    Levanta GitHubModelsNotConfigured, httpx.HTTPStatusError, TimeoutError ou ValueError.
+    Trata httpx.TimeoutException com retry e levanta TimeoutError após timeouts esgotados.
+    Levanta GitHubModelsNotConfigured, httpx.HTTPStatusError ou ValueError.
     """
     data = await _chamar_github_models_raw(system_prompt, user_prompt, temperature, max_tokens, response_format)
     try:
