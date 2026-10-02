@@ -144,7 +144,7 @@ export function EditarContaModal({
             <input type="text" className="input-field" {...register('observacao')} />
           </div>
           {erroEditar && <p className="text-sm text-danger-600 bg-danger-50 rounded-lg px-3 py-2">{erroEditar}</p>}
-          <div className="flex gap-3 pt-2">
+          <div className="modal-footer flex gap-3">
             <button type="button" onClick={onClose} className="btn-ghost flex-1">Cancelar</button>
             <button type="submit" disabled={isSubmitting}
               className="btn-primary flex-1 flex items-center justify-center gap-2">
@@ -260,7 +260,7 @@ export function PagarContaModal({
             </div>
           )}
           {s.error && <p className="text-sm text-danger-600 bg-danger-50 rounded-lg px-3 py-2">{s.error}</p>}
-          <div className="flex gap-3">
+          <div className="modal-footer flex gap-3">
             <button onClick={onClose} className="btn-ghost flex-1">Cancelar</button>
             <button onClick={handleConfirmar} disabled={!podeConfirmar}
               className="btn-primary flex-1 flex items-center justify-center gap-2">
@@ -431,7 +431,7 @@ export function ContaModal({ onClose }: ContaModalProps) {
             </div>
           )}
 
-          <div className="flex gap-3 pt-2">
+          <div className="modal-footer flex gap-3">
             <button type="button" onClick={onClose} className="btn-ghost flex-1">
               Cancelar
             </button>

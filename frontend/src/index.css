@@ -45,6 +45,51 @@ html, body, #root { overflow-x: hidden; max-width: 100%; width: 100%; }
 }
 
 @layer components {
+  /* Modal padrão (ModalDialog): overlay + card flex-col; só o corpo rola e o footer fica sempre alcançável */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 12px;
+    background: rgb(0 0 0 / 0.4);
+  }
+  @media (min-width: 640px) {
+    .modal-overlay { align-items: center; }
+  }
+  .modal-card {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    overflow: hidden;
+    background: #fff;
+    border-radius: 1rem;
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    max-height: 90vh; /* fallback sem suporte a dvh */
+    max-height: min(90dvh, 560px);
+  }
+  .modal-header { flex-shrink: 0; }
+  .modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+  /* Botões de ação: colados ao fim da área rolável (dentro de um container com p-4) */
+  .modal-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    margin: 0 -1rem -1rem;
+    padding: 0.75rem 1rem;
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    background: #fff;
+    border-top: 1px solid #f3f4f6;
+  }
   .card {
     @apply bg-white rounded-card shadow-sm p-6;
   }

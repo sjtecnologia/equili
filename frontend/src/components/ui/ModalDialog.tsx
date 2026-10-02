@@ -5,7 +5,7 @@ interface ModalDialogProps {
   onClose: () => void
   children: React.ReactNode
   size?: 'sm' | 'md' | 'lg'
-  /** Habilita overflow scroll no corpo do modal (formulários longos) */
+  /** @deprecated o corpo de todo modal rola; mantido para não quebrar chamadas existentes */
   scrollable?: boolean
   /** Subtítulo exibido abaixo do título no header */
   subtitle?: string
@@ -20,23 +20,14 @@ export function ModalDialog({
   onClose,
   children,
   size = 'md',
-  scrollable = false,
   subtitle,
 }: ModalDialogProps) {
   const maxW = size === 'sm' ? 'max-w-sm' : size === 'lg' ? 'max-w-lg' : 'max-w-md'
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
-      <div
-        className={`bg-white rounded-2xl w-full ${maxW} shadow-xl ${
-          scrollable ? 'max-h-[90vh] flex flex-col' : ''
-        }`}
-      >
-        <div
-          className={`flex items-center justify-between p-4 border-b ${
-            scrollable ? 'sticky top-0 bg-white rounded-t-2xl shrink-0' : ''
-          }`}
-        >
+    <div className="modal-overlay">
+      <div className={`modal-card ${maxW}`}>
+        <div className="modal-header flex items-center justify-between p-4 border-b">
           <div>
             <h2 className="font-semibold text-gray-800">{title}</h2>
             {subtitle && <p className="text-xs text-gray-400 truncate">{subtitle}</p>}
@@ -45,11 +36,7 @@ export function ModalDialog({
             <X size={20} />
           </button>
         </div>
-        {scrollable ? (
-          <div className="overflow-y-auto flex-1">{children}</div>
-        ) : (
-          children
-        )}
+        <div className="modal-body">{children}</div>
       </div>
     </div>
   )
