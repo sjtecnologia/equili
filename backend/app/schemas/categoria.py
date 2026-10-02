@@ -37,7 +37,7 @@ class CategoriaBase(BaseModel):
 
 
 class CategoriaCreate(CategoriaBase):
-    pass
+    ativo: bool = True
 
 
 class CategoriaUpdate(BaseModel):

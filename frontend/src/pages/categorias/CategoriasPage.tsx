@@ -24,17 +24,19 @@ const EMPTY_FORM: FormState = { nome: '', tipo: '', cor: '#2E7D5E', icone: '' }
 
 function CategoriaModal({
   categoria,
+  defaultTipo,
   onClose,
   onSaved,
 }: {
   categoria: Categoria | null
+  defaultTipo: '' | 'despesa' | 'receita'
   onClose: () => void
   onSaved: () => void
 }) {
   const [form, setForm] = useState<FormState>(
     categoria
       ? { nome: categoria.nome, tipo: categoria.tipo, cor: categoria.cor ?? '#2E7D5E', icone: categoria.icone ?? '' }
-      : EMPTY_FORM,
+      : { ...EMPTY_FORM, tipo: defaultTipo },
   )
   const [errors, setErrors] = useState<{ nome?: string; tipo?: string }>({})
   const [saving, setSaving] = useState(false)
@@ -133,7 +135,7 @@ export default function CategoriasPage() {
     queryFn: () => api.get('/categorias', { params: filtroTipo ? { tipo: filtroTipo } : {} }).then((r) => r.data),
   })
 
-  const recarregar = () => qc.invalidateQueries({ queryKey: ['categorias'] })
+  const recarregar = () => qc.invalidateQueries({ queryKey: ['categorias'], refetchType: 'all' })
 
   async function alternarAtivo(c: Categoria) {
     try {
@@ -234,6 +236,7 @@ export default function CategoriasPage() {
       {modal.open && (
         <CategoriaModal
           categoria={modal.categoria}
+          defaultTipo={filtroTipo}
           onClose={() => setModal({ open: false, categoria: null })}
           onSaved={recarregar}
         />

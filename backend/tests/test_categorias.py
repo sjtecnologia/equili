@@ -70,3 +70,16 @@ def test_conta_categoria_livre_vazia_e_filtro_case_insensitive(finance_client):
     )
     assert r.status_code == 201, r.text
     assert len(client.get("/api/v1/contas-receber", params={"categoria": "bônus"}).json()) == 1
+
+
+def test_categoria_nasce_ativa_e_filtro_ativo(finance_client):
+    client, _, _ = finance_client
+
+    nova = _criar(client, nome="Pets").json()
+    assert nova["ativo"] is True
+
+    inativa = _criar(client, nome="Velha", ativo=False).json()
+    assert inativa["ativo"] is False
+
+    nomes = {c["nome"] for c in client.get("/api/v1/categorias", params={"tipo": "despesa", "ativo": "true"}).json()}
+    assert nomes == {"Pets"}
