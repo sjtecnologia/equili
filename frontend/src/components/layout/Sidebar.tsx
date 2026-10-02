@@ -3,6 +3,7 @@ import { Settings, LogOut, ShieldCheck } from 'lucide-react'
 import { ALL_NAV_ITEMS, requiresExactActiveMatch } from '@/config/navItems'
 import { useAuthStore } from '@/stores/authStore'
 import api from '@/services/api'
+import { ScrollableNav } from '@/components/ui/ScrollableNav'
 import logo from '@/assets/logo.png'
 
 const mainNavItems = ALL_NAV_ITEMS.filter((item) => item.to !== '/configuracoes')
@@ -48,7 +49,7 @@ export default function Sidebar() {
       )}
 
       {/* Nav */}
-      <nav className="sidebar-nav flex flex-col w-full max-w-full box-border p-0 m-0 list-none flex-1 min-h-0 overflow-y-auto">
+      <ScrollableNav className="flex flex-col w-full max-w-full box-border p-0 m-0 list-none">
         {mainNavItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
@@ -79,7 +80,7 @@ export default function Sidebar() {
             <span className="inline text-sm leading-[1.2] align-middle whitespace-nowrap overflow-hidden text-ellipsis flex-[1_1_auto] m-0 p-0 box-border">Gerenciar Planos</span>
           </NavLink>
         )}
-      </nav>
+      </ScrollableNav>
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-100 space-y-1 shrink-0">

@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { ALL_NAV_ITEMS, requiresExactActiveMatch } from '@/config/navItems'
+import { ScrollableNav } from '@/components/ui/ScrollableNav'
 import logo from '@/assets/logo.png'
 
 interface Props {
@@ -46,7 +47,7 @@ export default function DrawerNav({ open, onClose }: Props) {
         </div>
 
         {/* Itens de navegação */}
-        <nav className="flex flex-col w-full max-w-full box-border p-0 m-0 list-none flex-1 overflow-y-auto">
+        <ScrollableNav className="flex flex-col w-full max-w-full box-border p-0 m-0 list-none">
           {ALL_NAV_ITEMS.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
@@ -65,7 +66,7 @@ export default function DrawerNav({ open, onClose }: Props) {
               <span className="inline text-sm leading-[1.2] align-middle whitespace-nowrap overflow-hidden text-ellipsis flex-[1_1_auto] m-0 p-0 box-border">{label}</span>
             </NavLink>
           ))}
-        </nav>
+        </ScrollableNav>
 
         {/* Rodapé */}
         <div
