@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useForm, Controller } from 'react-hook-form'
+import { useForm, Controller, type FieldErrors } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2, RefreshCw } from 'lucide-react'
 import api from '@/services/api'
@@ -66,14 +66,20 @@ export function EditarContaReceberModal({
   async function onSubmit(data: EditFormData) {
     await submit(async () => {
       await api.patch(`/contas-receber/${conta.id}`, data)
-      invalidateContasReceberAndDashboard(queryClient)
+      await invalidateContasReceberAndDashboard(queryClient)
+      notify.success('Conta atualizada!')
       onClose()
     })
   }
 
+  // Campos sem mensagem inline (tipo, origem...) bloqueavam o submit sem nenhum aviso
+  function onInvalid(errs: FieldErrors<EditFormData>) {
+    notify.error(`Corrija os campos: ${Object.keys(errs).join(', ')}`)
+  }
+
   return (
     <ModalDialog title="Editar conta" onClose={onClose} scrollable>
-      <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4">
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="p-4 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
             <input type="text" className={`input-field ${errors.descricao ? 'border-danger-500' : ''}`}

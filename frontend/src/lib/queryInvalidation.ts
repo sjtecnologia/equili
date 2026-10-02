@@ -1,13 +1,11 @@
 import type { QueryClient, QueryKey } from '@tanstack/react-query'
 
 function invalidateMany(queryClient: QueryClient, keys: QueryKey[]) {
-  keys.forEach((queryKey) => {
-    queryClient.invalidateQueries({ queryKey })
-  })
+  return Promise.all(keys.map((queryKey) => queryClient.invalidateQueries({ queryKey })))
 }
 
 export function invalidateContasPagarAndDashboard(queryClient: QueryClient) {
-  invalidateMany(queryClient, [['contas-pagar'], ['dashboard']])
+  return invalidateMany(queryClient, [['contas-pagar'], ['dashboard']])
 }
 
 /** Baixas geram lançamentos em conta/cartão: recarrega saldos e limites. */
@@ -16,7 +14,7 @@ export function invalidateSaldos(queryClient: QueryClient) {
 }
 
 export function invalidateContasReceberAndDashboard(queryClient: QueryClient) {
-  invalidateMany(queryClient, [['contas-receber'], ['dashboard']])
+  return invalidateMany(queryClient, [['contas-receber'], ['dashboard']])
 }
 
 export function invalidateFinanceiroBase(queryClient: QueryClient, includeRendas = false) {
