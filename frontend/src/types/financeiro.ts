@@ -22,6 +22,7 @@ export interface ContaBancaria {
   banco: string
   tipo: TipoConta
   saldo_inicial: number
+  saldo_atual?: number
   cor: string
 }
 

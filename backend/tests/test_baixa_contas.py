@@ -172,3 +172,21 @@ def test_listagens_expoem_novos_campos(finance_client):
     pag = client.get("/api/v1/contas-pagar").json()[0]
     assert {"data_recebimento", "meio_recebimento", "conta_id"} <= rec.keys()
     assert {"conta_id", "cartao_id"} <= pag.keys()
+
+
+def test_listagem_contas_bancarias_traz_saldo_atual(finance_client):
+    client, user_id, sf = finance_client
+    conta_id, _ = _seed(sf, user_id)
+
+    antes = client.get("/api/v1/contas-bancarias").json()[0]
+    assert antes["saldo_atual"] == 100.0 and antes["saldo_inicial"] == 100.0
+
+    cid = _criar_receber(client)
+    client.patch(f"/api/v1/contas-receber/{cid}/receber", json={"meio_recebimento": "conta", "conta_id": str(conta_id)})
+    pid = _criar_pagar(client)
+    client.patch(f"/api/v1/contas-pagar/{pid}/pagar", json={"conta_id": str(conta_id)})
+
+    depois = client.get("/api/v1/contas-bancarias").json()[0]
+    assert depois["saldo_atual"] == 100.0 + 250.0 - 40.0
+    assert depois["saldo_atual"] == _saldo(client, conta_id)
+    assert depois["saldo_inicial"] == 100.0

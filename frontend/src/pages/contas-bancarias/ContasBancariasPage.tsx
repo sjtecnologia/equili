@@ -58,7 +58,7 @@ function ContaBancariaCard({
           </div>
           <Landmark size={28} className="opacity-70" />
         </div>
-        <p className="mt-3 text-2xl font-bold">{formatCurrency(conta.saldo_inicial)}</p>
+        <p className="mt-3 text-2xl font-bold">{formatCurrency(conta.saldo_atual ?? conta.saldo_inicial)}</p>
         <div className="flex items-center justify-between mt-0.5">
           <p className="text-xs opacity-70">Saldo inicial</p>
           <span className="text-xs opacity-70 flex items-center gap-1">
@@ -200,7 +200,7 @@ export default function ContasBancariasPage() {
     if (confirm('Remover este cartão?')) deletarCartao.mutate(id)
   }
 
-  const totalSaldo = contas.reduce((s, c) => s + c.saldo_inicial, 0)
+  const totalSaldo = contas.reduce((s, c) => s + (c.saldo_atual ?? c.saldo_inicial), 0)
   const totalLimite = cartoes.reduce((s, c) => s + c.limite, 0)
 
   return (

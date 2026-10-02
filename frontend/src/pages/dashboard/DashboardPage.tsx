@@ -215,7 +215,7 @@ export default function DashboardPage() {
                 <div className="p-2.5 text-white" style={{ backgroundColor: conta.cor }}>
                   <p className="text-xs opacity-80 truncate">{conta.banco}</p>
                   <p className="text-sm font-semibold truncate">{conta.nome}</p>
-                  <p className="text-base font-bold mt-1">{formatCurrency(conta.saldo_inicial)}</p>
+                  <p className="text-base font-bold mt-1">{formatCurrency(conta.saldo_atual ?? conta.saldo_inicial)}</p>
                 </div>
               </Link>
             ))}

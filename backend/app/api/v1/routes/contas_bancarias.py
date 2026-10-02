@@ -3,10 +3,11 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, field_validator
 
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 
 from app.core.dependencies import CurrentUserID, DBSession
 from app.models.conta_bancaria import ContaBancaria
+from app.models.lancamento_conta import LancamentoConta
 
 router = APIRouter()
 
@@ -56,7 +57,25 @@ async def listar_contas_bancarias(usuario_id: CurrentUserID, db: DBSession):
         .where(ContaBancaria.usuario_id == usuario_id, ContaBancaria.ativo == True)  # noqa: E712
         .order_by(ContaBancaria.criado_em)
     )
-    return result.scalars().all()
+    contas = result.scalars().all()
+    if not contas:
+        return contas
+
+    # Mesma fórmula de lancamentos_conta._saldo_atual, agregada para todas as contas de uma vez
+    movimento = dict(
+        (await db.execute(
+            select(
+                LancamentoConta.conta_bancaria_id,
+                func.sum(case((LancamentoConta.tipo == "entrada", LancamentoConta.valor), else_=-LancamentoConta.valor)),
+            )
+            .where(LancamentoConta.conta_bancaria_id.in_([c.id for c in contas]))
+            .group_by(LancamentoConta.conta_bancaria_id)
+        )).all()
+    )
+    for c in contas:
+        # atributo transitório (não é coluna): só entra na serialização da resposta
+        c.saldo_atual = float(c.saldo_inicial) + float(movimento.get(c.id) or 0)
+    return contas
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
