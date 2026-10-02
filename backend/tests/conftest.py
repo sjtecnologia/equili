@@ -85,6 +85,8 @@ async def _create_sqlite_schema(conn) -> None:
             status TEXT NOT NULL DEFAULT 'pendente',
             tipo TEXT NOT NULL DEFAULT 'avulsa',
             pago_em TEXT,
+            conta_id TEXT,
+            cartao_id TEXT,
             observacao TEXT,
             criado_em TEXT,
             atualizado_em TEXT
@@ -105,6 +107,9 @@ async def _create_sqlite_schema(conn) -> None:
             status TEXT NOT NULL DEFAULT 'pendente',
             devedor TEXT,
             recebido_em TEXT,
+            data_recebimento TEXT,
+            meio_recebimento TEXT,
+            conta_id TEXT,
             observacao TEXT,
             criado_em TEXT,
             atualizado_em TEXT

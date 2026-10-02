@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { ContasFiltrosBar, limparFiltrosVazios } from '@/components/shared/ContasFiltrosBar'
 import { useContasReceber } from '@/hooks/useContasReceber'
 import type { ContaAReceber } from '@/types/financeiro'
+import { useContas } from '@/hooks/useContas'
 import { EditarContaReceberModal, ReceberContaModal, ContaModal } from './ContaReceberModals'
 
 type ModalState = {
@@ -60,6 +61,16 @@ export default function ContasReceberPage() {
   const temFiltro = Object.keys(filtros).length > 0
 
   const { data: contas = [], isLoading, deletar: deleteMutation } = useContasReceber(filtros)
+  const { contas: contasBancarias } = useContas()
+
+  function meioInfo(c: ContaAReceber): string {
+    if (c.meio_recebimento === 'dinheiro') return 'Recebido em dinheiro'
+    if (c.conta_id) {
+      const cb = contasBancarias.find((b) => b.id === c.conta_id)
+      return cb ? `Recebido em ${cb.nome} — ${cb.banco}` : ''
+    }
+    return ''
+  }
   const contasFiltradas = contas
 
   const { totalPendente, totalRecebido } = useMemo(() => ({
@@ -135,6 +146,9 @@ export default function ContasReceberPage() {
                       {conta.devedor ? ` · ${conta.devedor}` : ''}
                       {' · Previsto em '}{formatDate(conta.data_prevista)}
                     </p>
+                    {meioInfo(conta) && (
+                      <p className="text-xs text-gray-400 mt-0.5">{meioInfo(conta)}</p>
+                    )}
                   </div>
                   <p className="font-bold text-success-500 whitespace-nowrap shrink-0">
                     {formatCurrency(conta.valor)}

@@ -10,6 +10,11 @@ export function invalidateContasPagarAndDashboard(queryClient: QueryClient) {
   invalidateMany(queryClient, [['contas-pagar'], ['dashboard']])
 }
 
+/** Baixas geram lançamentos em conta/cartão: recarrega saldos e limites. */
+export function invalidateSaldos(queryClient: QueryClient) {
+  invalidateMany(queryClient, [['contas-bancarias'], ['cartoes-credito']])
+}
+
 export function invalidateContasReceberAndDashboard(queryClient: QueryClient) {
   invalidateMany(queryClient, [['contas-receber'], ['dashboard']])
 }

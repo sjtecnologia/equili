@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { ContasFiltrosBar, limparFiltrosVazios } from '@/components/shared/ContasFiltrosBar'
 import { useContasPagar } from '@/hooks/useContasPagar'
 import type { ContaAPagar } from '@/types/financeiro'
+import { useContas } from '@/hooks/useContas'
 import { EditarContaModal, PagarContaModal, ContaModal } from './ContaPagarModals'
 
 type ModalState = {
@@ -60,6 +61,19 @@ export default function ContasPagarPage() {
   const temFiltro = Object.keys(filtros).length > 0
 
   const { data: contas = [], isLoading, deletar: deleteMutation, pagar: pagarMutation } = useContasPagar(filtros)
+  const { contas: contasBancarias, cartoes } = useContas()
+
+  function meioInfo(c: ContaAPagar): string {
+    if (c.conta_id) {
+      const cb = contasBancarias.find((b) => b.id === c.conta_id)
+      return cb ? `Pago via ${cb.nome} — ${cb.banco}` : ''
+    }
+    if (c.cartao_id) {
+      const cc = cartoes.find((k) => k.id === c.cartao_id)
+      return cc ? `Pago no cartão ${cc.nome}` : ''
+    }
+    return ''
+  }
   const contasFiltradas = contas
 
   const { totalPendente, totalPago } = useMemo(() => ({
@@ -135,6 +149,9 @@ export default function ContasPagarPage() {
                       {conta.categoria || 'Sem categoria'}
                       {' · Venc. '}{formatDate(conta.data_vencimento)}
                     </p>
+                    {meioInfo(conta) && (
+                      <p className="text-xs text-gray-400 mt-0.5">{meioInfo(conta)}</p>
+                    )}
                     {isVencido && (
                       <div className="flex items-center gap-1 mt-1 text-xs text-red-600">
                         <AlertCircle size={12} />

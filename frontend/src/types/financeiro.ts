@@ -94,6 +94,8 @@ export interface ContaAPagar {
   status: StatusContaPagar
   tipo: TipoContaPagar
   observacao: string | null
+  conta_id?: string | null
+  cartao_id?: string | null
 }
 
 export interface ContaAReceber {
@@ -106,6 +108,9 @@ export interface ContaAReceber {
   tipo: TipoContaReceber
   devedor: string | null
   observacao: string | null
+  data_recebimento?: string | null
+  meio_recebimento?: 'conta' | 'dinheiro' | null
+  conta_id?: string | null
 }
 
 // ─── Dívidas ─────────────────────────────────────────────────────────────────

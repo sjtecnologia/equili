@@ -123,6 +123,9 @@ class ContaAPagarUpdate(BaseModel):
 
 class PagarRequest(BaseModel):
     data_pagamento: date | None = None
+    conta_id: PyUUID | None = None
+    cartao_id: PyUUID | None = None
+    # nomes legados, ainda enviados pelo frontend
     conta_bancaria_id: PyUUID | None = None
     cartao_credito_id: PyUUID | None = None
 
@@ -299,21 +302,38 @@ async def marcar_como_pago(
 ):
     from datetime import time
 
-    conta = await db.get(ContaAPagar, conta_id)
+    # FOR UPDATE serializa baixas concorrentes da mesma conta (no-op em SQLite)
+    conta = await db.get(ContaAPagar, conta_id, with_for_update=True)
     if not conta or conta.usuario_id != usuario_id:
         raise HTTPException(status_code=404, detail="Conta não encontrada.")
+    # Saldo/limite só se movimentam na transição pendente -> pago
+    if conta.status == "pago":
+        raise HTTPException(status_code=409, detail="Conta já está paga.")
 
     data_pagto = (data.data_pagamento if data and data.data_pagamento else date.today())
+    conta_banco_id = data and (data.conta_id or data.conta_bancaria_id)
+    cartao_id = data and (data.cartao_id or data.cartao_credito_id)
+
+    # Valida o meio antes de alterar qualquer estado
+    cb = cc = None
+    if conta_banco_id:
+        cb = await db.get(ContaBancaria, conta_banco_id)
+        if not cb or cb.usuario_id != usuario_id:
+            raise HTTPException(status_code=404, detail="Conta bancária não encontrada.")
+    elif cartao_id:
+        cc = await db.get(CartaoCredito, cartao_id)
+        if not cc or cc.usuario_id != usuario_id:
+            raise HTTPException(status_code=404, detail="Cartão de crédito não encontrado.")
+
     conta.status = "pago"
     conta.pago_em = datetime.combine(data_pagto, time.min).replace(tzinfo=timezone.utc)
 
-    # Gera lançamento automático se informada conta bancária ou cartão
-    if data and data.conta_bancaria_id:
-        cb = await db.get(ContaBancaria, data.conta_bancaria_id)
-        if not cb or cb.usuario_id != usuario_id:
-            raise HTTPException(status_code=404, detail="Conta bancária não encontrada.")
+    if cb:
+        # ContaBancaria não tem coluna de saldo: saldo atual = saldo_inicial + soma dos LancamentoConta,
+        # então o débito é aplicado pelo lançamento de saída.
+        conta.conta_id = cb.id
         db.add(LancamentoConta(
-            conta_bancaria_id=data.conta_bancaria_id,
+            conta_bancaria_id=cb.id,
             descricao=conta.descricao,
             valor=conta.valor,
             tipo="saida",
@@ -321,12 +341,10 @@ async def marcar_como_pago(
             categoria=conta.categoria,
             origem="contas_pagar",
         ))
-    elif data and data.cartao_credito_id:
-        cc = await db.get(CartaoCredito, data.cartao_credito_id)
-        if not cc or cc.usuario_id != usuario_id:
-            raise HTTPException(status_code=404, detail="Cartão de crédito não encontrado.")
+    elif cc:
+        conta.cartao_id = cc.id
         db.add(LancamentoCartao(
-            cartao_credito_id=data.cartao_credito_id,
+            cartao_credito_id=cc.id,
             descricao=conta.descricao,
             valor=conta.valor,
             tipo="compra",
@@ -335,7 +353,12 @@ async def marcar_como_pago(
         ))
         aplicar_efeito_lancamento(cc, "compra", float(conta.valor))
 
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        logger.exception("Falha ao baixar conta a pagar %s", conta_id)
+        raise
     await db.refresh(conta)
     return conta
 

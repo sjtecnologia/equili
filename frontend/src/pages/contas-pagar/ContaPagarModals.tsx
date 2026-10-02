@@ -10,7 +10,7 @@ import { parseApiError } from '@/utils/api'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
 import { ModalDialog } from '@/components/ui/ModalDialog'
 import { CategoriaSelect } from '@/components/shared/CategoriaSelect'
-import { invalidateContasPagarAndDashboard } from '@/lib/queryInvalidation'
+import { invalidateContasPagarAndDashboard, invalidateSaldos } from '@/lib/queryInvalidation'
 import { contaPagarSchema, editarContaPagarSchema } from '@/lib/schemas/financeiro'
 import type { ContaPagarFormData, EditarContaPagarFormData } from '@/lib/schemas/financeiro'
 import type { ContaAPagar } from '@/types/financeiro'
@@ -190,6 +190,7 @@ export function PagarContaModal({
       })
       dispatch({ type: 'SUBMIT_SUCCESS' })
       invalidateContasPagarAndDashboard(queryClient)
+      invalidateSaldos(queryClient)
       onClose()
     } catch (err) {
       dispatch({ type: 'SUBMIT_ERROR', message: parseApiError(err) ?? 'Erro ao registrar pagamento. Tente novamente.' })

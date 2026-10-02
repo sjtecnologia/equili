@@ -123,7 +123,16 @@ class ContaAReceberUpdate(BaseModel):
 
 class ReceberRequest(BaseModel):
     data_recebimento: date | None = None
-    conta_bancaria_id: PyUUID | None = None
+    meio_recebimento: str | None = None  # conta | dinheiro
+    conta_id: PyUUID | None = None
+    conta_bancaria_id: PyUUID | None = None  # nome legado, ainda enviado pelo frontend
+
+    @field_validator("meio_recebimento")
+    @classmethod
+    def meio_valido(cls, v: str | None) -> str | None:
+        if v is not None and v not in ("conta", "dinheiro"):
+            raise ValueError("Meio inválido. Use: conta ou dinheiro.")
+        return v
 
 
 @router.get("")
@@ -264,21 +273,38 @@ async def marcar_como_recebido(
 ):
     from datetime import time
 
-    conta = await db.get(ContaAReceber, conta_id)
+    conta = await db.get(ContaAReceber, conta_id, with_for_update=True)
     if not conta or conta.usuario_id != usuario_id:
         raise HTTPException(status_code=404, detail="Conta a receber não encontrada.")
+    # Saldo só se movimenta na transição pendente -> recebido
+    if conta.status == "recebido":
+        raise HTTPException(status_code=409, detail="Conta já está recebida.")
 
     data_receb = (data.data_recebimento if data and data.data_recebimento else date.today())
-    conta.status = "recebido"
-    conta.recebido_em = datetime.combine(data_receb, time.min).replace(tzinfo=timezone.utc)
+    conta_banco_id = data and (data.conta_id or data.conta_bancaria_id)
+    # Sem meio explícito: conta informada (cliente legado) implica "conta"; senão "dinheiro"
+    meio = (data.meio_recebimento if data and data.meio_recebimento else None) or (
+        "conta" if conta_banco_id else "dinheiro"
+    )
 
-    # Gera lançamento automático de entrada se informada conta bancária
-    if data and data.conta_bancaria_id:
-        cb = await db.get(ContaBancaria, data.conta_bancaria_id)
+    # Valida a conta antes de alterar qualquer estado
+    cb = None
+    if meio == "conta" and conta_banco_id:
+        cb = await db.get(ContaBancaria, conta_banco_id)
         if not cb or cb.usuario_id != usuario_id:
             raise HTTPException(status_code=404, detail="Conta bancária não encontrada.")
+
+    conta.status = "recebido"
+    conta.recebido_em = datetime.combine(data_receb, time.min).replace(tzinfo=timezone.utc)
+    conta.data_recebimento = data_receb
+    conta.meio_recebimento = meio
+
+    if cb:
+        # ContaBancaria não tem coluna de saldo: saldo atual = saldo_inicial + soma dos LancamentoConta,
+        # então o crédito é aplicado pelo lançamento de entrada.
+        conta.conta_id = cb.id
         db.add(LancamentoConta(
-            conta_bancaria_id=data.conta_bancaria_id,
+            conta_bancaria_id=cb.id,
             descricao=conta.descricao,
             valor=conta.valor,
             tipo="entrada",
@@ -287,7 +313,12 @@ async def marcar_como_recebido(
             origem="contas_receber",
         ))
 
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        logger.exception("Falha ao baixar conta a receber %s", conta_id)
+        raise
     await db.refresh(conta)
     return conta
 
