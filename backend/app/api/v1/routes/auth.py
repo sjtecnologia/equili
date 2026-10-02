@@ -34,6 +34,7 @@ from app.schemas.auth import (
     RegisterRequest,
     TokenResponse,
 )
+from app.services.categorias_padrao import seed_categorias_padrao
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -212,6 +213,8 @@ async def register(data: RegisterRequest, response: Response, db: DBSession, req
         senha_hash=get_password_hash(data.senha),
     )
     db.add(usuario)
+    await db.flush()
+    await seed_categorias_padrao(db, usuario.id)
     await db.commit()
     await db.refresh(usuario)
 
@@ -371,6 +374,8 @@ async def login_google(data: SocialGoogleRequest, response: Response, db: DBSess
                 google_id=google_id,
             )
             db.add(usuario)
+            await db.flush()
+            await seed_categorias_padrao(db, usuario.id)
 
     if usuario.ativo is False:
         raise HTTPException(
@@ -496,6 +501,8 @@ async def login_apple(data: SocialAppleRequest, response: Response, db: DBSessio
             apple_id=apple_id,
         )
         db.add(usuario)
+        await db.flush()
+        await seed_categorias_padrao(db, usuario.id)
 
     if usuario.ativo is False:
         raise HTTPException(
