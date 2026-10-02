@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { ContasFiltrosBar, limparFiltrosVazios } from '@/components/shared/ContasFiltrosBar'
 import { useContasPagar } from '@/hooks/useContasPagar'
 import type { ContaAPagar } from '@/types/financeiro'
-import { CATEGORIAS, EditarContaModal, PagarContaModal, ContaModal } from './ContaPagarModals'
+import { EditarContaModal, PagarContaModal, ContaModal } from './ContaPagarModals'
 
 type ModalState = {
   showCreate: boolean
@@ -132,7 +132,7 @@ export default function ContasPagarPage() {
                       )}
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      {CATEGORIAS.find((c) => c.value === conta.categoria)?.label ?? conta.categoria}
+                      {conta.categoria || 'Sem categoria'}
                       {' · Venc. '}{formatDate(conta.data_vencimento)}
                     </p>
                     {isVencido && (

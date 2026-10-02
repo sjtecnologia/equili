@@ -47,16 +47,6 @@ function pagarContaReducer(state: PagarContaState, action: PagarContaAction): Pa
   }
 }
 
-export const CATEGORIAS = [
-  { value: 'moradia', label: 'Moradia' },
-  { value: 'transporte', label: 'Transporte' },
-  { value: 'saude', label: 'Saúde' },
-  { value: 'educacao', label: 'Educação' },
-  { value: 'alimentacao', label: 'Alimentação' },
-  { value: 'lazer', label: 'Lazer' },
-  { value: 'outro', label: 'Outro' },
-]
-
 const MODALIDADES = [
   { value: 'avulsa', label: 'Avulsa', desc: 'Lançamento único', icon: '📄' },
   { value: 'recorrente', label: 'Recorrente', desc: 'Água, luz, internet...', icon: '🔄' },
@@ -138,7 +128,7 @@ export function EditarContaModal({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-            <CategoriaSelect tipo="despesa" fallback={CATEGORIAS} valorAtual={watch('categoria')} {...register('categoria')} />
+            <CategoriaSelect tipo="despesa" valorAtual={watch('categoria')} {...register('categoria')} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de lançamento</label>
@@ -419,7 +409,7 @@ export function ContaModal({ onClose }: ContaModalProps) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-            <CategoriaSelect tipo="despesa" fallback={CATEGORIAS} valorAtual={watch('categoria')} {...register('categoria')} />
+            <CategoriaSelect tipo="despesa" valorAtual={watch('categoria')} {...register('categoria')} />
           </div>
 
           <div>

@@ -16,14 +16,6 @@ import type { ContaReceberFormData, EditarContaReceberFormData } from '@/lib/sch
 import type { ContaAReceber } from '@/types/financeiro'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
 
-export const ORIGENS = [
-  { value: 'salario', label: 'Salário' },
-  { value: 'freela', label: 'Freelance' },
-  { value: 'venda', label: 'Venda' },
-  { value: 'emprestimo', label: 'Empréstimo' },
-  { value: 'outro', label: 'Outro' },
-]
-
 const MODALIDADES = [
   { value: 'avulsa', label: 'Avulsa', desc: 'Recebimento único', icon: '📄' },
   { value: 'recorrente', label: 'Recorrente', desc: 'Salário, aluguel mensal...', icon: '🔄' },
@@ -106,7 +98,7 @@ export function EditarContaReceberModal({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Origem</label>
-            <CategoriaSelect tipo="receita" fallback={ORIGENS} valorAtual={watch('origem')} {...register('origem')} />
+            <CategoriaSelect tipo="receita" valorAtual={watch('origem')} {...register('origem')} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de lançamento</label>
@@ -358,7 +350,7 @@ export function ContaModal({ onClose }: ContaReceberModalProps) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Origem</label>
-            <CategoriaSelect tipo="receita" fallback={ORIGENS} valorAtual={watch('origem')} {...register('origem')} />
+            <CategoriaSelect tipo="receita" valorAtual={watch('origem')} {...register('origem')} />
           </div>
 
           <div>

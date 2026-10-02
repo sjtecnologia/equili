@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { ContasFiltrosBar, limparFiltrosVazios } from '@/components/shared/ContasFiltrosBar'
 import { useContasReceber } from '@/hooks/useContasReceber'
 import type { ContaAReceber } from '@/types/financeiro'
-import { ORIGENS, EditarContaReceberModal, ReceberContaModal, ContaModal } from './ContaReceberModals'
+import { EditarContaReceberModal, ReceberContaModal, ContaModal } from './ContaReceberModals'
 
 type ModalState = {
   showCreate: boolean
@@ -131,7 +131,7 @@ export default function ContasReceberPage() {
                       )}
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      {ORIGENS.find((o) => o.value === conta.origem)?.label ?? conta.origem}
+                      {conta.origem || 'Sem categoria'}
                       {conta.devedor ? ` · ${conta.devedor}` : ''}
                       {' · Previsto em '}{formatDate(conta.data_prevista)}
                     </p>
