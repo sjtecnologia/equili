@@ -8,7 +8,8 @@ import { ContasFiltrosBar, limparFiltrosVazios } from '@/components/shared/Conta
 import { useContasPagar } from '@/hooks/useContasPagar'
 import type { ContaAPagar } from '@/types/financeiro'
 import { useContas } from '@/hooks/useContas'
-import { EditarContaModal, PagarContaModal, ContaModal } from './ContaPagarModals'
+import { EditarContaModal, ContaModal } from './ContaPagarModals'
+import { BaixasContaModal } from '@/components/shared/BaixasContaModal'
 
 type ModalState = {
   showCreate: boolean
@@ -50,6 +51,7 @@ function modalReducer(state: ModalState, action: ModalAction): ModalState {
 }
 
 const STATUS_LABELS: Record<string, { label: string; classes: string }> = {
+  parcial: { label: 'Parcial', classes: 'bg-blue-100 text-blue-700' },
   pendente: { label: 'Pendente', classes: 'bg-amber-100 text-amber-700' },
   pago: { label: 'Pago', classes: 'bg-green-100 text-green-700' },
   vencido: { label: 'Vencido', classes: 'bg-red-100 text-red-700' },
@@ -77,8 +79,8 @@ export default function ContasPagarPage() {
   const contasFiltradas = contas
 
   const { totalPendente, totalPago } = useMemo(() => ({
-    totalPendente: contas.filter((c) => c.status !== 'pago').reduce((acc, c) => acc + c.valor, 0),
-    totalPago: contas.filter((c) => c.status === 'pago').reduce((acc, c) => acc + c.valor, 0),
+    totalPendente: contas.reduce((acc, c) => acc + Number(c.valor) - Number(c.valor_baixado), 0),
+    totalPago: contas.reduce((acc, c) => acc + Number(c.valor_baixado), 0),
   }), [contas])
 
   return (
@@ -167,16 +169,19 @@ export default function ContasPagarPage() {
                 {conta.observacao && (
                   <p className="text-xs text-gray-400 italic">{conta.observacao}</p>
                 )}
+                {Number(conta.valor_baixado) > 0 && <p className="text-xs text-gray-500">
+                  Baixado: {formatCurrency(Number(conta.valor_baixado))} · Restante: {formatCurrency(Number(conta.valor) - Number(conta.valor_baixado))}
+                </p>}
 
                 <div className="flex gap-2">
-                  {conta.status !== 'pago' && (
+                  {(
                     <button
                       onClick={() => dispatchModal({ type: 'OPEN_PAY', conta })}
                       disabled={pagarMutation.isPending}
                       className="btn-secondary text-xs flex-1 flex items-center justify-center gap-1"
                     >
                       <CheckCircle2 size={12} />
-                      Marcar como pago
+                      {conta.status === 'pago' ? 'Consultar baixas' : 'Baixar parcela'}
                     </button>
                   )}
                   <button
@@ -213,7 +218,7 @@ export default function ContasPagarPage() {
         />
       )}
       {modals.pagando && (
-        <PagarContaModal
+        <BaixasContaModal
           conta={modals.pagando}
           onClose={() => dispatchModal({ type: 'CLOSE_PAY' })}
         />

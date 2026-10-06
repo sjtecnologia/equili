@@ -5,16 +5,16 @@ function invalidateMany(queryClient: QueryClient, keys: QueryKey[]) {
 }
 
 export function invalidateContasPagarAndDashboard(queryClient: QueryClient) {
-  return invalidateMany(queryClient, [['contas-pagar'], ['dashboard']])
+  return invalidateMany(queryClient, [['contas-pagar'], ['dashboard'], ['baixas-contas'], ['relatorio-detalhado'], ['contas-pagar-dia'], ['fluxo-caixa'], ['contas-pagar-pendentes-plano'], ['dividas'], ['divida-baixas'], ['contas-fixas-atrasadas']])
 }
 
 /** Baixas geram lançamentos em conta/cartão: recarrega saldos e limites. */
 export function invalidateSaldos(queryClient: QueryClient) {
-  invalidateMany(queryClient, [['contas-bancarias'], ['conta-lancamentos'], ['cartoes-credito']])
+  return invalidateMany(queryClient, [['contas-bancarias'], ['conta-lancamentos'], ['cartoes-credito'], ['cartao-lancamentos']])
 }
 
 export function invalidateContasReceberAndDashboard(queryClient: QueryClient) {
-  return invalidateMany(queryClient, [['contas-receber'], ['dashboard']])
+  return invalidateMany(queryClient, [['contas-receber'], ['dashboard'], ['baixas-contas'], ['relatorio-detalhado'], ['contas-pagar-dia'], ['fluxo-caixa'], ['contas-receber-pendentes-plano']])
 }
 
 export function invalidateFinanceiroBase(queryClient: QueryClient, includeRendas = false) {

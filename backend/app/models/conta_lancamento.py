@@ -43,6 +43,7 @@ class ContaAPagar(Base):
     categoria: Mapped[str] = mapped_column(String(50), nullable=False)
     # moradia | transporte | saude | educacao | alimentacao | lazer | outro
     valor: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    valor_baixado: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0, server_default="0")
     data_vencimento: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pendente")
     # pendente | pago | vencido
@@ -101,6 +102,7 @@ class ContaAReceber(Base):
     tipo: Mapped[str] = mapped_column(String(20), nullable=False, server_default="avulsa")
     # recorrente | parcelada | avulsa
     valor: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    valor_baixado: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0, server_default="0")
     data_prevista: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pendente")
     # pendente | recebido | atrasado
@@ -123,3 +125,19 @@ class ContaAReceber(Base):
 
     usuario: Mapped["Usuario"] = relationship(back_populates="contas_a_receber")  # noqa: F821
     renda: Mapped["Renda | None"] = relationship()  # noqa: F821
+
+
+class BaixaConta(Base):
+    __tablename__ = "baixas_contas"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    usuario_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("usuarios.id", ondelete="CASCADE"), index=True)
+    pagar_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contas_a_pagar.id", ondelete="CASCADE"), index=True)
+    receber_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contas_a_receber.id", ondelete="CASCADE"), index=True)
+    valor: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    data: Mapped[date] = mapped_column(Date, nullable=False)
+    meio: Mapped[str] = mapped_column(String(20), nullable=False)
+    conta_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    cartao_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    cancelada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

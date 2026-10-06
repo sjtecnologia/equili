@@ -369,8 +369,10 @@ async def pagar_parcela(divida_id: UUID, data: PagarParcelaRequest, usuario_id: 
         )
     )
     if conta:
-        conta.status = "pago"
-        conta.pago_em = datetime.combine(data.data_pagamento or hoje, datetime.min.time()).replace(tzinfo=timezone.utc)
+        from app.services.baixas_contas import BaixaRequest, registrar_baixa
+        if conta.status == "pago":
+            raise HTTPException(409, "Parcela ja liquidada.")
+        await registrar_baixa(db, conta, BaixaRequest(data=data.data_pagamento or hoje))
 
     if divida.parcelas_restantes > 0:
         divida.parcelas_restantes -= 1

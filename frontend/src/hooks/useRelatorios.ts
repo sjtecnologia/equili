@@ -4,14 +4,14 @@ import { useRelatorioDetalhado } from './relatorios/useRelatorioDetalhado'
 import { useRelatorioDia } from './relatorios/useRelatorioDia'
 import { useExtratoTab } from './relatorios/useExtratoTab'
 
-export type RelatorioTab = 'fluxo' | 'detalhado' | 'extrato' | 'dia'
+export type RelatorioTab = 'fluxo' | 'detalhado' | 'extrato' | 'dia' | 'parcelas'
 
 export function useRelatorios() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const tabFromQuery = searchParams.get('tab')
   const tab: RelatorioTab =
-    tabFromQuery === 'detalhado' || tabFromQuery === 'extrato' || tabFromQuery === 'dia'
+    tabFromQuery === 'detalhado' || tabFromQuery === 'extrato' || tabFromQuery === 'dia' || tabFromQuery === 'parcelas'
       ? tabFromQuery
       : 'fluxo'
 

@@ -5,8 +5,8 @@ export type BandeiraCartao = 'visa' | 'mastercard' | 'elo' | 'amex' | 'hipercard
 export type CategoriaGasto = 'moradia' | 'transporte' | 'saude' | 'educacao' | 'alimentacao' | 'lazer' | 'outro'
 export type OrigemRenda = 'salario' | 'freela' | 'venda' | 'emprestimo' | 'outro'
 export type ModalidadeConta = 'avulsa' | 'recorrente' | 'parcelada'
-export type StatusContaPagar = 'pendente' | 'pago' | 'vencido'
-export type StatusContaReceber = 'pendente' | 'recebido' | 'atrasado'
+export type StatusContaPagar = 'pendente' | 'pago' | 'vencido' | 'parcial'
+export type StatusContaReceber = 'pendente' | 'recebido' | 'atrasado' | 'parcial'
 export type FrequenciaRenda = 'mensal' | 'quinzenal' | 'semanal'
 export type TipoRenda = 'salario' | 'freela' | 'aluguel' | 'outro'
 export type TipoInvestimento = 'acoes' | 'fii' | 'renda_fixa' | 'criptomoeda' | 'tesouro' | 'outro'
@@ -87,6 +87,7 @@ export interface CartaoLancamentosData {
 // ─── Contas a Pagar / Receber ────────────────────────────────────────────────
 
 export interface ContaAPagar {
+  valor_baixado: number
   id: string
   descricao: string
   categoria: CategoriaGasto
@@ -100,6 +101,7 @@ export interface ContaAPagar {
 }
 
 export interface ContaAReceber {
+  valor_baixado: number
   id: string
   descricao: string
   origem: OrigemRenda

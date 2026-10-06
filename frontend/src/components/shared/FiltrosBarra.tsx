@@ -72,6 +72,7 @@ export function FiltrosBarra({ campos, onFiltrar }: Props) {
               {c.label}
               {c.tipo === 'select' ? (
                 <select
+                  aria-label={c.label}
                   className="input-field text-sm"
                   disabled={c.disabled}
                   value={draft[c.key] ?? ''}
@@ -84,6 +85,7 @@ export function FiltrosBarra({ campos, onFiltrar }: Props) {
                 </select>
               ) : (
                 <input
+                  aria-label={c.label}
                   type={c.tipo === 'data' ? 'date' : 'number'}
                   min={c.tipo === 'numero' ? 0 : undefined}
                   step={c.tipo === 'numero' ? c.step : undefined}

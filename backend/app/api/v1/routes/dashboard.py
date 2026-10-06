@@ -48,7 +48,7 @@ async def resumo_dashboard(usuario_id: CurrentUserID, db: DBSession):
 
     # Total a pagar: vencidas (pendentes) + próximos 30 dias
     total_a_pagar_30d = await db.scalar(
-        select(func.sum(ContaAPagar.valor)).where(
+        select(func.sum(ContaAPagar.valor - ContaAPagar.valor_baixado)).where(
             ContaAPagar.usuario_id == usuario_id,
             ContaAPagar.status != "pago",
             ContaAPagar.data_vencimento <= em_30_dias,
@@ -57,7 +57,7 @@ async def resumo_dashboard(usuario_id: CurrentUserID, db: DBSession):
 
     # Total a receber nos próximos 30 dias (pendente/atrasado)
     total_a_receber_30d = await db.scalar(
-        select(func.sum(ContaAReceber.valor)).where(
+        select(func.sum(ContaAReceber.valor - ContaAReceber.valor_baixado)).where(
             ContaAReceber.usuario_id == usuario_id,
             ContaAReceber.status != "recebido",
             ContaAReceber.data_prevista >= hoje,
@@ -69,7 +69,7 @@ async def resumo_dashboard(usuario_id: CurrentUserID, db: DBSession):
     proxima_conta = await db.scalar(
         select(ContaAPagar.data_vencimento).where(
             ContaAPagar.usuario_id == usuario_id,
-            ContaAPagar.status == "pendente",
+            ContaAPagar.status != "pago",
         ).order_by(ContaAPagar.data_vencimento).limit(1)
     )
 

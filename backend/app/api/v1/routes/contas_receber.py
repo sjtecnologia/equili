@@ -1,23 +1,23 @@
 import logging
 from calendar import monthrange
-from datetime import date, datetime, timezone
+from datetime import date
+from decimal import Decimal
 from uuid import UUID
 
 from uuid import UUID as PyUUID
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import func, select
 
 from app.core.dependencies import CurrentUserID, DBSession
-from app.models.conta_bancaria import ContaBancaria
 from app.models.conta_lancamento import ContaAReceber
-from app.models.lancamento_conta import LancamentoConta
+from app.services.baixas_contas import BaixaRequest, obter_conta, listar_baixas, registrar_baixa, cancelar_baixa
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-STATUS_VALIDOS = {"pendente", "recebido", "atrasado"}
+STATUS_VALIDOS = {"pendente", "recebido", "atrasado", "parcial"}
 MODALIDADES_VALIDAS = {"avulsa", "recorrente", "parcelada"}
 
 
@@ -97,7 +97,7 @@ TIPOS_VALIDOS = {"avulsa", "recorrente", "parcelada"}
 class ContaAReceberUpdate(BaseModel):
     descricao: str | None = None
     origem: str | None = None
-    valor: float | None = None
+    valor: Decimal | None = Field(default=None, gt=0, max_digits=12, decimal_places=2)
     data_prevista: date | None = None
     tipo: str | None = None  # avulsa | recorrente | parcelada
     devedor: str | None = None
@@ -122,6 +122,7 @@ class ContaAReceberUpdate(BaseModel):
 
 
 class ReceberRequest(BaseModel):
+    valor: Decimal | None = Field(default=None, gt=0, max_digits=12, decimal_places=2)
     data_recebimento: date | None = None
     meio_recebimento: str | None = None  # conta | dinheiro
     conta_id: PyUUID | None = None
@@ -147,8 +148,14 @@ async def listar_contas_receber(
     categoria: str | None = None,
     data_inicio: date | None = None,
     data_fim: date | None = None,
+    tipo: str | None = None,
+    conta_bancaria_id: UUID | None = None,
 ):
     query = select(ContaAReceber).where(ContaAReceber.usuario_id == usuario_id)
+    if tipo in TIPOS_VALIDOS:
+        query = query.where(ContaAReceber.tipo == tipo)
+    if conta_bancaria_id:
+        query = query.where(ContaAReceber.conta_id == conta_bancaria_id)
     if status and status in STATUS_VALIDOS:
         query = query.where(ContaAReceber.status == status)
     if categoria and categoria.strip():
@@ -256,9 +263,15 @@ async def criar_conta_receber(
 async def atualizar_conta_receber(
     conta_id: UUID, data: ContaAReceberUpdate, usuario_id: CurrentUserID, db: DBSession
 ):
-    conta = await db.get(ContaAReceber, conta_id)
+    conta = await db.get(ContaAReceber, conta_id, with_for_update=True)
     if not conta or conta.usuario_id != usuario_id:
         raise HTTPException(status_code=404, detail="Conta a receber não encontrada.")
+    if data.valor is not None and (data.valor <= 0 or data.valor < conta.valor_baixado):
+        raise HTTPException(422, "Valor deve ser positivo e nao pode ser menor que o total baixado.")
+    if data.valor is not None and conta.valor_baixado and data.valor != conta.valor:
+        from app.services.baixas_contas import atualizar_resumo
+        conta.valor = data.valor
+        await atualizar_resumo(db, conta, receber=True)
     for campo, valor in data.model_dump(exclude_none=True).items():
         setattr(conta, campo, valor)
     await db.commit()
@@ -271,64 +284,68 @@ async def marcar_como_recebido(
     conta_id: UUID, usuario_id: CurrentUserID, db: DBSession,
     data: ReceberRequest | None = None,
 ):
-    from datetime import time
-
-    conta = await db.get(ContaAReceber, conta_id, with_for_update=True)
-    if not conta or conta.usuario_id != usuario_id:
-        raise HTTPException(status_code=404, detail="Conta a receber não encontrada.")
-    # Saldo só se movimenta na transição pendente -> recebido
-    if conta.status == "recebido":
-        raise HTTPException(status_code=409, detail="Conta já está recebida.")
-
-    data_receb = (data.data_recebimento if data and data.data_recebimento else date.today())
-    conta_banco_id = data and (data.conta_id or data.conta_bancaria_id)
-    # Sem meio explícito: conta informada (cliente legado) implica "conta"; senão "dinheiro"
-    meio = (data.meio_recebimento if data and data.meio_recebimento else None) or (
-        "conta" if conta_banco_id else "dinheiro"
+    conta = await obter_conta(db, usuario_id, conta_id, receber=True)
+    banco_id = data and (data.conta_id or data.conta_bancaria_id)
+    if data and data.meio_recebimento == "dinheiro":
+        banco_id = None
+    if data and data.meio_recebimento == "conta" and not banco_id:
+        raise HTTPException(422, "Selecione uma conta bancaria.")
+    payload = BaixaRequest(
+        valor=data.valor if data else None,
+        data=data.data_recebimento if data else None,
+        conta_id=banco_id,
+        meio="conta" if banco_id else "dinheiro",
     )
-
-    # Valida a conta antes de alterar qualquer estado
-    cb = None
-    if meio == "conta" and conta_banco_id:
-        cb = await db.get(ContaBancaria, conta_banco_id)
-        if not cb or cb.usuario_id != usuario_id:
-            raise HTTPException(status_code=404, detail="Conta bancária não encontrada.")
-
-    conta.status = "recebido"
-    conta.recebido_em = datetime.combine(data_receb, time.min).replace(tzinfo=timezone.utc)
-    conta.data_recebimento = data_receb
-    conta.meio_recebimento = meio
-
-    if cb:
-        # ContaBancaria não tem coluna de saldo: saldo atual = saldo_inicial + soma dos LancamentoConta,
-        # então o crédito é aplicado pelo lançamento de entrada.
-        conta.conta_id = cb.id
-        db.add(LancamentoConta(
-            conta_bancaria_id=cb.id,
-            descricao=conta.descricao,
-            valor=conta.valor,
-            tipo="entrada",
-            data=data_receb,
-            categoria=conta.origem,
-            origem="contas_receber",
-        ))
-
-    try:
-        await db.commit()
-    except Exception:
-        await db.rollback()
-        logger.exception("Falha ao baixar conta a receber %s", conta_id)
-        raise
+    await registrar_baixa(db, conta, payload, receber=True)
+    await db.commit()
     await db.refresh(conta)
     return conta
+
+
+@router.get("/{conta_id}/baixas")
+async def historico_baixas(conta_id: UUID, usuario_id: CurrentUserID, db: DBSession):
+    conta = await obter_conta(db, usuario_id, conta_id, receber=True)
+    return await listar_baixas(db, conta, receber=True)
+
+
+@router.post("/{conta_id}/baixas", status_code=201)
+async def criar_baixa(conta_id: UUID, data: BaixaRequest, usuario_id: CurrentUserID, db: DBSession):
+    conta = await obter_conta(db, usuario_id, conta_id, receber=True)
+    baixa = await registrar_baixa(db, conta, data, receber=True)
+    await db.commit()
+    await db.refresh(baixa)
+    return baixa
+
+
+@router.delete("/{conta_id}/baixas/{baixa_id}", status_code=204)
+async def estornar_baixa(conta_id: UUID, baixa_id: UUID, usuario_id: CurrentUserID, db: DBSession):
+    conta = await obter_conta(db, usuario_id, conta_id, receber=True)
+    await cancelar_baixa(db, conta, baixa_id, receber=True)
+    await db.commit()
+
+
+@router.patch("/{conta_id}/baixas/{baixa_id}")
+async def corrigir_baixa(conta_id: UUID, baixa_id: UUID, data: BaixaRequest, usuario_id: CurrentUserID, db: DBSession):
+    conta = await obter_conta(db, usuario_id, conta_id, receber=True)
+    anterior = await cancelar_baixa(db, conta, baixa_id, receber=True)
+    if data.valor is None:
+        data.valor = anterior.valor
+    if data.data is None:
+        data.data = anterior.data
+    nova = await registrar_baixa(db, conta, data, receber=True)
+    await db.commit()
+    await db.refresh(nova)
+    return nova
 
 
 @router.delete("/{conta_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def deletar_conta_receber(
     conta_id: UUID, usuario_id: CurrentUserID, db: DBSession
 ):
-    conta = await db.get(ContaAReceber, conta_id)
+    conta = await db.get(ContaAReceber, conta_id, with_for_update=True)
     if not conta or conta.usuario_id != usuario_id:
         raise HTTPException(status_code=404, detail="Conta a receber não encontrada.")
+    if await listar_baixas(db, conta, receber=True):
+        raise HTTPException(409, "Conta com historico de baixas nao pode ser excluida.")
     await db.delete(conta)
     await db.commit()

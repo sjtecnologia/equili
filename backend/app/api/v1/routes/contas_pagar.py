@@ -1,25 +1,23 @@
 import logging
 from calendar import monthrange
-from datetime import date, datetime, timezone
+from datetime import date
+from decimal import Decimal
 from uuid import UUID
 
 from uuid import UUID as PyUUID
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import func, select
 
-from app.api.v1.routes.lancamentos_cartao import aplicar_efeito_lancamento
 from app.core.dependencies import CurrentUserID, DBSession
-from app.models.conta_bancaria import CartaoCredito, ContaBancaria
 from app.models.conta_lancamento import ContaAPagar
-from app.models.lancamento_cartao import LancamentoCartao
-from app.models.lancamento_conta import LancamentoConta
+from app.services.baixas_contas import BaixaRequest, obter_conta, listar_baixas, registrar_baixa, cancelar_baixa
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-STATUS_VALIDOS = {"pendente", "pago", "vencido"}
+STATUS_VALIDOS = {"pendente", "pago", "vencido", "parcial"}
 MODALIDADES_VALIDAS = {"avulsa", "recorrente", "parcelada"}
 
 
@@ -98,7 +96,7 @@ TIPOS_VALIDOS = {"avulsa", "fixa", "variavel"}
 class ContaAPagarUpdate(BaseModel):
     descricao: str | None = None
     categoria: str | None = None
-    valor: float | None = None
+    valor: Decimal | None = Field(default=None, gt=0, max_digits=12, decimal_places=2)
     data_vencimento: date | None = None
     tipo: str | None = None  # avulsa | fixa | variavel
     observacao: str | None = None
@@ -122,12 +120,19 @@ class ContaAPagarUpdate(BaseModel):
 
 
 class PagarRequest(BaseModel):
+    valor: Decimal | None = Field(default=None, gt=0, max_digits=12, decimal_places=2)
     data_pagamento: date | None = None
     conta_id: PyUUID | None = None
     cartao_id: PyUUID | None = None
     # nomes legados, ainda enviados pelo frontend
     conta_bancaria_id: PyUUID | None = None
     cartao_credito_id: PyUUID | None = None
+
+    @model_validator(mode="after")
+    def validar_destino(self):
+        if (self.conta_id or self.conta_bancaria_id) and (self.cartao_id or self.cartao_credito_id):
+            raise ValueError("Selecione apenas uma conta ou cartao.")
+        return self
 
 
 @router.get("/fixas-atrasadas")
@@ -139,14 +144,14 @@ async def contas_fixas_atrasadas(usuario_id: CurrentUserID, db: DBSession):
             ContaAPagar.descricao,
             ContaAPagar.categoria,
             func.count(ContaAPagar.id).label("meses_atrasados"),
-            func.sum(ContaAPagar.valor).label("total"),
+            func.sum(ContaAPagar.valor - ContaAPagar.valor_baixado).label("total"),
             func.min(ContaAPagar.data_vencimento).label("primeira_data"),
             func.max(ContaAPagar.data_vencimento).label("ultima_data"),
         )
         .where(
             ContaAPagar.usuario_id == usuario_id,
             ContaAPagar.tipo == "fixa",
-            ContaAPagar.status == "pendente",
+            ContaAPagar.status.in_(["pendente", "parcial", "vencido"]),
             ContaAPagar.data_vencimento < hoje,
         )
         .group_by(ContaAPagar.descricao, ContaAPagar.categoria)
@@ -178,8 +183,17 @@ async def listar_contas_pagar(
     categoria: str | None = None,
     data_inicio: date | None = None,
     data_fim: date | None = None,
+    tipo: str | None = None,
+    conta_bancaria_id: UUID | None = None,
+    cartao_id: UUID | None = None,
 ):
     query = select(ContaAPagar).where(ContaAPagar.usuario_id == usuario_id)
+    if tipo in TIPOS_VALIDOS:
+        query = query.where(ContaAPagar.tipo == tipo)
+    if conta_bancaria_id:
+        query = query.where(ContaAPagar.conta_id == conta_bancaria_id)
+    if cartao_id:
+        query = query.where(ContaAPagar.cartao_id == cartao_id)
     if status and status in STATUS_VALIDOS:
         query = query.where(ContaAPagar.status == status)
     if categoria and categoria.strip():
@@ -285,9 +299,15 @@ async def criar_conta_pagar(
 async def atualizar_conta_pagar(
     conta_id: UUID, data: ContaAPagarUpdate, usuario_id: CurrentUserID, db: DBSession
 ):
-    conta = await db.get(ContaAPagar, conta_id)
+    conta = await db.get(ContaAPagar, conta_id, with_for_update=True)
     if not conta or conta.usuario_id != usuario_id:
         raise HTTPException(status_code=404, detail="Conta não encontrada.")
+    if data.valor is not None and (data.valor <= 0 or data.valor < conta.valor_baixado):
+        raise HTTPException(422, "Valor deve ser positivo e nao pode ser menor que o total baixado.")
+    if data.valor is not None and conta.valor_baixado and data.valor != conta.valor:
+        from app.services.baixas_contas import atualizar_resumo
+        conta.valor = data.valor
+        await atualizar_resumo(db, conta)
     for campo, valor in data.model_dump(exclude_none=True).items():
         setattr(conta, campo, valor)
     await db.commit()
@@ -300,75 +320,65 @@ async def marcar_como_pago(
     conta_id: UUID, usuario_id: CurrentUserID, db: DBSession,
     data: PagarRequest | None = None,
 ):
-    from datetime import time
-
-    # FOR UPDATE serializa baixas concorrentes da mesma conta (no-op em SQLite)
-    conta = await db.get(ContaAPagar, conta_id, with_for_update=True)
-    if not conta or conta.usuario_id != usuario_id:
-        raise HTTPException(status_code=404, detail="Conta não encontrada.")
-    # Saldo/limite só se movimentam na transição pendente -> pago
-    if conta.status == "pago":
-        raise HTTPException(status_code=409, detail="Conta já está paga.")
-
-    data_pagto = (data.data_pagamento if data and data.data_pagamento else date.today())
-    conta_banco_id = data and (data.conta_id or data.conta_bancaria_id)
+    conta = await obter_conta(db, usuario_id, conta_id, receber=False)
+    banco_id = data and (data.conta_id or data.conta_bancaria_id)
     cartao_id = data and (data.cartao_id or data.cartao_credito_id)
-
-    # Valida o meio antes de alterar qualquer estado
-    cb = cc = None
-    if conta_banco_id:
-        cb = await db.get(ContaBancaria, conta_banco_id)
-        if not cb or cb.usuario_id != usuario_id:
-            raise HTTPException(status_code=404, detail="Conta bancária não encontrada.")
-    elif cartao_id:
-        cc = await db.get(CartaoCredito, cartao_id)
-        if not cc or cc.usuario_id != usuario_id:
-            raise HTTPException(status_code=404, detail="Cartão de crédito não encontrado.")
-
-    conta.status = "pago"
-    conta.pago_em = datetime.combine(data_pagto, time.min).replace(tzinfo=timezone.utc)
-
-    if cb:
-        # ContaBancaria não tem coluna de saldo: saldo atual = saldo_inicial + soma dos LancamentoConta,
-        # então o débito é aplicado pelo lançamento de saída.
-        conta.conta_id = cb.id
-        db.add(LancamentoConta(
-            conta_bancaria_id=cb.id,
-            descricao=conta.descricao,
-            valor=conta.valor,
-            tipo="saida",
-            data=data_pagto,
-            categoria=conta.categoria,
-            origem="contas_pagar",
-        ))
-    elif cc:
-        conta.cartao_id = cc.id
-        db.add(LancamentoCartao(
-            cartao_credito_id=cc.id,
-            descricao=conta.descricao,
-            valor=conta.valor,
-            tipo="compra",
-            data=data_pagto,
-            categoria=conta.categoria,
-        ))
-        aplicar_efeito_lancamento(cc, "compra", float(conta.valor))
-
-    try:
-        await db.commit()
-    except Exception:
-        await db.rollback()
-        logger.exception("Falha ao baixar conta a pagar %s", conta_id)
-        raise
+    payload = BaixaRequest(
+        valor=data.valor if data else None,
+        data=data.data_pagamento if data else None,
+        conta_id=banco_id, cartao_id=cartao_id,
+        meio="conta" if banco_id else "cartao" if cartao_id else "dinheiro",
+    )
+    await registrar_baixa(db, conta, payload, receber=False)
+    await db.commit()
     await db.refresh(conta)
     return conta
+
+
+@router.get("/{conta_id}/baixas")
+async def historico_baixas(conta_id: UUID, usuario_id: CurrentUserID, db: DBSession):
+    conta = await obter_conta(db, usuario_id, conta_id, receber=False)
+    return await listar_baixas(db, conta, receber=False)
+
+
+@router.post("/{conta_id}/baixas", status_code=201)
+async def criar_baixa(conta_id: UUID, data: BaixaRequest, usuario_id: CurrentUserID, db: DBSession):
+    conta = await obter_conta(db, usuario_id, conta_id, receber=False)
+    baixa = await registrar_baixa(db, conta, data, receber=False)
+    await db.commit()
+    await db.refresh(baixa)
+    return baixa
+
+
+@router.delete("/{conta_id}/baixas/{baixa_id}", status_code=204)
+async def estornar_baixa(conta_id: UUID, baixa_id: UUID, usuario_id: CurrentUserID, db: DBSession):
+    conta = await obter_conta(db, usuario_id, conta_id, receber=False)
+    await cancelar_baixa(db, conta, baixa_id, receber=False)
+    await db.commit()
+
+
+@router.patch("/{conta_id}/baixas/{baixa_id}")
+async def corrigir_baixa(conta_id: UUID, baixa_id: UUID, data: BaixaRequest, usuario_id: CurrentUserID, db: DBSession):
+    conta = await obter_conta(db, usuario_id, conta_id, receber=False)
+    anterior = await cancelar_baixa(db, conta, baixa_id, receber=False)
+    if data.valor is None:
+        data.valor = anterior.valor
+    if data.data is None:
+        data.data = anterior.data
+    nova = await registrar_baixa(db, conta, data, receber=False)
+    await db.commit()
+    await db.refresh(nova)
+    return nova
 
 
 @router.delete("/{conta_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def deletar_conta_pagar(
     conta_id: UUID, usuario_id: CurrentUserID, db: DBSession
 ):
-    conta = await db.get(ContaAPagar, conta_id)
+    conta = await db.get(ContaAPagar, conta_id, with_for_update=True)
     if not conta or conta.usuario_id != usuario_id:
         raise HTTPException(status_code=404, detail="Conta não encontrada.")
+    if await listar_baixas(db, conta):
+        raise HTTPException(409, "Conta com historico de baixas nao pode ser excluida.")
     await db.delete(conta)
     await db.commit()

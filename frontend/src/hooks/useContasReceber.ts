@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/services/api'
 import { invalidateContasReceberAndDashboard } from '@/lib/queryInvalidation'
 import type { ContaAReceber } from '@/types/financeiro'
+import { notify } from '@/utils/notify'
+import { parseApiError } from '@/utils/api'
 
 export function useContasReceber(params: Record<string, string> = {}) {
   const qc = useQueryClient()
@@ -15,6 +17,7 @@ export function useContasReceber(params: Record<string, string> = {}) {
 
   const deletar = useMutation({
     mutationFn: (id: string) => api.delete(`/contas-receber/${id}`),
+    onError: (e) => notify.error(parseApiError(e)),
     onSuccess: () => invalidateContasReceberAndDashboard(qc),
   })
 

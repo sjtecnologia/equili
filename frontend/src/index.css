@@ -401,6 +401,14 @@ div:has(> span > .tabular-nums) {
    Corrige o layout 100dvh/overflow-hidden do AppLayout para impressão funcionar
    -------------------------------------------------------------------------- */
 @media print {
+  button[aria-label="Assistente de voz"] { display: none !important; }
+  .relatorio-parcelas {
+    page: parcelas;
+    max-width: none !important;
+    overflow: visible !important;
+  }
+  .relatorio-parcelas thead { display: table-header-group; }
+  .relatorio-parcelas tr { break-inside: avoid; }
   html, body, #root {
     height: auto !important;
     overflow: visible !important;
@@ -434,5 +442,9 @@ div:has(> span > .tabular-nums) {
 
   @page {
     margin: 16mm 12mm;
+  }
+  @page parcelas {
+    size: A4 landscape;
+    margin: 12mm;
   }
 }

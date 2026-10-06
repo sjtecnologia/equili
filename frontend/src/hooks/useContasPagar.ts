@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/services/api'
 import { invalidateContasPagarAndDashboard } from '@/lib/queryInvalidation'
 import type { ContaAPagar } from '@/types/financeiro'
+import { notify } from '@/utils/notify'
+import { parseApiError } from '@/utils/api'
 
 export function useContasPagar(params: Record<string, string> = {}) {
   const qc = useQueryClient()
@@ -15,6 +17,7 @@ export function useContasPagar(params: Record<string, string> = {}) {
 
   const deletar = useMutation({
     mutationFn: (id: string) => api.delete(`/contas-pagar/${id}`),
+    onError: (e) => notify.error(parseApiError(e)),
     onSuccess: () => invalidateContasPagarAndDashboard(qc),
   })
 

@@ -8,10 +8,11 @@ const MESES_ABR = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set'
 export function useFluxoCaixa() {
   const currentYear = new Date().getFullYear()
   const [anoFluxo, setAnoFluxo] = useState(currentYear)
+  const [filtrosFluxo, setFiltrosFluxo] = useState<Record<string, string>>({})
 
   const { data: fluxoData, isLoading: loadingFluxo } = useQuery<FluxoMes[]>({
-    queryKey: ['fluxo-caixa', anoFluxo],
-    queryFn: () => api.get(`/relatorio/fluxo-caixa?ano=${anoFluxo}`).then((r) => r.data),
+    queryKey: ['fluxo-caixa', anoFluxo, filtrosFluxo],
+    queryFn: () => api.get('/relatorio/fluxo-caixa', { params: { ano: anoFluxo, ...filtrosFluxo } }).then((r) => r.data),
     staleTime: 5 * 60_000,
   })
 
@@ -26,5 +27,5 @@ export function useFluxoCaixa() {
     }
   }, [fluxoData])
 
-  return { anoFluxo, setAnoFluxo, fluxoData, loadingFluxo, chartData, totalEntradas, totalSaidas, saldoAnual }
+  return { anoFluxo, setAnoFluxo, filtrosFluxo, setFiltrosFluxo, fluxoData, loadingFluxo, chartData, totalEntradas, totalSaidas, saldoAnual }
 }

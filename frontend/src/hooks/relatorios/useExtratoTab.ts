@@ -21,6 +21,7 @@ export function useExtratoTab(enabled: boolean) {
     String(currentYear) + '-' + String(currentMonth).padStart(2, '0')
   )
   const [copiadoExtrato, setCopiadoExtrato] = useState(false)
+  const [filtrosExtrato, setFiltrosExtrato] = useState<Record<string, string>>({})
 
   const {
     data: contasBancarias,
@@ -91,6 +92,7 @@ export function useExtratoTab(enabled: boolean) {
   }, [enabled, tipoExtrato, cartaoExtratoId, cartoes])
 
   function trocarTipoExtrato(tipo: 'conta' | 'cartao') {
+    setFiltrosExtrato({})
     setTipoExtrato(tipo)
     setContaExtratoId('')
     setCartaoExtratoId('')
@@ -113,13 +115,21 @@ export function useExtratoTab(enabled: boolean) {
     ? mesExtrato
     : (mesesDisponiveisExtrato[0] ?? mesExtrato)
 
-  const lancamentosDoMes = useMemo(
+  const lancamentosMesCompleto = useMemo(
     () =>
       lancamentosExtrato
         .filter((l) => l.data.slice(0, 7) === mesEfetivo)
         .sort((a, b) => a.data.localeCompare(b.data)),
     [lancamentosExtrato, mesEfetivo]
   )
+
+  const correspondeFiltro = (l: Lancamento | CartaoLancamento) =>
+    (!filtrosExtrato.tipo || l.tipo === filtrosExtrato.tipo) &&
+    (!filtrosExtrato.categoria || l.categoria?.trim().toLocaleLowerCase() === filtrosExtrato.categoria.toLocaleLowerCase()) &&
+    (!filtrosExtrato.q || l.descricao.toLocaleLowerCase().includes(filtrosExtrato.q.toLocaleLowerCase())) &&
+    (!filtrosExtrato.data_inicio || l.data >= filtrosExtrato.data_inicio) &&
+    (!filtrosExtrato.data_fim || l.data <= filtrosExtrato.data_fim)
+  const lancamentosDoMes = lancamentosMesCompleto.filter(correspondeFiltro)
 
   const saldoAntesDoMes = useMemo(() => {
     if (tipoExtrato !== 'conta') return 0
@@ -131,7 +141,7 @@ export function useExtratoTab(enabled: boolean) {
 
   const linhasConta = useMemo(() => {
     if (tipoExtrato !== 'conta') return []
-    return (lancamentosDoMes as Lancamento[]).reduce<{ lancamento: Lancamento; saldo: number }[]>(
+    return (lancamentosMesCompleto as Lancamento[]).reduce<{ lancamento: Lancamento; saldo: number }[]>(
       (acc, l) => {
         const anterior = acc.length > 0 ? acc[acc.length - 1].saldo : saldoAntesDoMes
         acc.push({ lancamento: l, saldo: anterior + (l.tipo === 'entrada' ? l.valor : -l.valor) })
@@ -139,7 +149,7 @@ export function useExtratoTab(enabled: boolean) {
       },
       []
     )
-  }, [tipoExtrato, lancamentosDoMes, saldoAntesDoMes])
+  }, [tipoExtrato, lancamentosMesCompleto, saldoAntesDoMes])
 
   const totalEntC = useMemo(
     () =>
@@ -181,6 +191,8 @@ export function useExtratoTab(enabled: boolean) {
     setMesExtrato,
     mesEfetivo,
     copiadoExtrato,
+    filtrosExtrato,
+    setFiltrosExtrato,
     setCopiadoExtrato,
     contasBancarias: contasBancarias ?? [],
     cartoes: cartoes ?? [],
@@ -198,7 +210,8 @@ export function useExtratoTab(enabled: boolean) {
     lancamentosDoMes,
     mesesDisponiveisExtrato,
     saldoAntesDoMes,
-    linhasConta,
+    linhasConta: linhasConta.filter(l => correspondeFiltro(l.lancamento)),
+    saldoFinalMes: linhasConta[linhasConta.length - 1]?.saldo ?? saldoAntesDoMes,
     totalEntC,
     totalSaiC,
     totalCompras,

@@ -82,6 +82,7 @@ async def _create_sqlite_schema(conn) -> None:
             categoria TEXT NOT NULL,
             valor REAL NOT NULL,
             data_vencimento TEXT NOT NULL,
+            valor_baixado REAL NOT NULL DEFAULT 0,
             status TEXT NOT NULL DEFAULT 'pendente',
             tipo TEXT NOT NULL DEFAULT 'avulsa',
             pago_em TEXT,
@@ -104,6 +105,7 @@ async def _create_sqlite_schema(conn) -> None:
             tipo TEXT NOT NULL DEFAULT 'avulsa',
             valor REAL NOT NULL,
             data_prevista TEXT NOT NULL,
+            valor_baixado REAL NOT NULL DEFAULT 0,
             status TEXT NOT NULL DEFAULT 'pendente',
             devedor TEXT,
             recebido_em TEXT,
@@ -329,6 +331,8 @@ def finance_client():
     async def setup_db() -> None:
         async with engine.begin() as conn:
             await _create_sqlite_schema(conn)
+            from app.models.conta_lancamento import BaixaConta
+            await conn.run_sync(lambda sync_conn: BaixaConta.__table__.create(sync_conn))
         async with session_factory() as session:
             session.add(
                 Usuario(

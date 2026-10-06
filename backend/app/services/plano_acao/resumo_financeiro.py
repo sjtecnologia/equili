@@ -69,12 +69,12 @@ async def montar_resumo_financeiro(db: AsyncSession, usuario_id: UUID, hoje: dat
     ]
 
     pagar = (await db.execute(
-        select(ContaAPagar.descricao, ContaAPagar.categoria, ContaAPagar.data_vencimento, ContaAPagar.valor)
+        select(ContaAPagar.descricao, ContaAPagar.categoria, ContaAPagar.data_vencimento, (ContaAPagar.valor - ContaAPagar.valor_baixado).label("valor"))
         .where(ContaAPagar.usuario_id == usuario_id, ContaAPagar.status != "pago")
         .order_by(ContaAPagar.data_vencimento)
     )).all()
     receber = (await db.execute(
-        select(ContaAReceber.descricao, ContaAReceber.origem, ContaAReceber.data_prevista, ContaAReceber.valor)
+        select(ContaAReceber.descricao, ContaAReceber.origem, ContaAReceber.data_prevista, (ContaAReceber.valor - ContaAReceber.valor_baixado).label("valor"))
         .where(ContaAReceber.usuario_id == usuario_id, ContaAReceber.status != "recebido")
         .order_by(ContaAReceber.data_prevista)
     )).all()

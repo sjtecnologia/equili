@@ -8,7 +8,8 @@ import { ContasFiltrosBar, limparFiltrosVazios } from '@/components/shared/Conta
 import { useContasReceber } from '@/hooks/useContasReceber'
 import type { ContaAReceber } from '@/types/financeiro'
 import { useContas } from '@/hooks/useContas'
-import { EditarContaReceberModal, ReceberContaModal, ContaModal } from './ContaReceberModals'
+import { EditarContaReceberModal, ContaModal } from './ContaReceberModals'
+import { BaixasContaModal } from '@/components/shared/BaixasContaModal'
 
 type ModalState = {
   showCreate: boolean
@@ -50,6 +51,7 @@ function modalReducer(state: ModalState, action: ModalAction): ModalState {
 }
 
 const STATUS_LABELS: Record<string, { label: string; classes: string }> = {
+  parcial: { label: 'Parcial', classes: 'bg-blue-100 text-blue-700' },
   pendente: { label: 'Pendente', classes: 'bg-amber-100 text-amber-700' },
   recebido: { label: 'Recebido', classes: 'bg-green-100 text-green-700' },
   atrasado: { label: 'Atrasado', classes: 'bg-red-100 text-red-700' },
@@ -74,8 +76,8 @@ export default function ContasReceberPage() {
   const contasFiltradas = contas
 
   const { totalPendente, totalRecebido } = useMemo(() => ({
-    totalPendente: contas.filter((c) => c.status !== 'recebido').reduce((acc, c) => acc + c.valor, 0),
-    totalRecebido: contas.filter((c) => c.status === 'recebido').reduce((acc, c) => acc + c.valor, 0),
+    totalPendente: contas.reduce((acc, c) => acc + Number(c.valor) - Number(c.valor_baixado), 0),
+    totalRecebido: contas.reduce((acc, c) => acc + Number(c.valor_baixado), 0),
   }), [contas])
 
   return (
@@ -159,14 +161,17 @@ export default function ContasReceberPage() {
                   <p className="text-xs text-gray-400 italic">{conta.observacao}</p>
                 )}
 
+                {Number(conta.valor_baixado) > 0 && <p className="text-xs text-gray-500">
+                  Baixado: {formatCurrency(Number(conta.valor_baixado))} · Restante: {formatCurrency(Number(conta.valor) - Number(conta.valor_baixado))}
+                </p>}
                 <div className="flex gap-2">
-                  {conta.status !== 'recebido' && (
+                  {(
                     <button
                       onClick={() => dispatchModal({ type: 'OPEN_RECEIVE', conta })}
                       className="btn-secondary text-xs flex-1 flex items-center justify-center gap-1"
                     >
                       <CheckCircle2 size={12} />
-                      Marcar como recebido
+                      {conta.status === 'recebido' ? 'Consultar baixas' : 'Baixar parcela'}
                     </button>
                   )}
                   <button
@@ -203,7 +208,8 @@ export default function ContasReceberPage() {
         />
       )}
       {modals.recebendo && (
-        <ReceberContaModal
+        <BaixasContaModal
+          receber
           conta={modals.recebendo}
           onClose={() => dispatchModal({ type: 'CLOSE_RECEIVE' })}
         />

@@ -10,6 +10,7 @@ export interface ContasFiltros {
   parcela?: string
   data_inicio?: string
   data_fim?: string
+  tipo?: string
 }
 
 interface Props {
@@ -24,6 +25,11 @@ export function ContasFiltrosBar({ statusOptions, tipoCategoria, onFiltrar }: Pr
   const campos: CampoFiltro[] = [
     { key: 'q', tipo: 'busca', placeholder: 'Buscar (descrição ou parcela)' },
     { key: 'status', tipo: 'select', label: 'Status', opcoes: statusOptions },
+    { key: 'tipo', tipo: 'select', label: 'Tipo de lançamento', opcoes: [
+      { value: 'avulsa', label: 'Avulsa' },
+      { value: tipoCategoria === 'despesa' ? 'fixa' : 'recorrente', label: 'Recorrente' },
+      { value: tipoCategoria === 'despesa' ? 'variavel' : 'parcelada', label: 'Parcelada' },
+    ] },
     {
       key: 'categoria', tipo: 'select', label: 'Categoria', todasLabel: 'Todas', disabled: categoriasErro,
       opcoes: categorias.map((c) => ({ value: c.nome, label: c.nome })),

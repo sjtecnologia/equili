@@ -27,7 +27,7 @@ export default function AppLayout() {
       </aside>
 
       {/* Coluna principal: h-full para herdar a altura do pai */}
-      <div className="flex flex-col flex-1 h-full">
+      <div className="flex flex-col flex-1 min-w-0 h-full">
         {/* Header mobile */}
         <header className="lg:hidden print:hidden flex-shrink-0 flex items-center justify-between px-4 bg-white border-b border-gray-100 z-10"
           style={{ paddingTop: 'max(12px, env(safe-area-inset-top))', paddingBottom: '12px' }}>
@@ -74,7 +74,7 @@ export default function AppLayout() {
         </header>
 
         {/* min-h-0 aqui é essencial: permite que o flex-1 encolha no iOS WebKit */}
-        <main className="flex-1 min-h-0 overflow-y-auto">
+        <main className="flex-1 min-w-0 min-h-0 overflow-y-auto">
           <div className="lg:max-w-5xl lg:mx-auto lg:p-8">
             <ErrorBoundary>
               <Outlet />
