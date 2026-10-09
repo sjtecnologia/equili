@@ -6,6 +6,8 @@ import {
 import { formatCurrency } from '@/utils/format'
 import { useNavigate } from 'react-router-dom'
 import { useContas } from '@/hooks/useContas'
+import { usePlano } from '@/hooks/usePlano'
+import Paywall from '@/components/Paywall'
 import type { ContaBancaria, CartaoCredito } from '@/types/financeiro'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -202,6 +204,19 @@ export default function ContasBancariasPage() {
 
   const totalSaldo = contas.reduce((s, c) => s + (c.saldo_atual ?? c.saldo_inicial), 0)
   const totalLimite = cartoes.reduce((s, c) => s + c.limite, 0)
+
+  const { temRecurso } = usePlano()
+  if (!temRecurso('contas_bancarias')) {
+    return (
+      <div className="p-4 max-w-2xl mx-auto space-y-4">
+        <PageHeader title="Contas e Cartões" subtitle="Controle seu dinheiro na prática" />
+        <Paywall
+          titulo="Contas e Cartões"
+          descricao="Conecte suas contas bancárias e cartões de crédito para controlar o dinheiro de verdade. Disponível nos planos Premium e Pro / Família."
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="p-4 max-w-2xl mx-auto space-y-4">

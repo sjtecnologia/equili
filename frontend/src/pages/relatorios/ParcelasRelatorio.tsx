@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Download, Printer, Loader2 } from 'lucide-react'
+import { Download, Printer, Loader2, Lock } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import * as XLSX from 'xlsx'
 import api from '@/services/api'
 import { useContas } from '@/hooks/useContas'
+import { usePlano } from '@/hooks/usePlano'
 import { FiltrosBarra, CAMPOS_PERIODO, type CampoFiltro } from '@/components/shared/FiltrosBarra'
 import { formatCurrency, formatDate } from '@/utils/format'
 
@@ -29,6 +31,8 @@ const NATUREZAS = [{ value: 'pagar', label: 'A pagar' }, { value: 'receber', lab
 export function ParcelasRelatorio() {
   const [filtros, setFiltros] = useState<Record<string, string>>({})
   const { contas, cartoes } = useContas()
+  const { temRecurso: temRecursoPlano } = usePlano()
+  const podeExportar = temRecursoPlano('exportacao')
   const { data: categorias = [] } = useQuery<{ nome: string }[]>({
     queryKey: ['categorias-relatorio'], queryFn: () => api.get('/categorias').then(r => r.data),
   })
@@ -78,7 +82,11 @@ export function ParcelasRelatorio() {
     <div className="print:hidden"><FiltrosBarra campos={campos} onFiltrar={setFiltros} /></div>
     <p className="text-xs text-gray-500 break-words">{descricaoFiltros}</p>
     <div className="flex flex-wrap gap-2 print:hidden">
-      <button onClick={exportar} disabled={isFetching || isError || !linhas.length} className="btn-secondary flex items-center gap-2"><Download size={16} />Exportar Excel</button>
+      {podeExportar ? (
+        <button onClick={exportar} disabled={isFetching || isError || !linhas.length} className="btn-secondary flex items-center gap-2"><Download size={16} />Exportar Excel</button>
+      ) : (
+        <Link to="/planos" className="btn-secondary flex items-center gap-2" title="Exportação disponível nos planos Premium e Pro"><Lock size={16} />Exportar Excel</Link>
+      )}
       <button onClick={() => window.print()} disabled={isFetching || isError || !linhas.length} className="btn-secondary flex items-center gap-2"><Printer size={16} />Imprimir</button>
     </div>
     {isFetching ? <Loader2 className="animate-spin" aria-label="Carregando relatório" /> : isError ? <p role="alert" className="text-red-600">Não foi possível carregar o relatório. Confira os filtros e o período.</p> : <>

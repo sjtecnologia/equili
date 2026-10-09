@@ -7,6 +7,7 @@ import DrawerNav from './DrawerNav'
 import VoiceAssistant from '@/components/voice/VoiceAssistant'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { useAuthStore } from '@/stores/authStore'
+import { usePlano } from '@/hooks/usePlano'
 import logo from '@/assets/logo.png'
 
 function avatarLetters(nome: string) {
@@ -15,6 +16,7 @@ function avatarLetters(nome: string) {
 
 export default function AppLayout() {
   const user = useAuthStore((s) => s.user)
+  const { temRecurso } = usePlano()
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   return (
@@ -90,7 +92,7 @@ export default function AppLayout() {
       </div>
 
       {/* Assistente de voz global */}
-      <div className="print:hidden"><VoiceAssistant /></div>
+      <div className="print:hidden">{temRecurso('voz') && <VoiceAssistant />}</div>
     </div>
   )
 }

@@ -149,7 +149,7 @@ def test_dividas_do_plano_gratuito_limitam_3_ativas(finance_client, monkeypatch)
             },
         )
 
-        assert response.status_code == 403, response.text
+        assert response.status_code == 429, response.text
         payload = response.json()
         assert "limite" in payload["detail"].lower()
     finally:

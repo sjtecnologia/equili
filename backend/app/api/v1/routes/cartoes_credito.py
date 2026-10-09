@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, field_validator, model_validator
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.core.dependencies import CurrentUserID, DBSession
 from app.models.conta_bancaria import CartaoCredito
@@ -105,8 +105,33 @@ async def listar_cartoes(usuario_id: CurrentUserID, db: DBSession):
     ]
 
 
+async def _verificar_limite_cartoes(usuario_id: UUID, db) -> None:
+    from app.core import planos
+    from app.models.usuario import Usuario
+
+    usuario = await db.get(Usuario, usuario_id)
+    plano = planos.normalizar_plano(usuario.plano if usuario else None)
+    limite = planos.limite(plano, planos.LIMITE_CARTOES_CREDITO)
+    if limite is None:
+        return
+    count = await db.scalar(
+        select(func.count()).where(
+            CartaoCredito.usuario_id == usuario_id,
+            CartaoCredito.ativo == True,  # noqa: E712
+        )
+    )
+    if count >= limite:
+        rotulo = planos.get_plano(plano).rotulo
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Você atingiu o limite de {limite} cartão(ões) do plano {rotulo}. Faça upgrade para adicionar mais.",
+            headers={"X-Equili-Recurso": planos.LIMITE_CARTOES_CREDITO},
+        )
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def criar_cartao(data: CartaoCreditoCreate, usuario_id: CurrentUserID, db: DBSession):
+    await _verificar_limite_cartoes(usuario_id, db)
     payload = data.model_dump()
     limite_atual = payload.pop("limite_atual")
     if limite_atual is None:

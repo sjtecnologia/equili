@@ -1,10 +1,12 @@
 import { useReducer, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Trash2, CheckCircle, Lock, Pencil, AlertTriangle, CalendarClock, History } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { useDividas } from '@/hooks/useDividas'
+import { usePlano } from '@/hooks/usePlano'
 import { FiltrosBarra, limparFiltrosVazios, CAMPOS_PERIODO, type CampoFiltro } from '@/components/shared/FiltrosBarra'
 import { gerarAgendaParcelas } from '@/lib/parcelas'
 import type { Divida } from '@/types/financeiro'
@@ -82,7 +84,9 @@ export default function DividasPage() {
     (acc, d) => acc + d.valor_parcela * d.parcelas_restantes,
     0
   )
-  const atingiuLimite = dividasAtivas.length >= 3
+  const { rotulo, limite } = usePlano()
+  const limiteDividas = limite('dividas_ativas')
+  const atingiuLimite = limiteDividas !== null && limiteDividas !== undefined && dividasAtivas.length >= limiteDividas
 
   // Parcelas em atraso — calculado pelo backend via histórico de pagamentos
   const dividasComAtraso = dividasAtivas.filter((d) => d.parcelas_atrasadas > 0).length
@@ -100,15 +104,15 @@ export default function DividasPage() {
         action={{ label: 'Adicionar', onClick: () => dispatchModal({ type: 'OPEN_CREATE' }), disabled: isLoading }}
       />
 
-      {/* Limite freemium */}
+      {/* Limite do plano */}
       {atingiuLimite && (
         <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm">
           <Lock size={16} className="text-accent-500 shrink-0 mt-0.5" />
           <span className="text-gray-700">
-            Você atingiu o limite de <strong>3 dívidas</strong> no plano gratuito.{' '}
-            <a href="#" className="text-primary-500 font-medium hover:underline">
+            Você atingiu o limite de <strong>{limiteDividas} dívidas ativas</strong> no plano {rotulo}.{' '}
+            <Link to="/planos" className="text-primary-500 font-medium hover:underline">
               Fazer upgrade
-            </a>{' '}
+            </Link>{' '}
             para adicionar mais.
           </span>
         </div>

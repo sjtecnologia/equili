@@ -6,7 +6,6 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, field_validator, model_validator
 from sqlalchemy import func, or_, select
 
-from app.core.config import settings
 from app.core.dependencies import CurrentUserID, DBSession
 from app.core.filtros import contem
 from app.models.divida import Divida, DividaPagamento
@@ -180,19 +179,26 @@ class DividaUpdate(BaseModel):
 
 
 async def _verificar_limite_dividas(usuario_id: UUID, db) -> None:
+    from app.core import planos
+
     usuario = await db.get(Usuario, usuario_id)
-    if usuario and usuario.plano == "gratuito":
-        count = await db.scalar(
-            select(func.count()).where(
-                Divida.usuario_id == usuario_id,
-                Divida.quitada == False,  # noqa: E712
-            )
+    plano = planos.normalizar_plano(usuario.plano if usuario else None)
+    limite = planos.limite(plano, planos.LIMITE_DIVIDAS_ATIVAS)
+    if limite is None:
+        return
+    count = await db.scalar(
+        select(func.count()).where(
+            Divida.usuario_id == usuario_id,
+            Divida.quitada == False,  # noqa: E712
         )
-        if count >= settings.PLANO_GRATIS_MAX_DIVIDAS:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Você atingiu o limite de {settings.PLANO_GRATIS_MAX_DIVIDAS} dívidas ativas do plano gratuito. Encerre uma dívida ou faça upgrade para adicionar mais.",
-            )
+    )
+    if count >= limite:
+        rotulo = planos.get_plano(plano).rotulo
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Você atingiu o limite de {limite} dívidas ativas do plano {rotulo}. Encerre uma dívida ou faça upgrade para adicionar mais.",
+            headers={"X-Equili-Recurso": planos.LIMITE_DIVIDAS_ATIVAS},
+        )
 
 
 @router.get("")

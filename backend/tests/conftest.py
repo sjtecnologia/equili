@@ -313,6 +313,19 @@ async def _create_sqlite_schema(conn) -> None:
         )
         """
     )
+    await conn.exec_driver_sql(
+        """
+        CREATE TABLE IF NOT EXISTS uso_ia (
+            id TEXT PRIMARY KEY,
+            usuario_id TEXT NOT NULL,
+            recurso TEXT NOT NULL,
+            periodo TEXT NOT NULL,
+            contador INTEGER NOT NULL DEFAULT 0,
+            atualizado_em TEXT,
+            UNIQUE (usuario_id, recurso, periodo)
+        )
+        """
+    )
 
 
 @pytest.fixture()

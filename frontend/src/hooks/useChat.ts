@@ -33,14 +33,26 @@ export function useChat() {
         messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
       })
       setMessages((prev) => [...prev, { role: 'assistant', content: data.reply }])
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: 'Desculpe, não consegui processar sua pergunta agora. Tente novamente em instantes.',
-        },
-      ])
+    } catch (e: unknown) {
+      const status = (e as { response?: { status?: number } })?.response?.status
+      if (status === 429) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content:
+              'Você atingiu o limite de mensagens do chat IA deste mês no seu plano. Faça upgrade (menu Meu Plano) para continuar conversando sem limite.',
+          },
+        ])
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: 'Desculpe, não consegui processar sua pergunta agora. Tente novamente em instantes.',
+          },
+        ])
+      }
     } finally {
       setLoading(false)
       setTimeout(() => inputRef.current?.focus(), 100)

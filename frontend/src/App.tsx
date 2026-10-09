@@ -31,6 +31,7 @@ import ListasPage from '@/pages/listas/ListasPage'
 import NfsPage from '@/pages/NfsPage'
 import AdminUsuariosPage from '@/pages/admin/AdminUsuariosPage'
 import PoliticaDePrivacidade from '@/pages/PoliticaDePrivacidade'
+import PlanosPage from '@/pages/planos/PlanosPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const status = useAuthStore((s) => s.status)
@@ -124,6 +125,7 @@ export default function App() {
           <Route path="contas-bancarias/:contaId/lancamentos" element={<ContaLancamentosPage />} />
           <Route path="cartoes-credito/:cartaoId/lancamentos" element={<CartaoLancamentosPage />} />
           <Route path="relatorios" element={<RelatoriosPage />} />
+          <Route path="planos" element={<PlanosPage />} />
           <Route path="plano-de-acao" element={<PlanoAcaoPage />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="investimentos" element={<InvestimentosPage />} />

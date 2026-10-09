@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { FileText, Trash2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import NfsQrReader from '@/components/nfs/NfsQrReader'
+import Paywall from '@/components/Paywall'
+import { usePlano } from '@/hooks/usePlano'
 import api from '@/services/api'
 import { formatCurrency } from '@/utils/format'
 import { FiltrosBarra, limparFiltrosVazios, CAMPOS_PERIODO, type CampoFiltro } from '@/components/shared/FiltrosBarra'
@@ -40,6 +42,9 @@ export default function NfsPage() {
   const [filtros, setFiltros] = useState<Record<string, string>>({})
   const temFiltro = Object.keys(filtros).length > 0
 
+  const { temRecurso } = usePlano()
+  const bloqueado = !temRecurso('nfs')
+
   const carregarNotas = async (params: Record<string, string> = filtros) => {
     setLoading(true)
     try {
@@ -56,7 +61,6 @@ export default function NfsPage() {
   // Refaz a busca sempre que os filtros mudam
   useEffect(() => {
     void carregarNotas(filtros)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtros])
 
   const handleLancarNota = async () => {
@@ -105,6 +109,21 @@ export default function NfsPage() {
     } finally {
       setRemovendoId(null)
     }
+  }
+
+  if (bloqueado) {
+    return (
+      <div className="p-4 space-y-4 max-w-5xl mx-auto">
+        <PageHeader
+          title="Notas Fiscais (NFS)"
+          subtitle="Leia o QR da nota e registre as informações no sistema."
+        />
+        <Paywall
+          titulo="Notas Fiscais (NFS-e)"
+          descricao="Registre notas fiscais lendo o QR Code, ideal para autônomos e prestadores de serviço. Disponível no plano Pro / Família."
+        />
+      </div>
+    )
   }
 
   return (

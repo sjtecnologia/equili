@@ -16,6 +16,9 @@ import { formatCurrency, formatDate } from '@/utils/format'
 import { CATEGORIAS_LABEL, ORIGENS_LABEL, STATUS_PAGAR, STATUS_RECEBER } from '@/utils/labels'
 import type { FluxoMes, RelatorioDetalhado, CartaoLancamento } from '@/types/financeiro'
 import { useRelatorios } from '@/hooks/useRelatorios'
+import { usePlano } from '@/hooks/usePlano'
+import { Link } from 'react-router-dom'
+import { Lock } from 'lucide-react'
 import { ParcelasRelatorio } from './ParcelasRelatorio'
 import { RelatorioFiltros, descreverFiltros } from '@/components/shared/RelatorioFiltros'
 
@@ -121,6 +124,10 @@ export default function RelatoriosPage() {
     totalEntC, totalSaiC, totalCompras, totalPagamentosCartao,
   } = useRelatorios()
 
+  const { temRecurso } = usePlano()
+  const podeExportar = temRecurso('exportacao')
+  const podeDetalhado = temRecurso('relatorios_avancados')
+
   return (
     <div className={`w-full max-w-3xl box-border overflow-x-hidden p-4 space-y-4 mx-auto ${tab === 'parcelas' ? 'relatorio-parcelas' : ''}`}>
       {/* Header */}
@@ -144,7 +151,7 @@ export default function RelatoriosPage() {
       <div className="flex w-full max-w-full flex-wrap gap-1 p-1 bg-gray-100 rounded-xl print:hidden">
         {[
           { key: 'fluxo', label: 'Fluxo de Caixa' },
-          { key: 'detalhado', label: 'Detalhado' },
+          ...(podeDetalhado ? [{ key: 'detalhado', label: 'Detalhado' }] : []),
           { key: 'extrato', label: 'Extrato' },
           { key: 'dia', label: 'Por Dia' },
           { key: 'parcelas', label: 'Parcelas' },
@@ -183,14 +190,25 @@ export default function RelatoriosPage() {
               </select>
             </div>
             <div className="flex items-center gap-2 print:hidden">
-              <button
-                onClick={() => fluxoData && exportFluxoCaixaExcel(fluxoData, anoFluxo, filtrosFluxo)}
-                disabled={!fluxoData || loadingFluxo}
-                className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50"
-              >
-                <Download size={15} />
-                Exportar Excel
-              </button>
+              {podeExportar ? (
+                <button
+                  onClick={() => fluxoData && exportFluxoCaixaExcel(fluxoData, anoFluxo, filtrosFluxo)}
+                  disabled={!fluxoData || loadingFluxo}
+                  className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50"
+                >
+                  <Download size={15} />
+                  Exportar Excel
+                </button>
+              ) : (
+                <Link
+                  to="/planos"
+                  className="btn-secondary flex items-center gap-1.5 text-sm"
+                  title="Exportação disponível nos planos Premium e Pro"
+                >
+                  <Lock size={14} />
+                  Exportar Excel
+                </Link>
+              )}
               <button
                 onClick={() => window.print()}
                 disabled={!fluxoData || loadingFluxo}
@@ -323,14 +341,25 @@ export default function RelatoriosPage() {
               </select>
             </div>
             <div className="flex items-center gap-2 print:hidden">
-              <button
-                onClick={() => detalhado && exportDetalhadoExcel(detalhado, mesDetalhe, anoDetalhe, filtrosDetalhe)}
-                disabled={!detalhado || loadingDetalhado}
-                className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50"
-              >
-                <Download size={15} />
-                Exportar Excel
-              </button>
+              {podeExportar ? (
+                <button
+                  onClick={() => detalhado && exportDetalhadoExcel(detalhado, mesDetalhe, anoDetalhe, filtrosDetalhe)}
+                  disabled={!detalhado || loadingDetalhado}
+                  className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50"
+                >
+                  <Download size={15} />
+                  Exportar Excel
+                </button>
+              ) : (
+                <Link
+                  to="/planos"
+                  className="btn-secondary flex items-center gap-1.5 text-sm"
+                  title="Exportação disponível nos planos Premium e Pro"
+                >
+                  <Lock size={14} />
+                  Exportar Excel
+                </Link>
+              )}
               <button
                 onClick={() => window.print()}
                 disabled={!detalhado || loadingDetalhado}
@@ -646,15 +675,28 @@ export default function RelatoriosPage() {
                       return <option key={m} value={m}>{MESES_LABEL[parseInt(mo) - 1]}/{y}</option>
                     })}
                   </select>
-                  <button onClick={copiarCSV}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition-colors shrink-0 print:hidden">
-                    {copiadoExtrato ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-                    {copiadoExtrato ? 'Copiado!' : 'CSV'}
-                  </button>
-                  <button onClick={exportarExtrato} disabled={!lancamentosDoMes.length}
-                    className="btn-secondary flex items-center gap-2 text-xs">
-                    <Download size={14} />Excel
-                  </button>
+                  {podeExportar ? (
+                    <>
+                      <button onClick={copiarCSV}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition-colors shrink-0 print:hidden">
+                        {copiadoExtrato ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                        {copiadoExtrato ? 'Copiado!' : 'CSV'}
+                      </button>
+                      <button onClick={exportarExtrato} disabled={!lancamentosDoMes.length}
+                        className="btn-secondary flex items-center gap-2 text-xs">
+                        <Download size={14} />Excel
+                      </button>
+                    </>
+                  ) : (
+                    <Link
+                      to="/planos"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition-colors shrink-0 print:hidden"
+                      title="Exportação disponível nos planos Premium e Pro"
+                    >
+                      <Lock size={14} />
+                      Exportar
+                    </Link>
+                  )}
                   <button onClick={() => window.print()}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition-colors shrink-0 print:hidden">
                     <Printer size={14} />

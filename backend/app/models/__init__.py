@@ -15,3 +15,4 @@ from app.models.listas import Tarefa, ItemCompra  # noqa: F401
 from app.models.sessao import Sessao  # noqa: F401
 from app.models.nfs_recebida import NfsRecebida  # noqa: F401
 from app.models.categoria import Categoria  # noqa: F401
+from app.models.uso_ia import UsoIA  # noqa: F401

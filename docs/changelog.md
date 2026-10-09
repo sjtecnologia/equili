@@ -4,6 +4,45 @@ Histórico completo de desenvolvimento do projeto.
 
 ---
 
+## [0.6.0] — 9 de outubro de 2026
+
+### Adicionado
+- **Sistema de planos e assinaturas (3 níveis)** com catálogo central em `app/core/planos.py` (única fonte da verdade para preços, recursos e limites por plano):
+  - **Gratuito** — dívidas (3 ativas), 1 cartão, Plano de Ação IA (3/mês), Chat IA (15 msgs/mês), 1 meta; sem investimentos, contas bancárias, voz, exportação, NFS-e ou multi-usuário.
+  - **Premium (R$ 19,90/mês)** — tudo ilimitado + investimentos, contas bancárias/cartões ilimitados, assistente de voz, exportação Excel, relatório detalhado/avançado.
+  - **Pro / Família (R$ 34,90/mês)** — tudo do Premium + NFS-e, IA prioritária e multi-usuário (até 6 membros — **em breve**).
+- **Endpoints**: `GET /planos` (catálogo público) e `GET /planos/me` (entitlements + uso do mês).
+- **Enforcement generalizado**: recursos pagos respondem **402** e cotas de volume **429** (nada de 403, que o app interpreta como login expirado). Gates aplicados em investimentos, contas bancárias, NFS, voz, relatório detalhado e em todas as cotas (dívidas, cartões, Plano de Ação IA, chat IA).
+- **Tabela `uso_ia`** (migration `e1a2b3c4d5e6`) para cotas mensais do chat IA.
+- **Frontend**: página `/planos` (cards de preço + comparativo), hook `usePlano`, componente `Paywall`, item "Meu Plano" na navegação, cartão de plano nas Configurações, gates nas páginas de Investimentos, Contas e Cartões, NFS, Relatórios (aba detalhado + exportação) e limites dinâmicos em Dívidas.
+- **Testes** `tests/test_planos.py` (11 casos) cobrindo catálogo, entitlements e gating por plano.
+
+### Notas
+- **Pagamento online (Stripe) e multi-usuário/família são fase 2** — a troca de plano continua manual pelo admin; a página `/planos` direciona o contato para ativação.
+- Migration Alembic necessária: `alembic upgrade head` (cria a tabela `uso_ia`).
+
+---
+
+## [0.5.0] — 9 de outubro de 2026
+
+### Modificado
+- **Provedor de IA migrado de GitHub Models para OpenRouter** (`https://openrouter.ai`), usando modelos gratuitos (IDs com sufixo `:free`):
+  - Novo cliente central `app/services/openrouter.py` (substitui `app/services/github_models.py`, removido).
+  - Modelo primário: `nvidia/nemotron-3-super-120b-a12b:free` (forte e rápido com reasoning desligado).
+  - Modelo de **fallback automático**: `google/gemma-4-26b-a4b-it:free` (outro vendor, também com `response_format`), acionado em falhas do modelo/upstream (`400/404/408/429/500/502/503/504` — p.ex. `:free` fora de estoque ou congestão do provedor).
+  - **Reasoning desligado por padrão** (`OPENROUTER_DISABLE_REASONING`, `reasoning: {"enabled": false}`): evita que modelos de raciocínio consumam o `max_tokens` e truncar o JSON. Se o modelo exigir reasoning (ex.: retorna 400 "mandatory"), o cliente reenvia a chamada sem o parâmetro automaticamente.
+  - Mantidos retry com backoff para `429/503` e tratamento de timeout.
+- **Config** (`app/core/config.py`): variáveis `GITHUB_*` substituídas por `OPENROUTER_BASE_URL`, `OPENROUTER_API_KEY`, `OPENROUTER_CHAT_MODEL`, `OPENROUTER_FALLBACK_MODEL` e `OPENROUTER_DISABLE_REASONING`.
+- **Rotas atualizadas** para o novo cliente: `plano_acao.py`, `chat.py` e `voz.py` (assistente de voz deixou de usar chamadas `httpx` diretas).
+- **Docs e exemplos** atualizados: `README.md`, `.env.example`, `backend/.env.example`, `docs/architecture.md`, `docs/dev-guide.md`, `docs/deploy-checklist.md` e `backend/scripts/rotacionar_env.sh`.
+- **Testes** `test_plano_acao.py` e `test_plano_acao_resumo.py` ajustados para as novas variáveis.
+
+### Notas
+- Modelos gratuitos do OpenRouter têm limites: **20 req/min** e **50 req/dia** (ou 1.000/dia após comprar US$ 10 em créditos).
+- Antes de trocar o modelo primário, confirme que ele aceita `response_format` em https://openrouter.ai/models?max_price=0 (o Plano de Ação depende disso). Também prefira modelos que aceitem reasoning desligado, para não truncar o JSON.
+
+---
+
 ## [0.4.0] — 30 de março de 2026
 
 ### Adicionado

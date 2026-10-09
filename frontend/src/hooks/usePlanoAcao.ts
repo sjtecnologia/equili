@@ -36,7 +36,7 @@ export function usePlanoAcao() {
       queryClient.invalidateQueries({ queryKey: ['plano-atual'] })
     },
     onError: (err: { response?: { status: number; data?: { detail?: string } } }) => {
-      if (err.response?.status === 403) setLimitError(true)
+      if (err.response?.status === 429 || err.response?.status === 402) setLimitError(true)
       else if (err.response?.status === 400)
         setErroGerar(err.response.data?.detail ?? 'Não foi possível gerar o plano.')
       else setErroGerar('Erro ao gerar o plano. Tente novamente.')

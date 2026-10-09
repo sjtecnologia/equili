@@ -5,6 +5,8 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { FiltrosBarra, limparFiltrosVazios, type CampoFiltro } from '@/components/shared/FiltrosBarra'
 import { useInvestimentos } from '@/hooks/useInvestimentos'
+import { usePlano } from '@/hooks/usePlano'
+import Paywall from '@/components/Paywall'
 import type { Investimento } from '@/types/financeiro'
 import { InvestimentoModal, TIPO_LABELS, TIPO_COLORS } from './InvestimentoModal'
 
@@ -47,6 +49,19 @@ export default function InvestimentosPage() {
     () => Object.entries(resumo?.por_tipo ?? {}).sort(([, a], [, b]) => b - a),
     [resumo?.por_tipo]
   )
+
+  const { temRecurso } = usePlano()
+  if (!temRecurso('investimentos')) {
+    return (
+      <div className="p-4 mx-auto max-w-2xl">
+        <PageHeader title="Investimentos" subtitle="Acompanhe sua carteira" />
+        <Paywall
+          titulo="Investimentos"
+          descricao="Acompanhe suas ações, FIIs e renda fixa em um só lugar. Disponível nos planos Premium e Pro / Família."
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="p-4 space-y-6 max-w-2xl mx-auto">

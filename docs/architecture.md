@@ -216,6 +216,7 @@ usuarios
   ├── dividas
   │     └── parcelas
   ├── planos_acao
+  ├── uso_ia          -- contadores mensais de IA (cotas do plano)
   └── alertas
 ```
 
@@ -228,7 +229,7 @@ CREATE TABLE usuarios (
     nome        VARCHAR(150) NOT NULL,
     email       VARCHAR(255) UNIQUE NOT NULL,
     senha_hash  VARCHAR(255) NOT NULL,
-    plano       VARCHAR(20) NOT NULL DEFAULT 'gratuito', -- 'gratuito' | 'pago'
+    plano       VARCHAR(20) NOT NULL DEFAULT 'gratuito', -- 'gratuito' | 'premium' | 'pro'
     email_verificado BOOLEAN DEFAULT FALSE,
     ativo       BOOLEAN DEFAULT TRUE,
     criado_em   TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -412,6 +413,16 @@ CREATE INDEX idx_alertas_nao_vistos ON alertas(usuario_id, visto) WHERE visto = 
 | PATCH | `/alertas/{id}/visto` | Marcar como visto |
 | DELETE | `/alertas/{id}` | Remover alerta |
 
+### 5.9 Planos e Assinaturas
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/planos` | Catálogo público de planos (página de preços) |
+| GET | `/planos/me` | Plano atual + entitlements (recursos, limites) + uso do mês |
+
+Regra única no código: `app/core/planos.py` centraliza o catálogo
+(`PLANOS_VALIDOS`, preços, recursos por plano e limites de volume).
+
 ---
 
 ## 6. Segurança
@@ -453,30 +464,50 @@ ALGORITHM = "HS256"
 
 ### 6.4 Validação de Regra de Negócio (Backend)
 
+Os *entitlements* ficam centralizados em `app/core/planos.py`; as rotas consultam
+`tem_recurso()` (funcionalidade) e `limite()` (volume) em vez de comparar
+`usuario.plano` manualmente.
+
 ```python
-# Verificação de limite de dívidas (plano grátis)
-async def verificar_limite_dividas(usuario_id: UUID, db: AsyncSession):
-    usuario = await db.get(Usuario, usuario_id)
-    if usuario.plano == "gratuito":
-        count = await contar_dividas_ativas(usuario_id, db)
-        if count >= 3:
-            raise HTTPException(
-                status_code=403,
-                detail="Limite de 3 dívidas atingido no plano gratuito."
-            )
+# Cotas/limites respondem 429 (Too Many Requests)
+# Funcionalidades pagas respondem 402 (Payment Required)
+# NUNCA 403/401 — o app móvel interpreta esses códigos como falha de login
+# e deslogaria o usuário.
+
+# Feature gated (ex.: investimentos = Premium)
+from app.core.dependencies import requer_recurso
+from app.core import planos as planos_core
+
+router = APIRouter(dependencies=[Depends(requer_recurso(planos_core.RECURSO_INVESTIMENTOS))])
+
+# Cota de volume (ex.: dívidas ativas do plano grátis)
+from app.core import planos as planos_core
+limite = planos_core.limite(plano, planos_core.LIMITE_DIVIDAS_ATIVAS)
+if limite is not None and count >= limite:
+    raise HTTPException(status_code=429, detail="Limite atingido.")
 ```
+
+### 6.5 Cobrança (roadmap)
+
+O pagamento online (Stripe/PIX) **ainda não está implementado** (fase 2):
+- a troca de plano é feita pelo administrador (`PATCH /usuarios/admin/usuarios/{id}/plano`);
+- a página `/planos` oferece o catálogo e direciona o contato por e-mail;
+- o próximo passo é criar checkout e webhooks de assinatura.
 
 ---
 
-## 7. Integração com GitHub Models (LLM)
+## 7. Integração com OpenRouter (LLM)
 
 ### 7.1 Configuração
 
 ```python
-# GitHub Models usa endpoint compatível com OpenAI
-GITHUB_MODELS_ENDPOINT = "https://models.inference.ai.azure.com"
-GITHUB_MODELS_TOKEN = os.getenv("GITHUB_TOKEN")
-GITHUB_MODELS_MODEL = "gpt-4o"  # ou "gpt-4o-mini" para custo menor
+# OpenRouter usa endpoint compatível com OpenAI — modelos gratuitos têm sufixo :free
+# O modelo primário precisa suportar response_format (JSON mode) para o Plano de Ação.
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_CHAT_MODEL = "nvidia/nemotron-3-super-120b-a12b:free"    # primário (forte, rápido)
+OPENROUTER_FALLBACK_MODEL = "google/gemma-4-26b-a4b-it:free"         # fallback (outro vendor)
+OPENROUTER_DISABLE_REASONING = True  # evita "thinking" consumir o max_tokens
 ```
 
 ### 7.2 Prompt Engineering — Plano de Ação

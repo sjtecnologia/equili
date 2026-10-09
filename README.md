@@ -124,14 +124,27 @@ equili/
 
 ---
 
-## Plano gratuito
+## Planos e assinaturas
 
-| Recurso | Limite |
-|---------|--------|
-| Dívidas ativas | 3 |
-| Gerações de plano IA/mês | 3 |
-| Exportar PDF | ❌ |
-| Multi-usuário (família) | ❌ |
+| Recurso | Gratuito | Premium (R$ 19,90/mês) | Pro / Família (R$ 34,90/mês) |
+|---------|----------|------------------------|------------------------------|
+| Dívidas ativas | 3 | Ilimitado | Ilimitado |
+| Cartões de crédito | 1 | Ilimitado | Ilimitado |
+| Plano de Ação IA | 3/mês | Ilimitado | Ilimitado + prioridade |
+| Chat IA | 15 msgs/mês | Ilimitado | Ilimitado |
+| Investimentos | ❌ | ✅ | ✅ |
+| Contas bancárias | ❌ | ✅ | ✅ |
+| Assistente de voz | ❌ | ✅ | ✅ |
+| Exportação Excel | ❌ | ✅ | ✅ |
+| Relatório detalhado | ❌ | ✅ | ✅ + avançados |
+| NFS-e | ❌ | ❌ | ✅ |
+| Família (membros) | 1 | 2 | 6 (em breve) |
+
+Fonte da verdade: `backend/app/core/planos.py`. Endpoints `GET /planos` e `GET /planos/me`.
+Recursos pagos respondem `402`; cotas de volume respondem `429`. Detalhes na página `/planos` do app.
+
+> **Pagamento online (Stripe/PIX) e multi-usuário são fase 2.** A troca de plano hoje é feita pelo
+> administrador; a página `/planos` direciona o contato para ativação.
 
 ---
 

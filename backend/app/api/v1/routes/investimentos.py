@@ -5,15 +5,20 @@ from datetime import date
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import or_, select
 
-from app.core.dependencies import CurrentUserID, DBSession
+from app.core import planos as planos_core
+from app.core.dependencies import CurrentUserID, DBSession, requer_recurso
 from app.core.filtros import contem
 from app.models.investimento import Investimento
 
-router = APIRouter(prefix="/investimentos", tags=["Investimentos"])
+router = APIRouter(
+    prefix="/investimentos",
+    tags=["Investimentos"],
+    dependencies=[Depends(requer_recurso(planos_core.RECURSO_INVESTIMENTOS))],
+)
 
 TIPOS_VALIDOS = {"acoes", "fii", "renda_fixa", "criptomoeda", "tesouro", "outro"}
 

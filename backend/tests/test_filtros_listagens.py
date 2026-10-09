@@ -25,6 +25,18 @@ def _nomes(resp, campo="descricao"):
     return {i[campo] for i in resp.json()}
 
 
+def _set_plano(session_factory, user_id, plano):
+    from app.models.usuario import Usuario
+
+    async def run():
+        async with session_factory() as s:
+            u = await s.get(Usuario, user_id)
+            u.plano = plano
+            await s.commit()
+
+    asyncio.run(run())
+
+
 def test_filtros_dividas_e_baixas(finance_client):
     client, user_id, sf = finance_client
     d1 = Divida(usuario_id=user_id, descricao="Financiamento Carro", credor="Banco X", tipo="financiamento",
@@ -53,6 +65,7 @@ def test_filtros_dividas_e_baixas(finance_client):
 
 def test_filtros_investimentos(finance_client):
     client, user_id, sf = finance_client
+    _set_plano(sf, user_id, "premium")  # investimentos é recurso Premium
     _add(sf,
          Investimento(usuario_id=user_id, nome="IVVB11", tipo="acoes", instituicao="XP", valor_investido=100,
                       valor_atual=110, data_aplicacao=date(2026, 3, 1)),
@@ -104,6 +117,7 @@ def test_filtros_lancamentos_conta_e_cartao(finance_client):
 
 def test_filtros_listas_categorias_e_nfs(finance_client):
     client, user_id, sf = finance_client
+    _set_plano(sf, user_id, "pro")  # NFS é recurso do plano Pro
     _add(sf,
          Tarefa(usuario_id=user_id, titulo="Pagar luz", concluida=False),
          Tarefa(usuario_id=user_id, titulo="Ligar banco", concluida=True),

@@ -1,15 +1,16 @@
 from datetime import date, datetime, time, timedelta, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
 from sqlalchemy import or_, select
 
-from app.core.dependencies import CurrentUserID, DBSession
+from app.core import planos as planos_core
+from app.core.dependencies import CurrentUserID, DBSession, requer_recurso
 from app.core.filtros import contem
 from app.models.nfs_recebida import NfsRecebida
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(requer_recurso(planos_core.RECURSO_NFS))])
 
 
 class NfsRecebidaCreate(BaseModel):

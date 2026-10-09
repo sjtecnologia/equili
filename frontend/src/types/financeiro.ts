@@ -333,3 +333,27 @@ export interface ItemCompra {
   criado_em: string
   atualizado_em: string
 }
+
+// ─── Planos e Assinaturas ─────────────────────────────────────────────────────
+
+export type NomePlano = 'gratuito' | 'premium' | 'pro'
+
+export interface PlanoEntitlements {
+  nome: NomePlano
+  rotulo: string
+  descricao: string
+  preco_mensal: number
+  preco_anual: number
+  /** Limite de volume por recurso; `null` = ilimitado */
+  limites: Record<string, number | null>
+  /** Funcionalidades liberadas pelo plano */
+  recursos: string[]
+  uso?: {
+    planos_ia_mes: number
+    chat_msgs_mes: number
+  }
+}
+
+export interface PlanoCatalogo {
+  planos: PlanoEntitlements[]
+}

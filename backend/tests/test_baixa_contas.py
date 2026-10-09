@@ -176,6 +176,16 @@ def test_listagens_expoem_novos_campos(finance_client):
 
 def test_listagem_contas_bancarias_traz_saldo_atual(finance_client):
     client, user_id, sf = finance_client
+    # Contas bancárias é recurso Premium
+    from app.models.usuario import Usuario
+
+    async def upgrade():
+        async with sf() as s:
+            u = await s.get(Usuario, user_id)
+            u.plano = "premium"
+            await s.commit()
+
+    asyncio.run(upgrade())
     conta_id, _ = _seed(sf, user_id)
 
     antes = client.get("/api/v1/contas-bancarias").json()[0]

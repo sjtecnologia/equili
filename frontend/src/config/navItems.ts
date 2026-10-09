@@ -14,6 +14,7 @@ import {
   ListChecks,
   FileText,
   Tags,
+  Crown,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -37,6 +38,7 @@ export const ALL_NAV_ITEMS: NavItem[] = [
   { to: '/chat',            label: 'Assistente IA',      icon: MessageSquare },
   { to: '/plano-de-acao',   label: 'Plano de Ação',      icon: Sparkles },
   { to: '/relatorios',      label: 'Relatórios',         icon: BarChart2 },
+  { to: '/planos',          label: 'Meu Plano',          icon: Crown },
   { to: '/configuracoes',   label: 'Configurações',      icon: Settings },
 ]
 

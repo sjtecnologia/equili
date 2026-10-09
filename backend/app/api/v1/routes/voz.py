@@ -6,13 +6,19 @@ import logging
 from datetime import date
 
 import httpx
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
+from app.core import planos as planos_core
 from app.core.config import settings
-from app.core.dependencies import CurrentUserID
+from app.core.dependencies import CurrentUserID, requer_recurso
+from app.services.openrouter import chamar_openrouter
 
-router = APIRouter(prefix="/voz", tags=["Assistente de Voz"])
+router = APIRouter(
+    prefix="/voz",
+    tags=["Assistente de Voz"],
+    dependencies=[Depends(requer_recurso(planos_core.RECURSO_VOZ))],
+)
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = f"""Você é o assistente financeiro do Equili. O usuário falou algo em voz.
@@ -154,7 +160,7 @@ async def interpretar_data(
     if not data.texto.strip():
         return InterpretarDataResponse(data_iso=None)
 
-    if not settings.GITHUB_TOKEN:
+    if not settings.OPENROUTER_API_KEY:
         return InterpretarDataResponse(data_iso=None)
 
     hoje = date.today().isoformat()
@@ -164,16 +170,15 @@ Se não conseguir interpretar, retorne: {{"data_iso": null}}
 Sem explicações, apenas o JSON."""
 
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(
-                f"{settings.GITHUB_MODELS_ENDPOINT}/chat/completions",
-                headers={"Authorization": f"Bearer {settings.GITHUB_TOKEN}", "Content-Type": "application/json"},
-                json={"model": settings.GITHUB_MODELS_MODEL, "messages": [{"role": "user", "content": prompt}], "temperature": 0, "max_tokens": 30},
-            )
-        resp.raise_for_status()
+        content = await chamar_openrouter(
+            system_prompt="Você interpreta datas faladas em português do Brasil e responde somente com JSON válido.",
+            user_prompt=prompt,
+            temperature=0,
+            max_tokens=30,
+            timeout=10,
+        )
         import json
-        content = resp.json()["choices"][0]["message"]["content"].strip()
-        result = json.loads(content)
+        result = json.loads(content.strip())
         return InterpretarDataResponse(data_iso=result.get("data_iso"))
     except Exception:
         return InterpretarDataResponse(data_iso=None)
@@ -187,31 +192,18 @@ async def interpretar_comando(
     if not data.transcricao.strip():
         raise HTTPException(status_code=400, detail="Transcrição vazia.")
 
-    if not settings.GITHUB_TOKEN:
+    if not settings.OPENROUTER_API_KEY:
         raise HTTPException(status_code=503, detail="Serviço de IA não configurado.")
 
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": data.transcricao.strip()},
-    ]
-
     try:
-        async with httpx.AsyncClient(timeout=20) as client:
-            resp = await client.post(
-                f"{settings.GITHUB_MODELS_ENDPOINT}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {settings.GITHUB_TOKEN}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": settings.GITHUB_MODELS_MODEL,
-                    "messages": messages,
-                    "temperature": 0.1,
-                    "max_tokens": 300,
-                },
-            )
-        resp.raise_for_status()
-        content = resp.json()["choices"][0]["message"]["content"].strip()
+        content = await chamar_openrouter(
+            system_prompt=SYSTEM_PROMPT,
+            user_prompt=data.transcricao.strip(),
+            temperature=0.1,
+            max_tokens=300,
+            timeout=20,
+        )
+        content = content.strip()
 
         import json
         result = json.loads(content)
@@ -220,7 +212,7 @@ async def interpretar_comando(
             dados=result.get("dados", {}),
             mensagem=result.get("mensagem", "Não entendi o comando."),
         )
-    except (httpx.HTTPError, KeyError, ValueError) as e:
+    except (httpx.HTTPError, TimeoutError, ValueError) as e:
         logger.error("Erro ao interpretar comando de voz: %s", e)
         return VozComandoResponse(
             acao="nao_entendido",

@@ -1,8 +1,8 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/authStore'
-import type { UsuarioAdmin } from '@/types/financeiro'
+import type { PlanoCatalogo, PlanoEntitlements, UsuarioAdmin } from '@/types/financeiro'
 
-const isNative = !!(window as any).Capacitor?.isNativePlatform
+const isNative = !!(window as unknown as { Capacitor?: { isNativePlatform?: boolean } }).Capacitor?.isNativePlatform
 
 function getCookie(name: string): string | null {
   const prefix = `${name}=`
@@ -33,6 +33,16 @@ export async function toggleUsuarioAtivo(usuarioId: string, ativo: boolean): Pro
 
 export async function excluirUsuario(usuarioId: string): Promise<void> {
   await api.delete(`/usuarios/admin/usuarios/${usuarioId}`)
+}
+
+export async function listarPlanos(): Promise<PlanoEntitlements[]> {
+  const { data } = await api.get<PlanoCatalogo>('/planos')
+  return data.planos
+}
+
+export async function meuPlano(): Promise<PlanoEntitlements> {
+  const { data } = await api.get<PlanoEntitlements>('/planos/me')
+  return data
 }
 
 // Interceptor: adiciona o access token em cada requisição

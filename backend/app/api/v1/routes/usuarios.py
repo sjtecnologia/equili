@@ -1,6 +1,7 @@
 from typing import Annotated, Optional
 from uuid import UUID
 
+from app.core import planos as planos_core
 from app.core.dependencies import CurrentAdmin, CurrentUserID, DBSession
 from app.core.security import get_password_hash, verify_password
 from app.models.conta import Alerta, ContaFixa
@@ -16,13 +17,14 @@ from app.models.plano_acao import PlanoAcao
 from app.models.push_subscription import PushSubscription
 from app.models.renda import Renda
 from app.models.sessao import Sessao
+from app.models.uso_ia import UsoIA
 from app.models.usuario import Usuario
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import delete, select
 
 router = APIRouter()
-PLANOS_VALIDOS = {"gratuito", "premium", "pro"}
+PLANOS_VALIDOS = tuple(planos_core.PLANOS_VALIDOS)
 
 
 class PlanoUpdateRequest(BaseModel):
@@ -297,6 +299,7 @@ async def excluir_usuario_admin(
             ItemCompra,
             PushSubscription,
             Sessao,
+            UsoIA,
         ):
             await db.execute(delete(model).where(model.usuario_id == usuario_id))
 

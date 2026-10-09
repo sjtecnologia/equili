@@ -8,6 +8,7 @@ import api from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'
 import { useNavStore } from '@/stores/navStore'
 import { useVoiceStore } from '@/stores/voiceStore'
+import { usePlano } from '@/hooks/usePlano'
 import { ALL_NAV_ITEMS } from '@/config/navItems'
 import PushNotificationToggle from '@/components/pwa/PushNotificationToggle'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -348,6 +349,7 @@ export default function ConfiguracoesPage() {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const navigate = useNavigate()
+  const { rotulo, temRecurso } = usePlano()
 
   async function handleLogout() {
     await api.post('/auth/logout').catch(() => {})
@@ -376,9 +378,35 @@ export default function ConfiguracoesPage() {
         </div>
       )}
 
+      {/* Plano atual */}
+      <section className="card p-5 flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm text-gray-500">Plano atual</p>
+          <p className="text-lg font-bold text-primary-500 capitalize">{rotulo}</p>
+        </div>
+        <Link to="/planos" className="text-sm font-medium text-primary-500 hover:underline">
+          Ver planos
+        </Link>
+      </section>
+
       <SecaoPerfil />
       <SecaoSenha />
-      <SecaoAssistenteVoz />
+      {temRecurso('voz') ? (
+        <SecaoAssistenteVoz />
+      ) : (
+        <section className="card p-6 space-y-3">
+          <div className="flex items-center gap-2 mb-1">
+            <Mic size={18} className="text-primary-500" />
+            <h2 className="text-base font-semibold text-gray-800">Assistente de voz</h2>
+          </div>
+          <p className="text-sm text-gray-500">
+            O assistente de voz é um recurso dos planos Premium e Pro / Família.
+          </p>
+          <Link to="/planos" className="inline-block text-sm font-medium text-primary-500 hover:underline">
+            Conhecer os planos
+          </Link>
+        </section>
+      )}
       <SecaoNavRodape />
 
       {/* Notificações push */}

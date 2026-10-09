@@ -8,11 +8,10 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import extract, func, select
 
-from app.core.config import settings
 from app.core.dependencies import CurrentUserID, DBSession
 from app.core.rastro_client import rastro_client
 from app.models.plano_acao import PlanoAcao
-from app.services.github_models import GitHubModelsNotConfigured
+from app.services.openrouter import OpenRouterNotConfigured
 from app.services.plano_acao.geracao import PlanoIAError, gerar_plano_ia
 from app.services.plano_acao.resumo_financeiro import montar_resumo_financeiro
 
@@ -21,26 +20,33 @@ logger = logging.getLogger(__name__)
 
 
 async def _verificar_cota_ia(usuario_id: UUID, db) -> None:
+    from app.core import planos
     from app.models.usuario import Usuario
+
     usuario = await db.get(Usuario, usuario_id)
-    if usuario and usuario.plano == "gratuito":
-        now = datetime.now(timezone.utc)
-        count = await db.scalar(
-            select(func.count()).where(
-                PlanoAcao.usuario_id == usuario_id,
-                extract("month", PlanoAcao.criado_em) == now.month,
-                extract("year", PlanoAcao.criado_em) == now.year,
-            )
+    plano = planos.normalizar_plano(usuario.plano if usuario else None)
+    limite = planos.limite(plano, planos.LIMITE_PLANOS_IA_MES)
+    if limite is None:
+        return
+    now = datetime.now(timezone.utc)
+    count = await db.scalar(
+        select(func.count()).where(
+            PlanoAcao.usuario_id == usuario_id,
+            extract("month", PlanoAcao.criado_em) == now.month,
+            extract("year", PlanoAcao.criado_em) == now.year,
         )
-        if count >= settings.PLANO_GRATIS_MAX_PLANOS_IA_MES:
-            await rastro_client.send_warning_event(
-                message="Usuário excedeu cota mensal de geração de plano IA no plano gratuito.",
-                fingerprint="equili:plano_acao:quota:limit_exceeded",
-            )
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Você atingiu o limite de {settings.PLANO_GRATIS_MAX_PLANOS_IA_MES} planos por mês no plano gratuito.",
-            )
+    )
+    if count >= limite:
+        rotulo = planos.get_plano(plano).rotulo
+        await rastro_client.send_warning_event(
+            message=f"Usuário excedeu cota mensal de geração de plano IA no plano {rotulo}.",
+            fingerprint="equili:plano_acao:quota:limit_exceeded",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Você atingiu o limite de {limite} planos por mês no plano {rotulo}.",
+            headers={"X-Equili-Recurso": planos.LIMITE_PLANOS_IA_MES},
+        )
 
 
 @router.post("/gerar", status_code=status.HTTP_201_CREATED)
@@ -68,12 +74,12 @@ async def gerar_plano(usuario_id: CurrentUserID, db: DBSession):
 
     try:
         conteudo_json, conteudo_texto, tokens_usados = await gerar_plano_ia(resumo, date.today())
-    except GitHubModelsNotConfigured:
+    except OpenRouterNotConfigured:
         await rastro_client.send_warning_event(
-            message="Serviço de plano de ação chamado sem GITHUB_MODELS_API_KEY configurado.",
-            fingerprint="equili:plano_acao:config:missing_github_token",
+            message="Serviço de plano de ação chamado sem OPENROUTER_API_KEY configurado.",
+            fingerprint="equili:plano_acao:config:missing_openrouter_key",
         )
-        raise HTTPException(status_code=503, detail="Serviço de IA não configurado. Verifique o GITHUB_MODELS_API_KEY.")
+        raise HTTPException(status_code=503, detail="Serviço de IA não configurado. Verifique o OPENROUTER_API_KEY.")
     except TimeoutError:
         await rastro_client.send_warning_event(
             message="Timeout ao chamar provedor de IA do plano de ação.",

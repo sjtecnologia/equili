@@ -1,11 +1,12 @@
 from datetime import date
 import re
 
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy import extract as sql_extract
 
-from app.core.dependencies import CurrentUserID, DBSession
+from app.core import planos as planos_core
+from app.core.dependencies import CurrentUserID, DBSession, requer_recurso
 from app.models.conta_lancamento import ContaAPagar, ContaAReceber
 
 router = APIRouter()
@@ -165,6 +166,7 @@ async def relatorio_detalhado(
     mes: int, ano: int, usuario_id: CurrentUserID, db: DBSession,
     tipo: str | None = None, status: str | None = None, categoria: str | None = None,
     q: str | None = None, data_inicio: date | None = None, data_fim: date | None = None,
+    _recurso_ok=Depends(requer_recurso(planos_core.RECURSO_RELATORIOS_AVANCADOS)),
 ):
     """Retorna lançamentos detalhados do mês para visualização e exportação."""
     result_pagar = await db.execute(

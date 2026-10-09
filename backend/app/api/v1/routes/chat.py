@@ -12,12 +12,14 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
+from app.core import planos as planos_core
 from app.core.dependencies import CurrentUserID, DBSession
 from app.core.rastro_client import rastro_client
 from app.models.conta_lancamento import ContaAPagar, ContaAReceber
 from app.models.divida import Divida
 from app.models.renda import Renda
-from app.services.github_models import GitHubModelsNotConfigured, chamar_github_models
+from app.services.openrouter import OpenRouterNotConfigured, chamar_openrouter
+from app.services import uso_ia as uso_ia_service
 
 router = APIRouter(prefix="/chat", tags=["Chat IA"])
 logger = logging.getLogger(__name__)
@@ -25,6 +27,27 @@ logger = logging.getLogger(__name__)
 MAX_HISTORICO = 20  # máximo de mensagens no contexto
 MAX_MENSAGEM_CHARS = 2000
 MAX_MESSAGES_REQUEST = 50
+
+
+async def _verificar_cota_chat(usuario_id, db) -> None:
+    from app.models.usuario import Usuario
+
+    usuario = await db.get(Usuario, usuario_id)
+    plano = planos_core.normalizar_plano(usuario.plano if usuario else None)
+    limite = planos_core.limite(plano, planos_core.LIMITE_CHAT_MSGS_MES)
+    if limite is None:
+        return
+    usado = await uso_ia_service.contar_uso(db, usuario_id, "chat")
+    if usado >= limite:
+        rotulo = planos_core.get_plano(plano).rotulo
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=(
+                f"Você atingiu o limite de {limite} mensagens do chat IA por mês "
+                f"no plano {rotulo}. Faça upgrade para continuar."
+            ),
+            headers={"X-Equili-Recurso": planos_core.LIMITE_CHAT_MSGS_MES},
+        )
 
 
 class Mensagem(BaseModel):
@@ -147,6 +170,8 @@ async def chat(
     if not body.messages:
         raise HTTPException(status_code=422, detail="Envie ao menos uma mensagem.")
 
+    await _verificar_cota_chat(usuario_id, db)
+
     # Limita o histórico para não exceder o contexto do modelo
     messages = body.messages[-MAX_HISTORICO:]
     if len(body.messages) > MAX_HISTORICO:
@@ -167,19 +192,20 @@ async def chat(
     )
 
     try:
-        reply = await chamar_github_models(
+        reply = await chamar_openrouter(
             system_prompt=system,
             user_prompt=user_prompt,
             temperature=0.7,
             max_tokens=600,
         )
+        await uso_ia_service.registrar_uso(db, usuario_id, "chat")
         return ChatResponse(reply=reply.strip())
-    except GitHubModelsNotConfigured:
+    except OpenRouterNotConfigured:
         await rastro_client.send_warning_event(
-            message="Endpoint de chat IA chamado sem GITHUB_MODELS_API_KEY configurado.",
-            fingerprint="equili:chat:config:missing_github_token",
+            message="Endpoint de chat IA chamado sem OPENROUTER_API_KEY configurado.",
+            fingerprint="equili:chat:config:missing_openrouter_key",
         )
-        raise HTTPException(status_code=503, detail="Assistente IA não configurado — defina GITHUB_MODELS_API_KEY no .env.")
+        raise HTTPException(status_code=503, detail="Assistente IA não configurado — defina OPENROUTER_API_KEY no .env.")
     except TimeoutError:
         await rastro_client.send_warning_event(
             message="Timeout ao chamar provedor de IA do chat.",

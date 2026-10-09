@@ -1,15 +1,18 @@
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
 
 from sqlalchemy import case, func, select
 
-from app.core.dependencies import CurrentUserID, DBSession
+from app.core import planos as planos_core
+from app.core.dependencies import CurrentUserID, DBSession, requer_recurso
 from app.models.conta_bancaria import ContaBancaria
 from app.models.lancamento_conta import LancamentoConta
 
-router = APIRouter()
+router = APIRouter(
+    dependencies=[Depends(requer_recurso(planos_core.RECURSO_CONTAS_BANCARIAS))]
+)
 
 
 class ContaBancariaCreate(BaseModel):

@@ -168,6 +168,14 @@ def test_baixa_e_estorno_sincronizam_parcela_da_divida(finance_client):
 
 def test_filtros_nos_relatorios_existentes(finance_client):
     client, uid, sf = finance_client
+    # Relatório detalhado é recurso Premium
+    async def upgrade():
+        async with sf() as s:
+            u = await s.get(Usuario, uid)
+            u.plano = "premium"
+            await s.commit()
+
+    asyncio.run(upgrade())
     bancos, _ = seed(sf, uid)
     cid = criar(client, "pagar", modalidade="parcelada")
     criar(client, "receber")
