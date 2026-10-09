@@ -45,6 +45,21 @@ function CustomTooltip({ active, payload, label }: TooltipProps<number, string>)
 
 // ---------- Exportação Excel ----------
 
+/** Carrega o helper de PDF sob demanda (mantém o bundle principal enxuto). */
+function exportarFluxoPdf(data: FluxoMes[] | undefined, ano: number, filtros: Record<string, string>) {
+  if (!data) return
+  void import('@/utils/exportPdf').then(({ exportarFluxoCaixaPdf }) =>
+    exportarFluxoCaixaPdf(data, ano, descreverFiltros(filtros))
+  )
+}
+
+function exportarPdfDetalhado(data: RelatorioDetalhado | undefined, mes: number, ano: number, filtros: Record<string, string>) {
+  if (!data) return
+  void import('@/utils/exportPdf').then(({ exportarDetalhadoPdf }) =>
+    exportarDetalhadoPdf(data, mes, ano, descreverFiltros(filtros))
+  )
+}
+
 function exportFluxoCaixaExcel(data: FluxoMes[], ano: number, filtros: Record<string, string>) {
   const rows = data.map((d) => ({
     'Mês': d.mes_nome,
@@ -191,14 +206,24 @@ export default function RelatoriosPage() {
             </div>
             <div className="flex items-center gap-2 print:hidden">
               {podeExportar ? (
-                <button
-                  onClick={() => fluxoData && exportFluxoCaixaExcel(fluxoData, anoFluxo, filtrosFluxo)}
-                  disabled={!fluxoData || loadingFluxo}
-                  className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50"
-                >
-                  <Download size={15} />
-                  Exportar Excel
-                </button>
+                <>
+                  <button
+                    onClick={() => fluxoData && exportFluxoCaixaExcel(fluxoData, anoFluxo, filtrosFluxo)}
+                    disabled={!fluxoData || loadingFluxo}
+                    className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50"
+                  >
+                    <Download size={15} />
+                    Exportar Excel
+                  </button>
+                  <button
+                    onClick={() => exportarFluxoPdf(fluxoData, anoFluxo, filtrosFluxo)}
+                    disabled={!fluxoData || loadingFluxo}
+                    className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50"
+                  >
+                    <FileText size={15} />
+                    Exportar PDF
+                  </button>
+                </>
               ) : (
                 <Link
                   to="/planos"
@@ -342,14 +367,24 @@ export default function RelatoriosPage() {
             </div>
             <div className="flex items-center gap-2 print:hidden">
               {podeExportar ? (
-                <button
-                  onClick={() => detalhado && exportDetalhadoExcel(detalhado, mesDetalhe, anoDetalhe, filtrosDetalhe)}
-                  disabled={!detalhado || loadingDetalhado}
-                  className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50"
-                >
-                  <Download size={15} />
-                  Exportar Excel
-                </button>
+                <>
+                  <button
+                    onClick={() => detalhado && exportDetalhadoExcel(detalhado, mesDetalhe, anoDetalhe, filtrosDetalhe)}
+                    disabled={!detalhado || loadingDetalhado}
+                    className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50"
+                  >
+                    <Download size={15} />
+                    Exportar Excel
+                  </button>
+                  <button
+                    onClick={() => exportarPdfDetalhado(detalhado, mesDetalhe, anoDetalhe, filtrosDetalhe)}
+                    disabled={!detalhado || loadingDetalhado}
+                    className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50"
+                  >
+                    <FileText size={15} />
+                    Exportar PDF
+                  </button>
+                </>
               ) : (
                 <Link
                   to="/planos"
@@ -585,6 +620,40 @@ export default function RelatoriosPage() {
           XLSX.writeFile(wb, `extrato_${mesEfetivo}.xlsx`)
         }
 
+        function exportarExtratoPdf() {
+          const mesLabel = mesEfetivo
+            ? (() => { const [y, mo] = mesEfetivo.split('-'); return `${MESES_LABEL[parseInt(mo) - 1]}/${y}` })()
+            : ''
+          const nome = tipoExtrato === 'conta'
+            ? contasBancarias.find(c => c.id === contaExtratoId)?.nome ?? ''
+            : cartoes.find(c => c.id === cartaoExtratoId)?.nome ?? ''
+          const colunas = tipoExtrato === 'conta'
+            ? ['Data', 'Descrição', 'Tipo', 'Valor', 'Categoria', 'Saldo']
+            : ['Data', 'Descrição', 'Tipo', 'Valor', 'Categoria']
+          const linhas = tipoExtrato === 'conta'
+            ? linhasConta.map(({ lancamento: l, saldo }) => [
+                l.data.split('-').reverse().join('/'), l.descricao,
+                l.tipo === 'entrada' ? 'Entrada' : 'Saída',
+                formatCurrency(l.tipo === 'entrada' ? l.valor : -l.valor),
+                l.categoria ?? '', formatCurrency(saldo),
+              ])
+            : (lancamentosDoMes as CartaoLancamento[]).map((l) => [
+                l.data.split('-').reverse().join('/'), l.descricao,
+                l.tipo === 'compra' ? 'Compra' : 'Pagamento',
+                formatCurrency(l.tipo === 'compra' ? l.valor : -l.valor),
+                l.categoria ?? '',
+              ])
+          void import('@/utils/exportPdf').then(({ gerarPdf }) =>
+            gerarPdf({
+              titulo: tipoExtrato === 'conta' ? 'Extrato Bancário' : 'Extrato Cartão de Crédito',
+              subtitulo: [nome, mesLabel].filter(Boolean).join(' · ') || undefined,
+              nomeArquivo: `extrato_${mesEfetivo}.pdf`,
+              filtrosTexto: descreverFiltros(filtrosExtrato),
+              secoes: [{ colunas, linhas }],
+            })
+          )
+        }
+
         return (
           <div className="w-full max-w-full box-border overflow-x-hidden space-y-4">
             <RelatorioFiltros key={tipoExtrato} extrato={tipoExtrato} filtros={filtrosExtrato} onFiltrar={setFiltrosExtrato} />
@@ -685,6 +754,10 @@ export default function RelatoriosPage() {
                       <button onClick={exportarExtrato} disabled={!lancamentosDoMes.length}
                         className="btn-secondary flex items-center gap-2 text-xs">
                         <Download size={14} />Excel
+                      </button>
+                      <button onClick={exportarExtratoPdf} disabled={!lancamentosDoMes.length}
+                        className="btn-secondary flex items-center gap-2 text-xs">
+                        <FileText size={14} />PDF
                       </button>
                     </>
                   ) : (

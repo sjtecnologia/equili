@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FileText, Trash2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { FileText, Trash2, CheckCircle2, AlertCircle, Download } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import NfsQrReader from '@/components/nfs/NfsQrReader'
 import Paywall from '@/components/Paywall'
@@ -27,6 +27,7 @@ interface NfsNota {
   inscricao_municipal?: string | null
   url_consulta?: string | null
   created_at?: string
+  data_emissao?: string | null
 }
 
 export default function NfsPage() {
@@ -62,6 +63,18 @@ export default function NfsPage() {
   useEffect(() => {
     void carregarNotas(filtros)
   }, [filtros])
+
+  const filtrosTexto = CAMPOS_FILTRO.filter((c) => filtros[c.key])
+    .map((c) => (c.tipo === 'busca' ? `Busca: ${filtros[c.key]}` : `${c.label}: ${filtros[c.key]}`))
+    .join(' · ') || 'Todas as notas'
+
+  function exportarNotasExcel() {
+    void import('@/utils/exportPdf').then(({ exportarNfsExcel }) => exportarNfsExcel(notas, filtrosTexto))
+  }
+
+  function exportarNotasPdf() {
+    void import('@/utils/exportPdf').then(({ exportarNfsPdf }) => exportarNfsPdf(notas, filtrosTexto))
+  }
 
   const handleLancarNota = async () => {
     if (!dadosLidos) {
@@ -211,7 +224,31 @@ export default function NfsPage() {
             <p className="text-sm font-semibold text-gray-800">Notas já lançadas</p>
             <p className="text-xs text-gray-500">Últimas notas cadastradas por você.</p>
           </div>
-          <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600">{notas.length}</span>
+          <div className="flex items-center gap-2">
+            {notas.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={exportarNotasExcel}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
+                  title="Exportar lista em Excel"
+                >
+                  <Download size={14} />
+                  Excel
+                </button>
+                <button
+                  type="button"
+                  onClick={exportarNotasPdf}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
+                  title="Exportar lista em PDF"
+                >
+                  <Download size={14} />
+                  PDF
+                </button>
+              </>
+            )}
+            <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600">{notas.length}</span>
+          </div>
         </div>
 
         {loading ? (

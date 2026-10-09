@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Download, Printer, Loader2, Lock } from 'lucide-react'
+import { Download, Printer, Loader2, Lock, FileText } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import * as XLSX from 'xlsx'
 import api from '@/services/api'
@@ -78,12 +78,40 @@ export function ParcelasRelatorio() {
     XLSX.writeFile(wb, `parcelas_${new Date().toLocaleDateString('en-CA')}.xlsx`)
   }
 
+  function exportarPdf() {
+    const linhasPdf = linhas.map(l => [
+      l.natureza === 'pagar' ? 'A pagar' : 'A receber', l.descricao,
+      l.parcela || '-', TIPOS.find(t => t.value === l.tipo)?.label ?? l.tipo,
+      l.categoria, formatDate(l.vencimento),
+      SITUACOES.find(s => s.value === l.status)?.label ?? l.status,
+      formatCurrency(l.valor), formatCurrency(l.valor_baixado), formatCurrency(l.saldo_restante),
+    ])
+    void import('@/utils/exportPdf').then(({ gerarPdf }) =>
+      gerarPdf({
+        titulo: 'Relatório de Parcelas a Pagar e Receber',
+        nomeArquivo: `parcelas_${new Date().toLocaleDateString('en-CA')}.pdf`,
+        filtrosTexto: descricaoFiltros,
+        secoes: [{
+          colunas: ['Conta', 'Descrição', 'Parcela', 'Tipo', 'Categoria', 'Vencimento', 'Situação', 'Valor', 'Baixado', 'Restante'],
+          linhas: linhasPdf,
+        }],
+        rodapeLinhas: [
+          `A pagar (restante): ${formatCurrency(total('saldo_restante', 'pagar'))}`,
+          `A receber (restante): ${formatCurrency(total('saldo_restante', 'receber'))}`,
+        ],
+      })
+    )
+  }
+
   return <section className="space-y-4">
     <div className="print:hidden"><FiltrosBarra campos={campos} onFiltrar={setFiltros} /></div>
     <p className="text-xs text-gray-500 break-words">{descricaoFiltros}</p>
     <div className="flex flex-wrap gap-2 print:hidden">
       {podeExportar ? (
-        <button onClick={exportar} disabled={isFetching || isError || !linhas.length} className="btn-secondary flex items-center gap-2"><Download size={16} />Exportar Excel</button>
+        <>
+          <button onClick={exportar} disabled={isFetching || isError || !linhas.length} className="btn-secondary flex items-center gap-2"><Download size={16} />Exportar Excel</button>
+          <button onClick={exportarPdf} disabled={isFetching || isError || !linhas.length} className="btn-secondary flex items-center gap-2"><FileText size={16} />Exportar PDF</button>
+        </>
       ) : (
         <Link to="/planos" className="btn-secondary flex items-center gap-2" title="Exportação disponível nos planos Premium e Pro"><Lock size={16} />Exportar Excel</Link>
       )}
