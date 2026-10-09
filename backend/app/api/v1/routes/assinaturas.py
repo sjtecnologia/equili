@@ -19,6 +19,7 @@ from app.core.config import settings
 from app.core.dependencies import CurrentUserID, DBSession
 from app.models.assinatura import Assinatura, Pagamento
 from app.models.usuario import Usuario
+from app.services import familia as familia_service
 from app.services.gateways import (
     GC_MOCK,
     METODO_CARTAO,
@@ -142,6 +143,12 @@ async def _confirmar_pagamento(db, pagamento: Pagamento) -> None:
 
     usuario = await db.get(Usuario, assinatura.usuario_id)
     usuario.plano = planos_core.normalizar_plano(assinatura.plano)
+
+    # Pro / Família: membros ativos acompanham o plano do titular.
+    if assinatura.plano == planos_core.PLANO_PRO:
+        for linha in await familia_service.membros_ativos(db, assinatura.usuario_id):
+            await familia_service.promover_para_pro(db, linha)
+
     await db.commit()
 
 
@@ -290,6 +297,8 @@ async def cancelar_assinatura(usuario_id: CurrentUserID, db: DBSession):
 
     usuario = await db.get(Usuario, usuario_id)
     usuario.plano = planos_core.PLANO_GRATUITO
+    # Se era Pro / Família, quem foi convidado volta ao plano anterior.
+    await familia_service.rebaixar_todos_membros(db, usuario_id)
     await db.commit()
 
     return {"status": "ok", "assinatura": _assinatura_dict(assinatura)}

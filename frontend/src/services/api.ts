@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/authStore'
-import type { AssinaturaMe, CheckoutResponse, Meta, MetaPayload, MetasResponse, PlanoCatalogo, PlanoEntitlements, UsuarioAdmin } from '@/types/financeiro'
+import type { AssinaturaMe, CheckoutResponse, ConviteCriado, FamiliaContexto, Meta, MetaPayload, MetasResponse, PlanoCatalogo, PlanoEntitlements, UsuarioAdmin } from '@/types/financeiro'
 
 const isNative = !!(window as unknown as { Capacitor?: { isNativePlatform?: boolean } }).Capacitor?.isNativePlatform
 
@@ -104,6 +104,38 @@ export async function simularPagamentoAprovado(pagamentoId: string): Promise<{ s
       headers: { 'X-Equili-Mock': import.meta.env.VITE_PAYMENT_MOCK_KEY ?? 'equili-mock-dev' },
     }
   )
+  return data
+}
+
+// ─── Família / multi-usuário ─────────────────────────────────────────────────
+
+export async function minhaFamilia(): Promise<FamiliaContexto> {
+  const { data } = await api.get<FamiliaContexto>('/familia')
+  return data
+}
+
+export async function convidarParaFamilia(email: string): Promise<ConviteCriado> {
+  const { data } = await api.post<ConviteCriado>('/familia/convites', { email })
+  return data
+}
+
+export async function cancelarConviteFamilia(id: string): Promise<{ status: string; id: string }> {
+  const { data } = await api.post<{ status: string; id: string }>(`/familia/convites/${id}/cancelar`)
+  return data
+}
+
+export async function removerMembroFamilia(id: string): Promise<{ status: string; id: string }> {
+  const { data } = await api.post<{ status: string; id: string }>(`/familia/membros/${id}/remover`)
+  return data
+}
+
+export async function aceitarConviteFamilia(token: string): Promise<{ status: string; familia: boolean }> {
+  const { data } = await api.post<{ status: string; familia: boolean }>('/familia/aceitar', { token })
+  return data
+}
+
+export async function sairDaFamilia(): Promise<{ status: string; id: string }> {
+  const { data } = await api.post<{ status: string; id: string }>('/familia/sair')
   return data
 }
 

@@ -41,7 +41,7 @@ const LINHAS: Linha[] = [
   { grupo: 'Relatórios', rotulo: 'Relatório detalhado', valor: (p) => (p.recursos.includes('relatorios_avancados') ? 'Incluído' : 'Não incluído') },
   { grupo: 'Relatórios', rotulo: 'Exportação Excel/PDF', valor: (p) => (p.recursos.includes('exportacao') ? 'Incluído' : 'Não incluído') },
   { grupo: 'Avançado', rotulo: 'Notas Fiscais (NFS-e)', valor: (p) => (p.recursos.includes('nfs') ? 'Incluído' : 'Não incluído') },
-  { grupo: 'Avançado', rotulo: 'Membros no espaço', valor: (p) => valorLimite(p, 'membros', 'Ilimitado') },
+  { grupo: 'Avançado', rotulo: 'Membros no espaço', valor: (p) => (p.recursos.includes('multiusuario') ? 'Até 6 membros' : 'Não incluído') },
   { grupo: 'Suporte', rotulo: 'Suporte', valor: (p) => (p.nome === 'gratuito' ? 'Comunidade' : p.nome === 'pro' ? 'Prioritário' : 'E-mail') },
 ]
 

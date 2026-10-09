@@ -50,3 +50,9 @@ class Usuario(Base):
     metas: Mapped[list["Meta"]] = relationship(back_populates="usuario", cascade="all, delete-orphan")  # noqa: F821
     assinaturas: Mapped[list["Assinatura"]] = relationship(back_populates="usuario", cascade="all, delete-orphan")  # noqa: F821
     pagamentos: Mapped[list["Pagamento"]] = relationship(back_populates="usuario", cascade="all, delete-orphan")  # noqa: F821
+    familia_como_titular: Mapped[list["MembroFamilia"]] = relationship(  # noqa: F821
+        foreign_keys="MembroFamilia.titular_id", back_populates="titular", cascade="all, delete-orphan"
+    )
+    familia_como_membro: Mapped[list["MembroFamilia"]] = relationship(  # noqa: F821
+        foreign_keys="MembroFamilia.membro_id", back_populates="membro", cascade="all, delete-orphan"
+    )

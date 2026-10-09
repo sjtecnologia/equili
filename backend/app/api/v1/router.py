@@ -24,6 +24,7 @@ from app.api.v1.routes import (
     planos,
     metas,
     assinaturas,
+    familia,
 )
 
 api_router = APIRouter()
@@ -51,3 +52,4 @@ api_router.include_router(categorias.router, prefix="/categorias", tags=["Catego
 api_router.include_router(planos.router)
 api_router.include_router(metas.router, prefix="/metas", tags=["Metas"])
 api_router.include_router(assinaturas.router, prefix="/assinaturas", tags=["Assinaturas e Pagamentos"])
+api_router.include_router(familia.router, prefix="/familia", tags=["Família"])

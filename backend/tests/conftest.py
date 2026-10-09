@@ -382,6 +382,21 @@ async def _create_sqlite_schema(conn) -> None:
         )
         """
     )
+    await conn.exec_driver_sql(
+        """
+        CREATE TABLE IF NOT EXISTS membros_familia (
+            id TEXT PRIMARY KEY,
+            titular_id TEXT NOT NULL,
+            membro_id TEXT,
+            email TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pendente',
+            token TEXT NOT NULL UNIQUE,
+            plano_original TEXT,
+            criado_em TEXT,
+            aceito_em TEXT
+        )
+        """
+    )
 
 
 @pytest.fixture()

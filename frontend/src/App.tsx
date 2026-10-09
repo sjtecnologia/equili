@@ -13,6 +13,7 @@ import DividasPage from '@/pages/dividas/DividasPage'
 import BaixasPage from '@/pages/dividas/BaixasPage'
 import RendaPage from '@/pages/renda/RendaPage'
 import MetasPage from '@/pages/metas/MetasPage'
+import FamiliaPage from '@/pages/familia/FamiliaPage'
 import PlanoAcaoPage from '@/pages/plano-de-acao/PlanoAcaoPage'
 import OnboardingPage from '@/pages/onboarding/OnboardingPage'
 import ContasPagarPage from '@/pages/contas-pagar/ContasPagarPage'
@@ -118,6 +119,7 @@ export default function App() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="renda" element={<RendaPage />} />
           <Route path="metas" element={<MetasPage />} />
+          <Route path="familia" element={<FamiliaPage />} />
           <Route path="dividas" element={<DividasPage />} />
           <Route path="dividas/baixas" element={<BaixasPage />} />
           <Route path="contas-pagar" element={<ContasPagarPage />} />

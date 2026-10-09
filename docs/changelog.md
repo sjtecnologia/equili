@@ -53,6 +53,23 @@ Histórico completo de desenvolvimento do projeto.
 
 ---
 
+## [0.8.0] — 9 de outubro de 2026
+
+### Adicionado
+- **Multi-usuário / Família** (plano **Pro / Família**) — a fase 2 de assinaturas está completa:
+  - Modelo `MembroFamilia` (migration `f6a7b8c9d0e1`): convites com token por e-mail; o titular da assinatura Pro convida e cada membro mantém **login e dados próprios** sob 1 assinatura.
+  - Endpoints `/familia`: `GET /familia` (contexto por papel), `POST /convites` (402 sem Pro, 429 cota de 6 cheia), `POST /convites/{id}/cancelar`, `POST /membros/{id}/remover`, `POST /aceitar` (token + e-mail do convite), `POST /sair`.
+  - O plano dos membros espelha a assinatura do titular: aceitar convite sobe para Pro; sair/remoção/cancelamento do titular restaura o plano anterior (respeitando assinatura própria); re-assinar o Pro re-promove os membros automaticamente.
+  - Só o **titular** convida (membro de outra família recebe 409); convites para um e-mail já ocupado não duplicam; aceite valida o e-mail do convite.
+  - E-mail de convite (Resend) com deep link, opcional em dev (`FRONTEND_URL/familia?convite=<token>`).
+  - Testes `test_familia.py` (13 casos) — suíte completa: **102 passed** (somente as 3 falhas pré-existentes de e-mail do SQLite/JSONB).
+- **Frontend**: página `/familia` (convidar por e-mail, copiar link do convite, listar convites/membros, aceitar convite, sair/remover com confirmação; upsel para quem não tem Pro), item "Família" no menu e rota; tabela de planos passa a exibir "Até 6 membros" apenas para o Pro / Família.
+
+### Notas
+- Migration Alembic necessária: `alembic upgrade head` (cria `membros_familia`).
+
+---
+
 ## [0.5.0] — 9 de outubro de 2026
 
 ### Modificado

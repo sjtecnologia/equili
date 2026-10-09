@@ -432,3 +432,47 @@ export interface AssinaturaMe {
   assinatura: AssinaturaInfo | null
   pagamentos: PagamentoInfo[]
 }
+
+// ─── Família / multi-usuário ────────────────────────────────────────────────
+
+export type FamiliaPapel = 'titular' | 'membro' | 'convidado' | 'nenhum'
+
+export interface FamiliaTitular {
+  id: string
+  nome: string
+  email: string
+}
+
+export interface ConviteFamilia {
+  id: string
+  email: string
+  status: string
+  criado_em: string | null
+  token: string | null
+}
+
+export interface MembroFamilia {
+  id: string
+  email: string
+  nome: string | null
+  status: string
+  aceito_em: string | null
+  criado_em: string | null
+}
+
+export interface FamiliaContexto {
+  papel: FamiliaPapel
+  titular: FamiliaTitular | null
+  convites: ConviteFamilia[]
+  membros: MembroFamilia[]
+  convite: ConviteFamilia | null
+  limite_membros: number | null
+  vagas: number | null
+  pode_convidar: boolean
+}
+
+export interface ConviteCriado {
+  convite: ConviteFamilia
+  limite_membros: number | null
+  vagas: number | null
+}

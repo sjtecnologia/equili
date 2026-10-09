@@ -16,6 +16,7 @@ import {
   Tags,
   Crown,
   Target,
+  Users,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -28,6 +29,7 @@ export const ALL_NAV_ITEMS: NavItem[] = [
   { to: '/dashboard',       label: 'Dashboard',         icon: LayoutDashboard },
   { to: '/renda',           label: 'Renda',              icon: Wallet },
   { to: '/metas',           label: 'Metas',              icon: Target },
+  { to: '/familia',         label: 'Família',            icon: Users },
   { to: '/dividas',         label: 'Dívidas',            icon: CreditCard },
   { to: '/dividas/baixas',  label: 'Baixas de Dívidas',  icon: Receipt },
   { to: '/contas-pagar',    label: 'Contas a Pagar',     icon: ArrowUpCircle },
