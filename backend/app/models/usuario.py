@@ -47,3 +47,4 @@ class Usuario(Base):
     itens_compra: Mapped[list["ItemCompra"]] = relationship(back_populates="usuario", cascade="all, delete-orphan")  # noqa: F821
     sessoes: Mapped[list["Sessao"]] = relationship(back_populates="usuario", cascade="all, delete-orphan")  # noqa: F821
     notas_fiscais: Mapped[list["NfsRecebida"]] = relationship(back_populates="usuario", cascade="all, delete-orphan")  # noqa: F821
+    metas: Mapped[list["Meta"]] = relationship(back_populates="usuario", cascade="all, delete-orphan")  # noqa: F821

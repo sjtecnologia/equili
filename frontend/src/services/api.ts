@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/authStore'
-import type { PlanoCatalogo, PlanoEntitlements, UsuarioAdmin } from '@/types/financeiro'
+import type { Meta, MetaPayload, MetasResponse, PlanoCatalogo, PlanoEntitlements, UsuarioAdmin } from '@/types/financeiro'
 
 const isNative = !!(window as unknown as { Capacitor?: { isNativePlatform?: boolean } }).Capacitor?.isNativePlatform
 
@@ -42,6 +42,32 @@ export async function listarPlanos(): Promise<PlanoEntitlements[]> {
 
 export async function meuPlano(): Promise<PlanoEntitlements> {
   const { data } = await api.get<PlanoEntitlements>('/planos/me')
+  return data
+}
+
+// ─── Metas financeiras ────────────────────────────────────────────────────────
+
+export async function listarMetas(): Promise<MetasResponse> {
+  const { data } = await api.get<MetasResponse>('/metas')
+  return data
+}
+
+export async function criarMeta(payload: MetaPayload): Promise<Meta> {
+  const { data } = await api.post<Meta>('/metas', payload)
+  return data
+}
+
+export async function atualizarMeta(id: string, payload: Partial<MetaPayload> & { concluida?: boolean }): Promise<Meta> {
+  const { data } = await api.patch<Meta>(`/metas/${id}`, payload)
+  return data
+}
+
+export async function excluirMeta(id: string): Promise<void> {
+  await api.delete(`/metas/${id}`)
+}
+
+export async function aportarMeta(id: string, valor: number): Promise<Meta> {
+  const { data } = await api.post<Meta>(`/metas/${id}/aportar`, { valor })
   return data
 }
 

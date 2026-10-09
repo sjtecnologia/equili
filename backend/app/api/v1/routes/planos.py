@@ -8,6 +8,7 @@ from sqlalchemy import extract, func, select
 
 from app.core import planos as planos_core
 from app.core.dependencies import CurrentUserID, DBSession
+from app.models.meta import Meta
 from app.models.plano_acao import PlanoAcao
 from app.models.usuario import Usuario
 from app.services import uso_ia as uso_ia_service
@@ -40,11 +41,18 @@ async def meu_plano(usuario_id: CurrentUserID, db: DBSession):
         )
     )
     chat_usado = await uso_ia_service.contar_uso(db, usuario_id, "chat")
+    metas_ativas = await db.scalar(
+        select(func.count()).where(
+            Meta.usuario_id == usuario_id,
+            Meta.concluida == False,  # noqa: E712
+        )
+    )
 
     return {
         **ent,
         "uso": {
             "planos_ia_mes": int(planos_ia_usados or 0),
             "chat_msgs_mes": chat_usado,
+            "metas_ativas": int(metas_ativas or 0),
         },
     }

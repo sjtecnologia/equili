@@ -150,3 +150,15 @@ export const lancamentoCartaoSchema = z.object({
   categoria: z.string().optional(),
 })
 export type LancamentoCartaoFormData = z.infer<typeof lancamentoCartaoSchema>
+
+// ─── Metas financeiras ────────────────────────────────────────────────────────
+
+export const metaSchema = z.object({
+  titulo: z.string().min(1, 'Informe um título.'),
+  descricao: z.string().optional(),
+  categoria: z.string().optional(),
+  valor_alvo: z.coerce.number().positive('Valor alvo deve ser maior que zero'),
+  valor_atual: z.coerce.number().min(0, 'Valor não pode ser negativo').optional(),
+  prazo: z.string().optional(),
+})
+export type MetaFormData = z.infer<typeof metaSchema>

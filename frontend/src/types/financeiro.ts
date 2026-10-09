@@ -196,6 +196,38 @@ export interface Renda {
   ativo: boolean
 }
 
+// ─── Metas financeiras ───────────────────────────────────────────────────────
+
+export interface Meta {
+  id: string
+  titulo: string
+  descricao: string | null
+  categoria: string | null
+  valor_alvo: number
+  valor_atual: number
+  prazo: string | null
+  concluida: boolean
+  progresso: number
+  percentual: number
+  restante: number
+  criado_em: string | null
+}
+
+export interface MetasResponse {
+  metas: Meta[]
+  total: number
+  ativas: number
+}
+
+export interface MetaPayload {
+  titulo: string
+  descricao?: string | null
+  categoria?: string | null
+  valor_alvo: number
+  valor_atual?: number
+  prazo?: string | null
+}
+
 // ─── Administração ───────────────────────────────────────────────────────────
 
 export interface UsuarioAdmin {
