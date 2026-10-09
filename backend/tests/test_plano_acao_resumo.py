@@ -121,7 +121,10 @@ def test_normalizar_plano_preenche_schema_e_ordem_avalanche():
     }
     c = normalizar_plano({"resumo_situacao": "ok", "plano": [{"acao": "a", "prioridade": "x"}]}, resumo, HOJE)
     assert c["prioridades"] == [] and c["projecao"] == ""
-    assert c["plano"][0] == {"acao": "a", "valor_estimado": None, "prazo": "", "prioridade": "media"}
+    assert c["plano"][0] == {
+        "acao": "a", "valor_estimado": None, "prazo": "",
+        "fase": "curto_prazo", "prioridade": "media",
+    }
     assert [o["descricao"] for o in c["ordem_quitacao"]] == ["Cartão", "Sem juros"]
     assert c["data_livre_prevista"] == "2027-03" and c["meses_ate_liberdade"] == 5
 

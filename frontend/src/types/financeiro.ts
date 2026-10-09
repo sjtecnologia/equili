@@ -276,6 +276,7 @@ export interface PassoPlano {
   acao: string
   valor_estimado: string | null
   prazo: string
+  fase: 'imediato' | 'curto_prazo' | 'medio_prazo'
   prioridade: 'alta' | 'media' | 'baixa'
 }
 

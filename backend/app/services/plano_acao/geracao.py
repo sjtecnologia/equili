@@ -15,48 +15,81 @@ MAX_TENTATIVAS_PARSE = 2  # 1 chamada + 1 retry
 MAX_TOKENS = 2000
 TEMPERATURE = 0.3
 
-SYSTEM_PROMPT = """Você é um consultor financeiro empático e especialista em finanças pessoais brasileiras.
-Sua tarefa é montar um plano de ação CLARO, REALISTA e encorajador, com foco em desendividamento quando houver dívidas.
-Use apenas os números do resumo fornecido; não invente valores. Priorize o método avalanche (maior juros primeiro).
+SYSTEM_PROMPT = """Você é um consultor financeiro sênior brasileiro (padrão CFP) que recebeu os dados reais de um cliente. Monte um PLANO DE AÇÃO EXECUTÁVEL e ESPECÍFICO usando SOMENTE os dados do resumo.
 
-O plano precisa ser ACIONÁVEL: liste passos concretos (ex.: "Negocie o parcelamento do cartão", "Aumente a renda em R$ 500 com freela", "Revise assinaturas mensais") com prazo realista e prioridade.
+REGRAS DE OURO:
+1. FALE COM NÚMEROS E NOMES REAIS: cite credores, contas, cartões e categorias exatamente como aparecem no resumo. Proibido inventar credor, valor ou data.
+2. DÉFICIT DE CAIXA: se "saldo_projetado_30_dias" for negativo, o PRIMEIRO passo do plano DEVE resolver o déficit (ex.: renegociar/adiar contas específicas, cortar a categoria certa com valor, ou aumentar renda com meta numérica).
+3. ORDEM DE QUITAÇÃO: para passos de dívida, siga a ORDEM AVALANCHE fornecida no contexto (maior juros primeiro). Não a reordene.
+4. PASSO CONCRETO, NUNCA GENÉRICO: "Pagar menos juros" ou "organizar as finanças" são RECUSADOS. "Renegociar com o credor X o saldo devedor de R$ Y" é aceito. Recomendações de corte de gasto DEVEM citar a categoria e um valor alvo (ex.: "Reduzir Alimentação de R$ X para R$ Y por mês").
+5. FASES: imediato (0-15 dias), curto prazo (16-90 dias), médio prazo (91-365 dias). Distribua os passos entre as fases, do mais urgente ao menos urgente.
+6. Entre 5 e 7 passos no total, cobrindo: déficit/emergências, negociação e quitação das dívidas específicas, corte de gastos com meta e aumento de renda/reforço de caixa.
 
 FORMATO DE SAÍDA (obrigatório): responda SOMENTE com um objeto JSON válido, sem markdown, sem comentários e sem nenhum texto fora do JSON, exatamente neste schema:
 {
-  "resumo_situacao": "string curta e empática da situação",
-  "prioridades": ["string", ... 2 a 4 prioridades com base nos dados"],
-  "plano": [{"acao": "string obrigatória", "valor_estimado": "string ou null", "prazo": "string", "prioridade": "alta|media|baixa"}],
-  "projecao": "string com projeção de caixa nos próximos meses",
-  "sugestoes_economia": ["string"], 
-  "justificativa_estrategia": "string curta explicando a estratégia escolhida",
-  "mensagem_motivacional": "string curta e encorajadora",
-  "alerta_fluxo_caixa": "string se houver risco de caixa nos próximos 30 dias; caso contrário null"
+  "resumo_situacao": "2-3 frases empáticas e objetivas citando os números-chave",
+  "prioridades": ["string", 2 a 4 itens],
+  "plano": [{"acao": "string com credor/categoria e valor concreto", "valor_estimado": "string ou null", "prazo": "string (ex.: até 15/10/2026)", "fase": "imediato|curto_prazo|medio_prazo", "prioridade": "alta|media|baixa"}],
+  "projecao": "2-3 frases sobre a evolução esperada do caixa nos próximos meses",
+  "sugestoes_economia": ["string", 2 a 4 itens específicos],
+  "justificativa_estrategia": "1-2 frases explicando a estratégia e a ordem",
+  "mensagem_motivacional": "1 frase curta e encorajadora",
+  "alerta_fluxo_caixa": "string se houver risco nos próximos 30 dias; caso contrário null"
 }"""
 
 USER_TEMPLATE = """RESUMO FINANCEIRO (JSON compacto, valores em R$):
 {resumo_json}
 
-SITUAÇÃO: {situacao}
+{contexto_adicional}
 
+SITUAÇÃO: {situacao}
 Data atual: {data}.
-Gere o plano de ação. Responda SOMENTE com o JSON do schema indicado, sem markdown e sem texto fora do JSON."""
+Gere o plano de ação completo seguindo as REGRAS DE OURO. Responda SOMENTE com o JSON do schema indicado, sem markdown e sem texto fora do JSON."""
 
 
 class PlanoIAError(Exception):
     """Falha ao obter um plano válido da IA (mensagem já amigável)."""
 
 
+def montar_ordem_avalanche(resumo: dict) -> str:
+    """Digest determinístico da ordem de quitação (maior juros primeiro) para o prompt."""
+    dividas = sorted(
+        resumo.get("dividas", []),
+        key=lambda d: (
+            d.get("juros_mensal_pct") is None,
+            -(d.get("juros_mensal_pct") or 0),
+            -d.get("valor_restante", 0),
+        ),
+    )
+    if not dividas:
+        return ""
+    linhas = ["ORDEM AVALANCHE RECOMENDADA (maior juros primeiro):"]
+    for n, d in enumerate(dividas, start=1):
+        juros = f"{d['juros_mensal_pct']:.1f}% a.m." if d.get("juros_mensal_pct") else "juros não informado"
+        linhas.append(
+            f"{n}. {d.get('descricao', 'Dívida')} — saldo devedor R$ {d.get('valor_restante', 0):,.2f} · "
+            f"{d.get('parcelas_restantes', 0)} parcelas de R$ {d.get('valor_parcela', 0):,.2f} · {juros}"
+        )
+    return "\n".join(linhas)
+
+
 def montar_prompt(resumo: dict, hoje: date | None = None) -> tuple[str, str]:
     hoje = hoje or date.today()
     endividado = bool(resumo.get("dividas")) or resumo.get("a_pagar_pendente", {}).get("vencido", 0) > 0
     if resumo.get("dividas"):
-        situacao = "o usuário está ENDIVIDADO; foque o plano em quitar as dívidas listadas sem comprometer o caixa."
+        situacao = "o usuário está ENDIVIDADO; foque o plano em quitar as dívidas listadas sem comprometer o caixa, seguindo a ordem avalanche."
     elif endividado:
         situacao = "sem dívidas cadastradas, mas há contas vencidas; foque em regularizar o caixa."
     else:
         situacao = "sem dívidas; foque em organizar o fluxo de caixa e começar a poupar."
     resumo_json = json.dumps(resumo, ensure_ascii=False, separators=(",", ":"))
-    return SYSTEM_PROMPT, USER_TEMPLATE.format(resumo_json=resumo_json, situacao=situacao, data=hoje.strftime("%d/%m/%Y"))
+    contexto_adicional = montar_ordem_avalanche(resumo)
+    return SYSTEM_PROMPT, USER_TEMPLATE.format(
+        resumo_json=resumo_json,
+        contexto_adicional=contexto_adicional,
+        situacao=situacao,
+        data=hoje.strftime("%d/%m/%Y"),
+    )
 
 
 def extrair_json(texto: str) -> dict | None:
@@ -103,6 +136,7 @@ def normalizar_plano(bruto: dict, resumo: dict, hoje: date | None = None) -> dic
                 "acao": str(i.get("acao", "")).strip(),
                 "valor_estimado": None if i.get("valor_estimado") in (None, "") else str(i["valor_estimado"]),
                 "prazo": str(i.get("prazo", "")).strip(),
+                "fase": i.get("fase") if i.get("fase") in ("imediato", "curto_prazo", "medio_prazo") else "curto_prazo",
                 "prioridade": i.get("prioridade") if i.get("prioridade") in ("alta", "media", "baixa") else "media",
             }
             for i in plano

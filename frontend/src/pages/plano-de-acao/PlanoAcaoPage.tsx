@@ -160,6 +160,17 @@ export default function PlanoAcaoPage() {
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-gray-800 text-sm">{passo.acao}</p>
                       <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span
+                          className={`text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded-full ${
+                            passo.fase === 'imediato'
+                              ? 'bg-amber-100 text-amber-700'
+                              : passo.fase === 'medio_prazo'
+                                ? 'bg-gray-100 text-gray-600'
+                                : 'bg-primary-50 text-primary-600'
+                          }`}
+                        >
+                          {passo.fase === 'imediato' ? 'Imediato' : passo.fase === 'medio_prazo' ? 'Médio prazo' : 'Curto prazo'}
+                        </span>
                         {passo.valor_estimado && (
                           <span className="text-xs text-gray-500">{passo.valor_estimado}</span>
                         )}
