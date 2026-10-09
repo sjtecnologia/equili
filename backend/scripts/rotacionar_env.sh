@@ -15,7 +15,7 @@ echo "Backup do ambiente criado em: $BACKUP_PATH"
 
 required_vars=(
   SECRET_KEY
-  GITHUB_TOKEN
+  OPENROUTER_API_KEY
   RESEND_API_KEY
   STRIPE_SECRET_KEY
   VAPID_PUBLIC_KEY

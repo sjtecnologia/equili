@@ -47,7 +47,10 @@ DATABASE_URL=postgresql+asyncpg://postgres:SENHA@localhost:5432/equili
 SECRET_KEY=sua-chave-secreta-aqui
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=30
-GITHUB_MODELS_API_KEY=seu-token-github
+OPENROUTER_API_KEY=sk-or-v1-sua_chave_aqui
+OPENROUTER_CHAT_MODEL=nvidia/nemotron-3-super-120b-a12b:free
+OPENROUTER_FALLBACK_MODEL=google/gemma-4-26b-a4b-it:free
+OPENROUTER_DISABLE_REASONING=true
 ```
 
 ### 2.3 Banco de dados
@@ -416,7 +419,10 @@ DATABASE_URL=postgresql+asyncpg://postgres:senha@localhost:5432/equili
 SECRET_KEY=chave-aleatoria-minimo-32-caracteres
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=30
-GITHUB_MODELS_API_KEY=ghp_xxxxxxxxxxxxx
+OPENROUTER_API_KEY=sk-or-v1-sua_chave_aqui
+OPENROUTER_CHAT_MODEL=nvidia/nemotron-3-super-120b-a12b:free
+OPENROUTER_FALLBACK_MODEL=google/gemma-4-26b-a4b-it:free
+OPENROUTER_DISABLE_REASONING=true
 ```
 
 ### Frontend

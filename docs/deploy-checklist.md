@@ -87,7 +87,7 @@ Se houver backend em porta customizada (ex.: 8000), abra apenas se realmente nec
 ## 7) Rotação de chaves e tokens
 
 - Rotacionar `SECRET_KEY` em caso de vazamento ou troca de ambiente.
-- Rotacionar `GITHUB_TOKEN` se ele tiver sido exposto ou se a política de acesso mudar.
+- Rotacionar `OPENROUTER_API_KEY` se ela tiver sido exposta ou se a política de acesso mudar.
 - Registrar a data da rotação e o responsável.
 - Reiniciar serviços após a troca de segredos para aplicar as novas variáveis.
 

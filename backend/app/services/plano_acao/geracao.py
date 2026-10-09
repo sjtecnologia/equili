@@ -6,7 +6,7 @@ import logging
 import re
 from datetime import date
 
-from app.services.github_models import chamar_github_models_com_uso
+from app.services.openrouter import chamar_openrouter_com_uso
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +123,7 @@ async def gerar_plano_ia(resumo: dict, hoje: date | None = None) -> tuple[dict, 
     system_prompt, user_prompt = montar_prompt(resumo, hoje)
     tokens_total = 0
     for tentativa in range(1, MAX_TENTATIVAS_PARSE + 1):
-        texto, tokens = await chamar_github_models_com_uso(
+        texto, tokens = await chamar_openrouter_com_uso(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             temperature=TEMPERATURE,

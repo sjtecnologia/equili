@@ -11,7 +11,7 @@
 | Backend | Python 3.12 · FastAPI · SQLAlchemy 2 async · Alembic |
 | Frontend | React 18 · Vite 5 · TypeScript · Tailwind CSS 3 |
 | Banco | PostgreSQL 16 |
-| IA | GitHub Models API (GPT-4o-mini) |
+| IA | OpenRouter (modelos gratuitos `:free`) |
 | Auth | JWT (access token em memória + refresh em httpOnly cookie) |
 
 ---
@@ -21,7 +21,7 @@
 - Python 3.12+
 - Node.js 20+
 - PostgreSQL 16 rodando localmente
-- Conta no GitHub (para gerar token de acesso ao GitHub Models)
+- Conta no [OpenRouter](https://openrouter.ai) (para gerar a API key — modelos `:free` são gratuitos)
 
 ---
 
@@ -34,7 +34,7 @@ cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
 
-Edite `backend/.env` com seus valores reais (especialmente `DATABASE_URL`, `SECRET_KEY` e `GITHUB_TOKEN`).
+Edite `backend/.env` com seus valores reais (especialmente `DATABASE_URL`, `SECRET_KEY` e `OPENROUTER_API_KEY`).
 No frontend, mantenha apenas variáveis `VITE_` (públicas por definição do Vite).
 Se usar login social, configure também `GOOGLE_CLIENT_ID` e `APPLE_ALLOWED_AUDIENCES` no backend.
 Para rate limiting distribuído (multi-instância), configure também `REDIS_URL` no backend.

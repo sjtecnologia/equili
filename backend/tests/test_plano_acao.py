@@ -45,10 +45,10 @@ async def _fake_warning_event(**kwargs):
 
 def test_gerar_plano_acao_usa_fluxo_de_caixa(finance_client, monkeypatch):
     client, user_id, session_factory = finance_client
-    config_module.settings.GITHUB_TOKEN = "test-token"
-    config_module.settings.GITHUB_MODELS_ENDPOINT = "https://example.com"
-    config_module.settings.GITHUB_MODELS_MODEL = "gpt-test"
-    config_module.settings.GITHUB_MODELS_API_KEY = "test-token"
+    config_module.settings.OPENROUTER_API_KEY = "test-token"
+    config_module.settings.OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+    config_module.settings.OPENROUTER_CHAT_MODEL = "nvidia/nemotron-3-super-120b-a12b:free"
+    config_module.settings.OPENROUTER_FALLBACK_MODEL = "google/gemma-4-26b-a4b-it:free"
     monkeypatch.setattr("app.core.rastro_client.rastro_client.send_warning_event", _fake_warning_event)
     enviados: list = []
     _mock_ai_response(monkeypatch, capturado=enviados)
@@ -119,10 +119,10 @@ def test_gerar_plano_acao_usa_fluxo_de_caixa(finance_client, monkeypatch):
 
 def test_plano_gratuito_limita_cota_mensal(finance_client, monkeypatch):
     client, user_id, session_factory = finance_client
-    config_module.settings.GITHUB_TOKEN = "test-token"
-    config_module.settings.GITHUB_MODELS_ENDPOINT = "https://example.com"
-    config_module.settings.GITHUB_MODELS_MODEL = "gpt-test"
-    config_module.settings.GITHUB_MODELS_API_KEY = "test-token"
+    config_module.settings.OPENROUTER_API_KEY = "test-token"
+    config_module.settings.OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+    config_module.settings.OPENROUTER_CHAT_MODEL = "nvidia/nemotron-3-super-120b-a12b:free"
+    config_module.settings.OPENROUTER_FALLBACK_MODEL = "google/gemma-4-26b-a4b-it:free"
     config_module.settings.PLANO_GRATIS_MAX_PLANOS_IA_MES = 1
     monkeypatch.setattr("app.core.rastro_client.rastro_client.send_warning_event", _fake_warning_event)
 

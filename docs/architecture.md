@@ -14,7 +14,7 @@ O Equili é uma aplicação web fullstack com arquitetura **cliente-servidor des
 - **Frontend SPA** (React + Vite) servido via CDN
 - **Backend API REST** (FastAPI / Python) stateless
 - **Banco de dados relacional** (PostgreSQL)
-- **Integração LLM** (GitHub Models API) para geração do Plano de Ação
+- **Integração LLM** (OpenRouter) para geração do Plano de Ação
 - **Serviços de suporte**: Email transacional, Gateway de pagamento
 
 ```
@@ -39,13 +39,13 @@ O Equili é uma aplicação web fullstack com arquitetura **cliente-servidor des
 │  └──────────┘ └──────────┘ └──────────┘ └────────────┘ │
 │  ┌──────────────────────┐  ┌──────────────────────────┐ │
 │  │   AI Plan Service    │  │   Notification Service   │ │
-│  │  (GitHub Models API) │  │   (Email / Alertas)      │ │
+│  │  (OpenRouter LLM)     │  │   (Email / Alertas)      │ │
 │  └──────────────────────┘  └──────────────────────────┘ │
 └──────────┬──────────────────────────┬────────────────────┘
            │                          │
 ┌──────────▼──────────┐   ┌──────────▼──────────────────┐
 │    PostgreSQL        │   │   Serviços Externos          │
-│    (Banco Principal) │   │   · GitHub Models API (LLM) │
+│    (Banco Principal) │   │   · OpenRouter (LLM)         │
 │                      │   │   · Resend (Email)           │
 │                      │   │   · Stripe/Pagar.me (Pgto)  │
 └─────────────────────┘   └─────────────────────────────┘
@@ -103,7 +103,7 @@ O Equili é uma aplicação web fullstack com arquitetura **cliente-servidor des
 | GitHub Actions | CI/CD pipeline |
 | Vercel / Netlify | Hosting do frontend (CDN global) |
 | Railway / Render | Hosting do backend + PostgreSQL (MVP) |
-| GitHub Models | API LLM (GPT-4o via Azure) |
+| OpenRouter | API LLM (modelos gratuitos `:free`) |
 | Resend | Email transacional |
 | Stripe / Pagar.me | Gateway de pagamento |
 
@@ -178,7 +178,7 @@ equili/
 │   │   ├── schemas/             # Pydantic schemas (request/response)
 │   │   ├── services/            # Business logic
 │   │   │   ├── auth_service.py
-│   │   │   ├── plano_ia_service.py   # Integração GitHub Models
+│   │   │   ├── plano_ia_service.py   # Integração OpenRouter
 │   │   │   ├── email_service.py
 │   │   │   └── pagamento_service.py
 │   │   ├── tasks/               # Celery tasks
@@ -551,13 +551,13 @@ async def gerar_plano_acao(usuario_id: UUID, db: AsyncSession) -> PlanoAcao:
     # 3. Montar prompt
     user_prompt = USER_PROMPT_TEMPLATE.format(**dados)
 
-    # 4. Chamar GitHub Models API
+    # 4. Chamar OpenRouter (retry + fallback automático em app/services/openrouter.py)
     client = httpx.AsyncClient(timeout=30.0)
     response = await client.post(
-        f"{GITHUB_MODELS_ENDPOINT}/chat/completions",
-        headers={"Authorization": f"Bearer {GITHUB_MODELS_TOKEN}"},
+        f"{OPENROUTER_BASE_URL}/chat/completions",
+        headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
         json={
-            "model": GITHUB_MODELS_MODEL,
+            "model": OPENROUTER_CHAT_MODEL,
             "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt}
@@ -681,9 +681,11 @@ SECRET_KEY=troque-em-producao-use-openssl-rand-hex-32
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=30
 
-# GitHub Models
-GITHUB_TOKEN=ghp_xxxxxxxxxxxx
-GITHUB_MODELS_MODEL=gpt-4o-mini
+# OpenRouter (modelos gratuitos :free)
+OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxx
+OPENROUTER_CHAT_MODEL=nvidia/nemotron-3-super-120b-a12b:free
+OPENROUTER_FALLBACK_MODEL=google/gemma-4-26b-a4b-it:free
+OPENROUTER_DISABLE_REASONING=true
 
 # Email
 RESEND_API_KEY=re_xxxxxxxxxxxx

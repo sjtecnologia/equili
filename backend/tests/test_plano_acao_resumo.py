@@ -127,8 +127,8 @@ def test_normalizar_plano_preenche_schema_e_ordem_avalanche():
 
 
 def _config(monkeypatch):
-    config_module.settings.GITHUB_MODELS_API_KEY = "test-token"
-    monkeypatch.setattr("app.services.github_models.asyncio.sleep", lambda *_: asyncio.sleep(0))
+    config_module.settings.OPENROUTER_API_KEY = "test-token"
+    monkeypatch.setattr("app.services.openrouter.asyncio.sleep", lambda *_: asyncio.sleep(0))
 
 
 def _fake_respostas(monkeypatch, textos):
