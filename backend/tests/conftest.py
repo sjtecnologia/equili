@@ -343,6 +343,45 @@ async def _create_sqlite_schema(conn) -> None:
         )
         """
     )
+    await conn.exec_driver_sql(
+        """
+        CREATE TABLE IF NOT EXISTS assinaturas (
+            id TEXT PRIMARY KEY,
+            usuario_id TEXT NOT NULL,
+            plano TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'aguardando_pagamento',
+            gateway TEXT NOT NULL DEFAULT 'mock',
+            gateway_assinatura_id TEXT,
+            preco_mensal REAL NOT NULL DEFAULT 0,
+            data_inicio TEXT,
+            data_proxima_cobranca TEXT,
+            cancelada_em TEXT,
+            criado_em TEXT,
+            atualizado_em TEXT
+        )
+        """
+    )
+    await conn.exec_driver_sql(
+        """
+        CREATE TABLE IF NOT EXISTS pagamentos (
+            id TEXT PRIMARY KEY,
+            assinatura_id TEXT,
+            usuario_id TEXT NOT NULL,
+            plano TEXT NOT NULL,
+            metodo TEXT NOT NULL,
+            valor REAL NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pendente',
+            gateway TEXT NOT NULL DEFAULT 'mock',
+            gateway_pagamento_id TEXT,
+            qr_code TEXT,
+            qr_base64 TEXT,
+            url_pagamento TEXT,
+            expira_em TEXT,
+            criado_em TEXT,
+            pago_em TEXT
+        )
+        """
+    )
 
 
 @pytest.fixture()

@@ -23,6 +23,7 @@ from app.api.v1.routes import (
     categorias,
     planos,
     metas,
+    assinaturas,
 )
 
 api_router = APIRouter()
@@ -49,3 +50,4 @@ api_router.include_router(nfs.router, prefix="/nfs", tags=["Notas Fiscais"])
 api_router.include_router(categorias.router, prefix="/categorias", tags=["Categorias"])
 api_router.include_router(planos.router)
 api_router.include_router(metas.router, prefix="/metas", tags=["Metas"])
+api_router.include_router(assinaturas.router, prefix="/assinaturas", tags=["Assinaturas e Pagamentos"])

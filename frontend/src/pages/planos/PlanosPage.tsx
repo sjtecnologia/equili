@@ -1,11 +1,11 @@
 import { Fragment, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { Crown, Mail, X } from 'lucide-react'
-import { listarPlanos } from '@/services/api'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { CreditCard, Crown, Loader2, QrCode, X } from 'lucide-react'
+import { cancelarAssinatura, listarPlanos, minhaAssinatura } from '@/services/api'
 import { usePlano } from '@/hooks/usePlano'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Loader2 } from 'lucide-react'
+import CheckoutModal from '@/components/planos/CheckoutModal'
 import type { PlanoEntitlements } from '@/types/financeiro'
 
 function preco(v: number): string {
@@ -39,7 +39,7 @@ const LINHAS: Linha[] = [
   { grupo: 'IA', rotulo: 'Assistente de voz', valor: (p) => (p.recursos.includes('voz') ? 'Incluído' : 'Não incluído') },
   { grupo: 'IA', rotulo: 'Prioridade na IA', valor: (p) => (p.recursos.includes('ia_prioridade') ? 'Incluído' : '—') },
   { grupo: 'Relatórios', rotulo: 'Relatório detalhado', valor: (p) => (p.recursos.includes('relatorios_avancados') ? 'Incluído' : 'Não incluído') },
-  { grupo: 'Relatórios', rotulo: 'Exportação Excel', valor: (p) => (p.recursos.includes('exportacao') ? 'Incluído' : 'Não incluído') },
+  { grupo: 'Relatórios', rotulo: 'Exportação Excel/PDF', valor: (p) => (p.recursos.includes('exportacao') ? 'Incluído' : 'Não incluído') },
   { grupo: 'Avançado', rotulo: 'Notas Fiscais (NFS-e)', valor: (p) => (p.recursos.includes('nfs') ? 'Incluído' : 'Não incluído') },
   { grupo: 'Avançado', rotulo: 'Membros no espaço', valor: (p) => valorLimite(p, 'membros', 'Ilimitado') },
   { grupo: 'Suporte', rotulo: 'Suporte', valor: (p) => (p.nome === 'gratuito' ? 'Comunidade' : p.nome === 'pro' ? 'Prioritário' : 'E-mail') },
@@ -47,40 +47,11 @@ const LINHAS: Linha[] = [
 
 const GRUPOS = ['Organização', 'IA', 'Relatórios', 'Avançado', 'Suporte']
 
-function UpagradeModal({ plano, onClose }: { plano: PlanoEntitlements; onClose: () => void }) {
-  const assunto = encodeURIComponent(`Quero assinar o plano ${plano.rotulo}`)
-  const corpo = encodeURIComponent(
-    `Olá! Quero assinar o plano ${plano.rotulo} do Equili (R$ ${plano.preco_mensal.toFixed(2).replace('.', ',')}/mês).`
-  )
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
-      <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2">
-            <Crown size={20} className="text-primary-500" />
-            <h2 className="text-base font-bold text-gray-800">Assinar {plano.rotulo}</h2>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600" aria-label="Fechar">
-            <X size={18} />
-          </button>
-        </div>
-        <p className="text-sm text-gray-600">
-          O pagamento online (cartão/PIX) está <strong>em breve</strong>. Enquanto isso, assine falando
-          com a gente — ativamos seu plano rapidinho:
-        </p>
-        <a
-          href={`mailto:suporte@equili.app?subject=${assunto}&body=${corpo}`}
-          className="btn-primary w-full inline-flex items-center justify-center gap-2"
-        >
-          <Mail size={16} />
-          Solicitar por e-mail
-        </a>
-        <p className="text-xs text-gray-400 text-center">
-          suporte@equili.app · resposta em até 1 dia útil
-        </p>
-      </div>
-    </div>
-  )
+const STATUS_PAGAMENTO_LABEL: Record<string, { label: string; cor: string }> = {
+  pendente: { label: 'Pendente', cor: 'bg-amber-100 text-amber-700' },
+  pago: { label: 'Pago', cor: 'bg-green-100 text-green-700' },
+  recusado: { label: 'Recusado', cor: 'bg-red-100 text-red-700' },
+  cancelado: { label: 'Cancelado', cor: 'bg-gray-100 text-gray-600' },
 }
 
 export default function PlanosPage() {
@@ -89,7 +60,14 @@ export default function PlanosPage() {
     queryFn: listarPlanos,
   })
   const { plano: planoAtual, rotulo } = usePlano()
+  const queryClient = useQueryClient()
   const [assinando, setAssinando] = useState<PlanoEntitlements | null>(null)
+  const [confirmandoCancelamento, setConfirmandoCancelamento] = useState(false)
+
+  const { data: assinaturaData } = useQuery({
+    queryKey: ['minha-assinatura'],
+    queryFn: minhaAssinatura,
+  })
 
   if (isLoading) {
     return (
@@ -100,6 +78,22 @@ export default function PlanosPage() {
   }
 
   const planos = catalogo ?? []
+  const assinatura = assinaturaData?.assinatura ?? null
+
+  function invalidarAssinatura() {
+    queryClient.invalidateQueries({ queryKey: ['meu-plano'] })
+    queryClient.invalidateQueries({ queryKey: ['minha-assinatura'] })
+  }
+
+  async function handleCancelar() {
+    try {
+      await cancelarAssinatura()
+      setConfirmandoCancelamento(false)
+      invalidarAssinatura()
+    } catch {
+      setConfirmandoCancelamento(false)
+    }
+  }
 
   return (
     <div className="w-full mx-auto max-w-4xl p-4 space-y-6">
@@ -150,6 +144,89 @@ export default function PlanosPage() {
         })}
       </div>
 
+      {/* Minha assinatura */}
+      <div className="card p-5 space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <Crown size={18} className="text-primary-500" />
+            <h2 className="font-semibold text-gray-800">Minha assinatura</h2>
+          </div>
+          {assinatura && (
+            <span className="text-xs font-semibold text-primary-500 bg-primary-100 rounded-full px-2 py-0.5">
+              Ativa · até{' '}
+              {assinatura.data_proxima_cobranca
+                ? new Date(assinatura.data_proxima_cobranca).toLocaleDateString('pt-BR')
+                : '—'}
+            </span>
+          )}
+        </div>
+
+        {assinatura ? (
+          <div className="space-y-3">
+            <div className="rounded-xl bg-gray-50 border border-gray-200 p-4 flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <p className="font-semibold text-gray-800">{assinatura.rotulo}</p>
+                <p className="text-xs text-gray-500">
+                  {preco(assinatura.preco_mensal)}/mês · início em{' '}
+                  {assinatura.data_inicio ? new Date(assinatura.data_inicio).toLocaleDateString('pt-BR') : '—'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => (confirmandoCancelamento ? handleCancelar() : setConfirmandoCancelamento(true))}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+                  confirmandoCancelamento ? 'bg-red-600 text-white hover:bg-red-700' : 'text-red-600 border border-red-200 hover:bg-red-50'
+                }`}
+              >
+                <X size={14} />
+                {confirmandoCancelamento ? 'Confirmar cancelamento' : 'Cancelar assinatura'}
+              </button>
+            </div>
+            {confirmandoCancelamento && (
+              <p className="text-xs text-gray-500">
+                Ao cancelar, você volta ao plano Gratuito imediatamente e perde o acesso aos recursos pagos.
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">
+            Você está no plano <strong>Gratuito</strong>. Assine o Premium ou o Pro/Família para desbloquear todos os recursos.
+          </p>
+        )}
+
+        {assinaturaData && assinaturaData.pagamentos.length > 0 && (
+          <div>
+            <p className="text-xs text-gray-500 mb-2">Pagamentos recentes</p>
+            <div className="divide-y divide-gray-100">
+              {assinaturaData.pagamentos.slice(0, 5).map((p) => {
+                const status = STATUS_PAGAMENTO_LABEL[p.status] ?? { label: p.status, cor: 'bg-gray-100 text-gray-600' }
+                return (
+                  <div key={p.id} className="py-2 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      {p.metodo === 'pix' ? (
+                        <QrCode size={15} className="text-gray-400" />
+                      ) : (
+                        <CreditCard size={15} className="text-gray-400" />
+                      )}
+                      <div>
+                        <p className="text-sm text-gray-700">
+                          {p.metodo === 'pix' ? 'PIX' : 'Cartão'} · {preco(p.valor)}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {p.criado_em ? new Date(p.criado_em).toLocaleDateString('pt-BR') : ''}
+                          {p.pago_em ? ` · pago em ${new Date(p.pago_em).toLocaleDateString('pt-BR')}` : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`text-xs font-medium rounded-full px-2 py-0.5 ${status.cor}`}>{status.label}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Comparativo */}
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">
@@ -188,7 +265,7 @@ export default function PlanosPage() {
       </div>
 
       <p className="text-xs text-gray-400 text-center">
-        Pagamentos online em breve. Cancelamento quando quiser. Valores em reais (BRL).
+        PIX e cartão de crédito. Cancelamento quando quiser. Valores em reais (BRL).
       </p>
 
       <div className="text-center">
@@ -197,7 +274,16 @@ export default function PlanosPage() {
         </Link>
       </div>
 
-      {assinando && <UpagradeModal plano={assinando} onClose={() => setAssinando(null)} />}
+      {assinando && (
+        <CheckoutModal
+          plano={assinando}
+          onClose={() => setAssinando(null)}
+          onAtivado={() => {
+            setAssinando(null)
+            invalidarAssinatura()
+          }}
+        />
+      )}
     </div>
   )
 }

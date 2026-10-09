@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/authStore'
-import type { Meta, MetaPayload, MetasResponse, PlanoCatalogo, PlanoEntitlements, UsuarioAdmin } from '@/types/financeiro'
+import type { AssinaturaMe, CheckoutResponse, Meta, MetaPayload, MetasResponse, PlanoCatalogo, PlanoEntitlements, UsuarioAdmin } from '@/types/financeiro'
 
 const isNative = !!(window as unknown as { Capacitor?: { isNativePlatform?: boolean } }).Capacitor?.isNativePlatform
 
@@ -68,6 +68,42 @@ export async function excluirMeta(id: string): Promise<void> {
 
 export async function aportarMeta(id: string, valor: number): Promise<Meta> {
   const { data } = await api.post<Meta>(`/metas/${id}/aportar`, { valor })
+  return data
+}
+
+// ─── Assinaturas e pagamentos ────────────────────────────────────────────────
+
+export async function criarAssinaturaCheckout(plano: string, metodo: 'pix' | 'cartao'): Promise<CheckoutResponse> {
+  const { data } = await api.post<CheckoutResponse>('/assinaturas/checkout', { plano, metodo })
+  return data
+}
+
+export async function minhaAssinatura(): Promise<AssinaturaMe> {
+  const { data } = await api.get<AssinaturaMe>('/assinaturas/me')
+  return data
+}
+
+export async function cancelarAssinatura(): Promise<{ status: string }> {
+  const { data } = await api.post<{ status: string }>('/assinaturas/cancelar')
+  return data
+}
+
+/**
+ * Dispara o webhook do gateway mock — apenas ambiente de teste (PAYMENT_GATEWAY=mock).
+ * Em produção o backend recusa o endpoint, então a chave aqui é só de dev.
+ */
+export async function simularPagamentoAprovado(pagamentoId: string): Promise<{ status: string }> {
+  const { data } = await api.post<{ status: string }>(
+    '/assinaturas/webhook/mock',
+    {
+      evento: 'pagamento_confirmado',
+      pagamento_id: pagamentoId,
+      aprovado: true,
+    },
+    {
+      headers: { 'X-Equili-Mock': import.meta.env.VITE_PAYMENT_MOCK_KEY ?? 'equili-mock-dev' },
+    }
+  )
   return data
 }
 

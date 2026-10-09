@@ -389,3 +389,46 @@ export interface PlanoEntitlements {
 export interface PlanoCatalogo {
   planos: PlanoEntitlements[]
 }
+
+// ─── Assinaturas e pagamentos ────────────────────────────────────────────────
+
+export interface AssinaturaInfo {
+  id: string
+  plano: string
+  rotulo: string
+  status: string
+  gateway: string
+  preco_mensal: number
+  data_inicio: string | null
+  data_proxima_cobranca: string | null
+  cancelada_em: string | null
+  criado_em: string
+}
+
+export interface PagamentoInfo {
+  id: string
+  assinatura_id: string | null
+  plano: string
+  metodo: 'pix' | 'cartao'
+  valor: number
+  status: string
+  gateway: string
+  gateway_pagamento_id: string | null
+  qr_code: string | null
+  qr_base64: string | null
+  url_pagamento: string | null
+  expira_em: string | null
+  criado_em: string | null
+  pago_em: string | null
+}
+
+export interface CheckoutResponse {
+  pagamento: PagamentoInfo
+  assinatura: AssinaturaInfo
+  simulavel: boolean
+}
+
+export interface AssinaturaMe {
+  assinatura: AssinaturaInfo | null
+  pagamentos: PagamentoInfo[]
+}

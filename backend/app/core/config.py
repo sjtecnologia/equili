@@ -63,6 +63,16 @@ class Settings(BaseSettings):
     PLANO_GRATIS_MAX_DIVIDAS: int = 3
     PLANO_GRATIS_MAX_PLANOS_IA_MES: int = 3
 
+    # Pagamentos / assinaturas
+    # Provedor de checkout. `mock` = ambiente de teste (sem gateway real).
+    # Para produção, implemente um adaptador em app/services/gateways.py e
+    # aponte para o nome dele (ex.: asaas, appmax, stripe).
+    PAYMENT_GATEWAY: str = "mock"
+    # Chave usada pelo gateway mock para assinar o webhook (dev).
+    PAYMENT_MOCK_KEY: str = "equili-mock-dev"
+    # Validade do checkout (PIX/cartão) em minutos.
+    PAYMENT_CHECKOUT_EXPIRA_MINUTOS: int = 30
+
     # Web Push / VAPID
     VAPID_PUBLIC_KEY: str = ""
     VAPID_PRIVATE_KEY_B64: str = ""

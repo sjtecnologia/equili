@@ -23,6 +23,36 @@ Histórico completo de desenvolvimento do projeto.
 
 ---
 
+## [0.7.0] — 9 de outubro de 2026
+
+### Adicionado
+- **Metas financeiras** (`/metas`) com valor alvo, aportes, progresso automático e conclusão:
+  - Modelo `Meta`, migration `f4a5b6c7d8e9`; limite de cotas (grátis = 1 meta ativa, Premium/Pro = ilimitado — responde **429**).
+  - Endpoints: CRUD + `POST /{id}/aportar`; `GET /planos/me` agora expõe `uso.metas_ativas`.
+  - Frontend: página `/metas` com modais, `useMetas`, item no menu.
+- **Exportação em PDF** (client-side, `jspdf` + `jspdf-autotable`) nos relatórios e notas fiscais:
+  - Helper `src/utils/exportPdf.ts` (cabeçalho Equili, tabelas por seção, rodapé com data/paginação).
+  - PDF ao lado do Excel em Fluxo de Caixa, Relatório Detalhado, Extrato (conta/cartão) e Parcelas — sempre sob o mesmo gate `exportacao`.
+  - NFS: exportação Excel **e** PDF da lista (página já é do plano Pro).
+  - `jspdf` carregado sob demanda (chunk lazy), mantendo o bundle principal enxuto.
+- **Cobrança e assinaturas** (fase 2 — modo teste `PAYMENT_GATEWAY=mock`):
+  - Camada de gateway **agnóstica de provedor** (`app/services/gateways.py`) com interface `GatewayPagamento` + `MockGateway` (checkout simulado, QR PIX fake, webhook local). Guia de produção em `docs/gateway-pagamentos.md`.
+  - Modelos `Assinatura` e `Pagamento` (migration `f5a6b7c8d9e0`).
+  - Endpoints: `POST /assinaturas/checkout` (PIX/cartão; preço sempre do catálogo), `POST /assinaturas/webhook/{gateway}` (confirmação pública com validação de assinatura), `GET /assinaturas/me`, `POST /assinaturas/cancelar`.
+  - Pagamento confirmado ativa a assinatura e troca `usuario.plano` automaticamente; upgrade Premium → Pro encerra a assinatura concorrente; cancelamento reverte ao Gratuito.
+  - Frontend: `CheckoutModal` (PIX com QR + copia-e-cola, cartão com URL, botão **"Simular pagamento aprovado"** em modo teste) e seção **"Minha assinatura"** com histórico de pagamentos e cancelamento.
+- **Testes**: `test_metas.py` (9 casos) e `test_assinaturas.py` (12 casos).
+
+### Modificado
+- Variáveis de ambiente novas: `PAYMENT_GATEWAY`, `PAYMENT_MOCK_KEY`, `PAYMENT_CHECKOUT_EXPIRA_MINUTOS`.
+- Página `/planos`: botão "Assinar" abre o checkout (PIX/cartão); comparativo atualizado para "Exportação Excel/PDF".
+
+### Notas
+- Migrations Alembic necessárias: `alembic upgrade head` (cria `metas`, `assinaturas` e `pagamentos`).
+- Multi-usuário/família (convites, dados separados sob 1 assinatura) continua na fase 2 — "em breve" nas telas.
+
+---
+
 ## [0.5.0] — 9 de outubro de 2026
 
 ### Modificado
