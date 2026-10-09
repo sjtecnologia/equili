@@ -112,7 +112,7 @@ def test_gerar_plano_acao_usa_fluxo_de_caixa(finance_client, monkeypatch):
 
     # a IA recebe o resumo compacto e pede JSON, com parâmetros ajustados
     corpo = enviados[0]
-    assert corpo["temperature"] == 0.3 and corpo["max_tokens"] == 1500
+    assert corpo["temperature"] == 0.3 and corpo["max_tokens"] == 2000
     assert corpo["response_format"] == {"type": "json_object"}
     assert '"renda_mensal_total":5000.0' in corpo["messages"][1]["content"]
 

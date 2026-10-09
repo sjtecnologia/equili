@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Calendar, Lightbulb, Loader2, RefreshCw, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Calendar, Lightbulb, ListChecks, Loader2, RefreshCw, Sparkles, ThumbsDown, ThumbsUp, TrendingUp } from 'lucide-react'
 import { usePlanoAcao } from '@/hooks/usePlanoAcao'
 
 const mensagensCarregando = [
@@ -130,6 +130,59 @@ export default function PlanoAcaoPage() {
             </div>
           )}
 
+          {/* Prioridades */}
+          {plano.conteudo?.prioridades?.length > 0 && (
+            <div className="card p-4 space-y-2">
+              <h2 className="font-semibold text-gray-800 text-sm">Prioridades</h2>
+              <ul className="flex flex-wrap gap-1.5">
+                {plano.conteudo.prioridades.map((p, i) => (
+                  <li key={i} className="text-xs bg-primary-50 text-primary-600 rounded-full px-2.5 py-1 font-medium">
+                    {p}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Passo a passo do plano */}
+          {plano.conteudo?.plano?.length > 0 && (
+            <div className="card p-4 space-y-3">
+              <h2 className="font-semibold text-gray-800 text-sm flex items-center gap-2">
+                <ListChecks size={14} className="text-accent-500" />
+                Seu plano de ação
+              </h2>
+              <ol className="space-y-2.5">
+                {plano.conteudo.plano.map((passo, i) => (
+                  <li key={i} className="flex gap-3 items-start">
+                    <span className="shrink-0 w-6 h-6 rounded-full bg-accent-100 text-accent-500 text-xs font-bold flex items-center justify-center">
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-gray-800 text-sm">{passo.acao}</p>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        {passo.valor_estimado && (
+                          <span className="text-xs text-gray-500">{passo.valor_estimado}</span>
+                        )}
+                        {passo.prazo && <span className="text-xs text-gray-400">· {passo.prazo}</span>}
+                        <span
+                          className={`text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded-full ${
+                            passo.prioridade === 'alta'
+                              ? 'bg-danger-50 text-danger-600'
+                              : passo.prioridade === 'media'
+                                ? 'bg-amber-50 text-amber-600'
+                                : 'bg-success-50 text-success-600'
+                          }`}
+                        >
+                          {passo.prioridade === 'alta' ? 'Prioridade alta' : passo.prioridade === 'media' ? 'Prioridade média' : 'Prioridade baixa'}
+                        </span>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+
           {/* Estratégia */}
           {plano.conteudo?.estrategia && (
             <div className="card p-4 space-y-1">
@@ -241,6 +294,17 @@ export default function PlanoAcaoPage() {
                   </li>
                 ))}
               </ol>
+            </div>
+          )}
+
+          {/* Projeção de caixa */}
+          {plano.conteudo?.projecao && (
+            <div className="card p-4 space-y-1">
+              <h2 className="font-semibold text-gray-800 text-sm flex items-center gap-2">
+                <TrendingUp size={14} className="text-success-500" />
+                Projeção de caixa
+              </h2>
+              <p className="text-sm text-gray-600">{plano.conteudo.projecao}</p>
             </div>
           )}
 

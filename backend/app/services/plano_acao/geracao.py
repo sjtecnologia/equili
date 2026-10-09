@@ -12,19 +12,25 @@ logger = logging.getLogger(__name__)
 
 TIMEOUT_IA_SEGUNDOS = 60.0
 MAX_TENTATIVAS_PARSE = 2  # 1 chamada + 1 retry
-MAX_TOKENS = 1500
+MAX_TOKENS = 2000
 TEMPERATURE = 0.3
 
 SYSTEM_PROMPT = """Você é um consultor financeiro empático e especialista em finanças pessoais brasileiras.
 Sua tarefa é montar um plano de ação CLARO, REALISTA e encorajador, com foco em desendividamento quando houver dívidas.
 Use apenas os números do resumo fornecido; não invente valores. Priorize o método avalanche (maior juros primeiro).
 
+O plano precisa ser ACIONÁVEL: liste passos concretos (ex.: "Negocie o parcelamento do cartão", "Aumente a renda em R$ 500 com freela", "Revise assinaturas mensais") com prazo realista e prioridade.
+
 FORMATO DE SAÍDA (obrigatório): responda SOMENTE com um objeto JSON válido, sem markdown, sem comentários e sem nenhum texto fora do JSON, exatamente neste schema:
 {
-  "resumo_situacao": "string curta da situação",
-  "prioridades": ["string"],
-  "plano": [{"acao": "string", "valor_estimado": "string ou null", "prazo": "string", "prioridade": "alta|media|baixa"}],
-  "projecao": "string com projeção de caixa nos próximos meses"
+  "resumo_situacao": "string curta e empática da situação",
+  "prioridades": ["string", ... 2 a 4 prioridades com base nos dados"],
+  "plano": [{"acao": "string obrigatória", "valor_estimado": "string ou null", "prazo": "string", "prioridade": "alta|media|baixa"}],
+  "projecao": "string com projeção de caixa nos próximos meses",
+  "sugestoes_economia": ["string"], 
+  "justificativa_estrategia": "string curta explicando a estratégia escolhida",
+  "mensagem_motivacional": "string curta e encorajadora",
+  "alerta_fluxo_caixa": "string se houver risco de caixa nos próximos 30 dias; caso contrário null"
 }"""
 
 USER_TEMPLATE = """RESUMO FINANCEIRO (JSON compacto, valores em R$):
@@ -74,23 +80,41 @@ def _somar_meses(d: date, meses: int) -> date:
     return date(d.year + total // 12, total % 12 + 1, 1)
 
 
+def _lista_strings(val) -> list[str]:
+    """Normaliza listas de strings (prioridades/sugestões), com limite de itens."""
+    if not isinstance(val, list):
+        return []
+    itens = []
+    for x in val:
+        if isinstance(x, str) and x.strip():
+            itens.append(x.strip())
+    return itens[:6]
+
+
 def normalizar_plano(bruto: dict, resumo: dict, hoje: date | None = None) -> dict:
     """Garante o schema fixo e acrescenta campos derivados (determinísticos) usados pela tela atual."""
     hoje = hoje or date.today()
     plano = bruto.get("plano") if isinstance(bruto.get("plano"), list) else []
     conteudo = {
         "resumo_situacao": str(bruto.get("resumo_situacao", "")),
-        "prioridades": [str(p) for p in bruto.get("prioridades", [])] if isinstance(bruto.get("prioridades"), list) else [],
+        "prioridades": _lista_strings(bruto.get("prioridades")),
         "plano": [
             {
-                "acao": str(i.get("acao", "")),
+                "acao": str(i.get("acao", "")).strip(),
                 "valor_estimado": None if i.get("valor_estimado") in (None, "") else str(i["valor_estimado"]),
-                "prazo": str(i.get("prazo", "")),
+                "prazo": str(i.get("prazo", "")).strip(),
                 "prioridade": i.get("prioridade") if i.get("prioridade") in ("alta", "media", "baixa") else "media",
             }
-            for i in plano if isinstance(i, dict)
+            for i in plano
+            if isinstance(i, dict) and str(i.get("acao", "")).strip()
         ],
         "projecao": str(bruto.get("projecao", "")),
+        "sugestoes_economia": _lista_strings(bruto.get("sugestoes_economia")),
+        "justificativa_estrategia": str(bruto.get("justificativa_estrategia", "")).strip(),
+        "mensagem_motivacional": str(bruto.get("mensagem_motivacional", "")).strip(),
+        "alerta_fluxo_caixa": (
+            str(bruto["alerta_fluxo_caixa"]).strip() if bruto.get("alerta_fluxo_caixa") else None
+        ),
     }
 
     # Campos derivados do resumo (não vêm da IA): ordem avalanche, data livre e saldo

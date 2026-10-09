@@ -272,8 +272,18 @@ export interface OrdemQuitacao {
   motivo_prioridade: string
 }
 
+export interface PassoPlano {
+  acao: string
+  valor_estimado: string | null
+  prazo: string
+  prioridade: 'alta' | 'media' | 'baixa'
+}
+
 export interface PlanoConteudo {
   resumo_situacao: string
+  prioridades: string[]
+  plano: PassoPlano[]
+  projecao: string
   estrategia: string
   justificativa_estrategia?: string
   valor_mensal_para_dividas?: number
