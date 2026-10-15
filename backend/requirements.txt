@@ -10,13 +10,12 @@ greenlet==3.3.2
 
 # Validation
 pydantic[email]==2.12.5
-pydantic-settings==2.13.1
+pydantic-settings==2.14.2
 
 # Auth
-PyJWT==2.10.1
-python-jose[cryptography]==3.5.0
+PyJWT==2.15.0
 passlib[bcrypt]==1.7.4
-python-multipart==0.0.27
+python-multipart==0.0.31
 bcrypt==5.0.0
 
 # HTTP client (para GitHub Models API)
