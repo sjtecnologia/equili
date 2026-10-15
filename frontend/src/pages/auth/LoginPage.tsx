@@ -23,6 +23,15 @@ const IconGoogle = () => (
   </svg>
 )
 
+const IconApple = () => (
+  <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden>
+    <path
+      fill="currentColor"
+      d="M16.36 1.43c0 1.16-.44 2.23-1.31 3.18-.93 1.02-2.02 1.6-3.19 1.5-.14-1.11.42-2.3 1.25-3.15.91-.94 2.22-1.61 3.25-1.53ZM20.58 17.33c-.46 1.06-.68 1.54-1.27 2.48-.82 1.25-1.97 2.82-3.4 2.84-1.27.02-1.6-.82-3.33-.81-1.73.01-2.1.84-3.37.82-1.43-.02-2.52-1.42-3.34-2.68-2.28-3.49-2.52-7.58-1.11-9.76 1-1.55 2.58-2.46 4.07-2.46 1.52 0 2.47.83 3.72.83 1.22 0 1.96-.83 3.72-.83 1.33 0 2.74.72 3.74 1.98-3.29 1.81-2.76 6.5.57 7.59Z"
+    />
+  </svg>
+)
+
 const schema = z.object({
   email: z.string().email('E-mail inválido'),
   senha: z.string().min(1, 'Informe sua senha'),
@@ -174,7 +183,7 @@ export default function LoginPage() {
         scopes: [SignInScope.Email, SignInScope.FullName],
         redirectUrl: 'https://equili.com.br',
       })
-      const res = await api.post<{ access_token: string }>('/auth/google', {
+      const res = await api.post<{ access_token: string }>('/auth/apple', {
         id_token: result.idToken,
       })
       await finalizarLogin(res.data.access_token)
@@ -207,21 +216,21 @@ export default function LoginPage() {
           )}
 
           {isNative && (
-            <div className="flex items-center gap-2">
+            <div className="space-y-2">
               <button
                 onClick={loginGoogle}
                 disabled={googleLoading || appleLoading}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-800 hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 {googleLoading ? <Loader2 size={16} className="animate-spin" /> : <IconGoogle />}
-                Google
+                Continuar com Google
               </button>
               <button
                 onClick={loginApple}
                 disabled={googleLoading || appleLoading}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-800 hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
-                {appleLoading ? <Loader2 size={16} className="animate-spin" /> : null}
+                {appleLoading ? <Loader2 size={16} className="animate-spin" /> : <IconApple />}
                 Continuar com Apple
               </button>
             </div>

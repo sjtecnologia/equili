@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2, Eye, EyeOff } from 'lucide-react'
 import { Capacitor } from '@capacitor/core'
+import { AppleSignIn, SignInScope } from '@capawesome/capacitor-apple-sign-in'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'
 import { useGoogleAuth } from '@/hooks/useGoogleAuth'
@@ -17,6 +18,15 @@ const IconGoogle = () => (
     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
     <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
     <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+  </svg>
+)
+
+const IconApple = () => (
+  <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden>
+    <path
+      fill="currentColor"
+      d="M16.36 1.43c0 1.16-.44 2.23-1.31 3.18-.93 1.02-2.02 1.6-3.19 1.5-.14-1.11.42-2.3 1.25-3.15.91-.94 2.22-1.61 3.25-1.53ZM20.58 17.33c-.46 1.06-.68 1.54-1.27 2.48-.82 1.25-1.97 2.82-3.4 2.84-1.27.02-1.6-.82-3.33-.81-1.73.01-2.1.84-3.37.82-1.43-.02-2.52-1.42-3.34-2.68-2.28-3.49-2.52-7.58-1.11-9.76 1-1.55 2.58-2.46 4.07-2.46 1.52 0 2.47.83 3.72.83 1.22 0 1.96-.83 3.72-.83 1.33 0 2.74.72 3.74 1.98-3.29 1.81-2.76 6.5.57 7.59Z"
+    />
   </svg>
 )
 
@@ -38,6 +48,7 @@ export default function CadastroPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
   const { getIdToken, loading: googleLoading } = useGoogleAuth()
+  const [appleLoading, setAppleLoading] = useState(false)
 
   const isNative = Capacitor.isNativePlatform()
 
@@ -58,6 +69,25 @@ export default function CadastroPage() {
       await finalizarLogin(res.data.access_token)
     } catch {
       setServerError('Erro ao entrar com Google. Tente novamente.')
+    }
+  }
+
+  async function cadastroApple() {
+    setServerError(null)
+    setAppleLoading(true)
+    try {
+      const result = await AppleSignIn.signIn({
+        scopes: [SignInScope.Email, SignInScope.FullName],
+        redirectUrl: 'https://equili.com.br',
+      })
+      const res = await api.post<{ access_token: string }>('/auth/apple', {
+        id_token: result.idToken,
+      })
+      await finalizarLogin(res.data.access_token)
+    } catch {
+      setServerError('Erro ao entrar com Apple. Tente novamente.')
+    } finally {
+      setAppleLoading(false)
     }
   }
 
@@ -89,15 +119,26 @@ export default function CadastroPage() {
           <h2 className="text-lg font-semibold text-gray-800">Criar conta gratuita</h2>
 
           {isNative && (
-            <button
-              type="button"
-              onClick={cadastroGoogle}
-              disabled={googleLoading}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              {googleLoading ? <Loader2 size={16} className="animate-spin" /> : <IconGoogle />}
-              Continuar com Google
-            </button>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={cadastroGoogle}
+                disabled={googleLoading || appleLoading}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-800 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                {googleLoading ? <Loader2 size={16} className="animate-spin" /> : <IconGoogle />}
+                Continuar com Google
+              </button>
+              <button
+                type="button"
+                onClick={cadastroApple}
+                disabled={googleLoading || appleLoading}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-800 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                {appleLoading ? <Loader2 size={16} className="animate-spin" /> : <IconApple />}
+                Continuar com Apple
+              </button>
+            </div>
           )}
 
           {isNative && (

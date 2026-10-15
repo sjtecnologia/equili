@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { CreditCard, Crown, Loader2, QrCode, X } from 'lucide-react'
+import { Capacitor } from '@capacitor/core'
 import { cancelarAssinatura, listarPlanos, minhaAssinatura } from '@/services/api'
 import { usePlano } from '@/hooks/usePlano'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -63,6 +64,7 @@ export default function PlanosPage() {
   const queryClient = useQueryClient()
   const [assinando, setAssinando] = useState<PlanoEntitlements | null>(null)
   const [confirmandoCancelamento, setConfirmandoCancelamento] = useState(false)
+  const isIosApp = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios'
 
   const { data: assinaturaData } = useQuery({
     queryKey: ['minha-assinatura'],
@@ -130,6 +132,10 @@ export default function PlanosPage() {
                 <p className="btn-secondary w-full text-center cursor-default py-2.5 rounded-xl text-sm font-medium">
                   Plano atual
                 </p>
+              ) : isIosApp ? (
+                <p className="btn-secondary w-full text-center cursor-default py-2.5 rounded-xl text-sm font-medium">
+                  Indisponível no iOS
+                </p>
               ) : (
                 <button
                   onClick={() => setAssinando(plano)}
@@ -190,7 +196,10 @@ export default function PlanosPage() {
           </div>
         ) : (
           <p className="text-sm text-gray-500">
-            Você está no plano <strong>Gratuito</strong>. Assine o Premium ou o Pro/Família para desbloquear todos os recursos.
+            Você está no plano <strong>Gratuito</strong>.
+            {isIosApp
+              ? ' As assinaturas pagas não estão disponíveis nesta versão para iOS.'
+              : ' Assine o Premium ou o Pro/Família para desbloquear todos os recursos.'}
           </p>
         )}
 
@@ -264,9 +273,11 @@ export default function PlanosPage() {
         </table>
       </div>
 
-      <p className="text-xs text-gray-400 text-center">
-        PIX e cartão de crédito. Cancelamento quando quiser. Valores em reais (BRL).
-      </p>
+      {!isIosApp && (
+        <p className="text-xs text-gray-400 text-center">
+          PIX e cartão de crédito. Cancelamento quando quiser. Valores em reais (BRL).
+        </p>
+      )}
 
       <div className="text-center">
         <Link to="/" className="text-sm text-primary-500 hover:underline">
@@ -274,7 +285,7 @@ export default function PlanosPage() {
         </Link>
       </div>
 
-      {assinando && (
+      {!isIosApp && assinando && (
         <CheckoutModal
           plano={assinando}
           onClose={() => setAssinando(null)}
