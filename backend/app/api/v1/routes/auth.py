@@ -446,10 +446,22 @@ async def login_apple(data: SocialAppleRequest, response: Response, db: DBSessio
         raise HTTPException(status_code=401, detail="Chave pública Apple não encontrada.")
 
     # 4. Verifica a assinatura do JWT usando PyJWT
+    # O JWKS da Apple devolve chaves em formato JWK (dict com n/e/kty), mas o
+    # PyJWT espera uma chave em PEM/objeto. Sem a conversão abaixo, o decode
+    # falha com "TypeError: Expecting a PEM-formatted key." (HTTP 500).
+    try:
+        rsa_key = jwt.algorithms.RSAAlgorithm.from_jwk(_json.dumps(public_key))
+    except Exception:
+        await rastro_client.send_warning_event(
+            message="Chave JWK da Apple inválida ao converter para RSA.",
+            fingerprint="equili:auth:apple:jwk_conversion_failed",
+        )
+        raise HTTPException(status_code=401, detail="Chave pública Apple inválida.")
+
     try:
         payload = jwt.decode(
             data.identity_token,
-            public_key,
+            rsa_key,
             algorithms=["RS256"],
             options={"verify_aud": False},
         )

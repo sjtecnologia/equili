@@ -55,5 +55,19 @@
 	<string>O Equili usa o Face ID para você entrar rapidamente.</string>
 	<key>GIDClientID</key>
 	<string>168293330988-jfn3jmhccim4d2f6nkl0bmq8s2cu7fth.apps.googleusercontent.com</string>
+	<!-- Google Sign-In: reversed client ID (exigido pelo SDK do Google p/ retornar p/ o app) -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.googleusercontent.apps.168293330988-jfn3jmhccim4d2f6nkl0bmq8s2cu7fth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.168293330988-jfn3jmhccim4d2f6nkl0bmq8s2cu7fth</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

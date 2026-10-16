@@ -67,8 +67,10 @@ export default function CadastroPage() {
     try {
       const res = await api.post<{ access_token: string }>('/auth/google', { id_token: token })
       await finalizarLogin(res.data.access_token)
-    } catch {
-      setServerError('Erro ao entrar com Google. Tente novamente.')
+    } catch (e) {
+      const detail = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+      console.error('[CADASTRO_SOCIAL_DEBUG] google', e)
+      setServerError(typeof detail === 'string' ? detail : 'Erro ao entrar com Google. Tente novamente.')
     }
   }
 
@@ -84,8 +86,10 @@ export default function CadastroPage() {
         identity_token: result.idToken,
       })
       await finalizarLogin(res.data.access_token)
-    } catch {
-      setServerError('Erro ao entrar com Apple. Tente novamente.')
+    } catch (e) {
+      const detail = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+      console.error('[CADASTRO_SOCIAL_DEBUG] apple', e)
+      setServerError(typeof detail === 'string' ? detail : 'Erro ao entrar com Apple. Tente novamente.')
     } finally {
       setAppleLoading(false)
     }
