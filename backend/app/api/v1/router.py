@@ -53,3 +53,15 @@ api_router.include_router(planos.router)
 api_router.include_router(metas.router, prefix="/metas", tags=["Metas"])
 api_router.include_router(assinaturas.router, prefix="/assinaturas", tags=["Assinaturas e Pagamentos"])
 api_router.include_router(familia.router, prefix="/familia", tags=["Família"])
+
+
+@api_router.get("/health", tags=["Health"])
+async def health_api():
+    """Espelho de GET /health, exposto em /api/v1/health.
+
+    O proxy de produção roteia apenas /api/v1/* para o backend, então esta é a
+    forma confiável de conferir version/commit/started_at do código no ar.
+    """
+    from app.main import health as _health
+
+    return await _health()
