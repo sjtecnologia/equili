@@ -351,7 +351,6 @@ async def login_google(data: SocialGoogleRequest, response: Response, db: DBSess
 
     google_id = info.get("sub")
     email = info.get("email")
-    nome = info.get("name") or email.split("@")[0]
 
     if not google_id or not email:
         await rastro_client.send_warning_event(
@@ -359,6 +358,8 @@ async def login_google(data: SocialGoogleRequest, response: Response, db: DBSess
             fingerprint="equili:auth:google:missing_identity_fields",
         )
         raise HTTPException(status_code=401, detail="Dados insuficientes no token Google.")
+
+    nome = info.get("name") or email.split("@")[0]
 
     # Busca por google_id ou por email
     usuario = await db.scalar(select(Usuario).where(Usuario.google_id == google_id))
@@ -471,6 +472,16 @@ async def login_apple(data: SocialAppleRequest, response: Response, db: DBSessio
             fingerprint="equili:auth:apple:invalid_signature",
         )
         raise HTTPException(status_code=401, detail="Assinatura do token Apple inválida.")
+    except Exception:
+        # Nunca deixar uma exceção inesperada escapar daqui: sem este catch-all,
+        # o Starlette devolve 500 fora da camada de CORS (ServerErrorMiddleware) e
+        # o app móvel enxerga apenas "Network Error", mascarando a causa real.
+        logger.exception("[auth/apple] erro inesperado ao validar token")
+        await rastro_client.send_warning_event(
+            message="Erro inesperado ao validar token Apple.",
+            fingerprint="equili:auth:apple:unexpected_error",
+        )
+        raise HTTPException(status_code=401, detail="Token Apple inválido.")
 
     # 5. Valida audience explicitamente contra lista permitida (app/web)
     allowed = {a.strip() for a in settings.APPLE_ALLOWED_AUDIENCES.split(",") if a.strip()}

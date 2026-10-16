@@ -13,6 +13,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# Marcador de build: o EasyPanel pode passar --build-arg GIT_SHA=<commit>.
+# Fica exposto em GET /health como "commit" para conferir o que está no ar.
+ARG GIT_SHA=desconhecido
+ENV GIT_SHA=${GIT_SHA}
+
 EXPOSE 8000
 
 CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]

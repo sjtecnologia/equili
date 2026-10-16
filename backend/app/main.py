@@ -1,4 +1,5 @@
 import logging
+import os
 import subprocess
 import sys
 import time
@@ -18,6 +19,12 @@ from app.tasks.alertas import start_scheduler
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# ─── Marcador de deploy ──────────────────────────────────────────────────────
+# `started_at` muda a cada recriação do container; `commit` é preenchido via
+# build-arg GIT_SHA (ver Dockerfile). Permite conferir em /health qual código
+# está realmente no ar, evitando diagnosticar um deploy que não aconteceu.
+_DEPLOY_STARTED_AT = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 # ─── Rate limiter simples em memória ─────────────────────────────────────────
 # Estrutura: { chave: [timestamps] }
@@ -267,4 +274,9 @@ app.include_router(api_router, prefix="/api/v1")
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "version": settings.APP_VERSION,
+        "commit": os.getenv("GIT_SHA", "desconhecido"),
+        "started_at": _DEPLOY_STARTED_AT,
+    }
