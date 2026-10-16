@@ -80,7 +80,8 @@ class Settings(BaseSettings):
 
     # Social Auth
     GOOGLE_CLIENT_ID: str = ""  # ex: 123456789-xxx.apps.googleusercontent.com
-    APPLE_ALLOWED_AUDIENCES: str = "com.equili.app"  # CSV: com.equili.app,com.equili.web
+    # Social Audiences: CSV com os "aud" aceitos dos tokens Apple (bundle IDs do app).
+    APPLE_ALLOWED_AUDIENCES: str = "br.com.equili.app"  # ex: br.com.equili.app,br.com.equili.web
 
     # Rate limiting de IA
     RATE_LIMIT_AI_REQUESTS: int = 20

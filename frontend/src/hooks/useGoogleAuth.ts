@@ -7,6 +7,9 @@ interface GoogleAuthResult {
   error: string | null
 }
 
+/** Garante que `GoogleSignIn.initialize()` seja chamado só uma vez por sessão. */
+let initialized = false
+
 /**
  * Hook que encapsula o fluxo de autenticação com Google via Capacitor GoogleAuth.
  * Substitui as funções `loginGoogle()` e `cadastroGoogle()` — idênticas em LoginPage e CadastroPage.
@@ -15,6 +18,23 @@ interface GoogleAuthResult {
  */
 export function useGoogleAuth() {
   const [loading, setLoading] = useState(false)
+
+  /**
+   * Inicializa o plugin GoogleSignIn UMA vez antes do primeiro signIn().
+   *
+   * Sem isso, o SDK do Google lança uma NSException não tratada
+   * ("No active configuration. Make sure GIDClientID is set in Info.plist.")
+   * e derruba o app instantaneamente — um try/catch em JS não consegue interceptar.
+   */
+  async function ensureInitialized(): Promise<void> {
+    const { GoogleSignIn } = await import('@capawesome/capacitor-google-sign-in')
+    if (!initialized) {
+      await GoogleSignIn.initialize({
+        clientId: import.meta.env.VITE_GOOGLE_SERVER_CLIENT_ID ?? '',
+      })
+      initialized = true
+    }
+  }
 
   /**
    * Executa o fluxo Google Sign-In.
@@ -29,6 +49,7 @@ export function useGoogleAuth() {
     setLoading(true)
     try {
       const { GoogleSignIn } = await import('@capawesome/capacitor-google-sign-in')
+      await ensureInitialized()
       const gUser = await GoogleSignIn.signIn()
       const token = gUser.idToken
       if (!token) throw new Error('Token Google não recebido.')

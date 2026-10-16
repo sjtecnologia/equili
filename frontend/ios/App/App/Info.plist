@@ -53,5 +53,7 @@
 	<string>O Equili usa reconhecimento de voz para entender seus comandos financeiros</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>O Equili usa o Face ID para você entrar rapidamente.</string>
+	<key>GIDClientID</key>
+	<string>168293330988-jfn3jmhccim4d2f6nkl0bmq8s2cu7fth.apps.googleusercontent.com</string>
 </dict>
 </plist>

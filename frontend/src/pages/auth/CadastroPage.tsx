@@ -81,7 +81,7 @@ export default function CadastroPage() {
         redirectUrl: 'https://equili.com.br',
       })
       const res = await api.post<{ access_token: string }>('/auth/apple', {
-        id_token: result.idToken,
+        identity_token: result.idToken,
       })
       await finalizarLogin(res.data.access_token)
     } catch {
