@@ -247,7 +247,7 @@ export default function NfsQrReader({ onScanSuccess }: NfsQrReaderProps) {
           onChange={(event) => setManualQrText(event.target.value)}
           rows={3}
           placeholder="https://... ou chave=...&numero=..."
-          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none ring-0 placeholder:text-gray-400 focus:border-primary-400"
+          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-hidden ring-0 placeholder:text-gray-400 focus:border-primary-400"
         />
         <button
           type="button"

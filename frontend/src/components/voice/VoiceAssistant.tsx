@@ -60,7 +60,7 @@ export default function VoiceAssistant() {
   if (!supported) {
     return (
       <div className="fixed bottom-5 right-5 z-40 hidden md:block">
-        <div className="rounded-full border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-700 shadow-sm">
+        <div className="rounded-full border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-700 shadow-xs">
           Voz indisponível neste navegador
         </div>
       </div>
@@ -83,7 +83,7 @@ export default function VoiceAssistant() {
 
       <div className="pointer-events-none fixed bottom-[calc(8rem+env(safe-area-inset-bottom))] right-5 z-40 lg:bottom-20">
         {isListening && (
-          <div className="flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-gray-700 shadow-md ring-1 ring-gray-200 backdrop-blur-sm">
+          <div className="flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-gray-700 shadow-md ring-1 ring-gray-200 backdrop-blur-xs">
             <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-primary-500" />
             Ouvindo...
           </div>

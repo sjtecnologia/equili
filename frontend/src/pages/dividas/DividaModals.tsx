@@ -33,7 +33,7 @@ interface ModalBaseProps {
   onClose: () => void
 }
 
-interface DividaModalProps extends ModalBaseProps {}
+type DividaModalProps = ModalBaseProps
 
 interface EditarDividaModalProps extends ModalBaseProps {
   divida: Divida

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 export default function PoliticaDePrivacidade() {
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 sm:px-6 lg:px-8">
-      <article className="mx-auto max-w-3xl rounded-xl bg-white p-6 shadow-sm sm:p-10">
+      <article className="mx-auto max-w-3xl rounded-xl bg-white p-6 shadow-xs sm:p-10">
         <Link to="/login" className="text-sm font-medium text-primary-500 hover:underline">
           Voltar ao login
         </Link>

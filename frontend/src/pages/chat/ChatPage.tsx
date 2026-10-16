@@ -90,7 +90,7 @@ export default function ChatPage() {
               className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                 msg.role === 'user'
                   ? 'bg-indigo-600 text-white rounded-tr-sm'
-                  : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm shadow-sm'
+                  : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm shadow-xs'
               }`}
             >
               <div className={msg.role === 'assistant' ? 'space-y-1' : ''}>
@@ -105,7 +105,7 @@ export default function ChatPage() {
             <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0">
               <Bot size={16} className="text-white" />
             </div>
-            <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
+            <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-sm px-4 py-3 shadow-xs">
               <Loader2 size={16} className="text-indigo-500 animate-spin" />
             </div>
           </div>
@@ -116,7 +116,7 @@ export default function ChatPage() {
 
       {/* Input */}
       <div className="pt-3 border-t border-gray-200">
-        <div className="flex gap-2 items-end bg-white border border-gray-300 rounded-2xl px-3 py-2 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100 transition shadow-sm">
+        <div className="flex gap-2 items-end bg-white border border-gray-300 rounded-2xl px-3 py-2 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100 transition shadow-xs">
           <textarea
             ref={inputRef}
             rows={1}
@@ -125,7 +125,7 @@ export default function ChatPage() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={loading}
-            className="flex-1 resize-none bg-transparent text-sm text-gray-800 placeholder-gray-400 outline-none max-h-32 py-1"
+            className="flex-1 resize-none bg-transparent text-sm text-gray-800 placeholder-gray-400 outline-hidden max-h-32 py-1"
           />
           <button
             onClick={() => send()}

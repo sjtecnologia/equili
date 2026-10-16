@@ -134,7 +134,7 @@ export function parseNfsQr(rawQr: string): NfsQrData {
   }
 
   let urlConsulta = raw
-  let params = collectQueryParams(raw)
+  const params = collectQueryParams(raw)
 
   if ((raw.includes('|') || raw.includes('%7C') || raw.includes('%7c')) && raw.includes('p=')) {
     try {

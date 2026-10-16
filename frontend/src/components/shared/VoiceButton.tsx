@@ -19,8 +19,6 @@ export default function VoiceButton() {
   const [appVisivel, setAppVisivel] = useState(() => document.visibilityState === 'visible')
   const autoEscutaPausadaRef = useRef(false)
 
-  if (!isSupportedBrowser) return null
-
   useEffect(() => {
     function onVisibilityChange() {
       setAppVisivel(document.visibilityState === 'visible')
@@ -61,6 +59,10 @@ export default function VoiceButton() {
       setEscutaAutoAtiva(false)
     }
   }, [estado])
+
+  // Early return precisa vir DEPOIS de todos os hooks (regras dos Hooks).
+  // Os efeitos acima já ignoram navegadores sem suporte à Web Speech API.
+  if (!isSupportedBrowser) return null
 
   function iniciarEscutaManual() {
     autoEscutaPausadaRef.current = false

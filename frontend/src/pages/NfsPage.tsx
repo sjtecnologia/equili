@@ -165,7 +165,7 @@ export default function NfsPage() {
             </button>
           </div>
 
-          <div className="rounded-2xl border border-emerald-200 bg-white p-3 shadow-sm">
+          <div className="rounded-2xl border border-emerald-200 bg-white p-3 shadow-xs">
             <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
               <div>
                 <p className="text-xs uppercase tracking-wide text-gray-500">Valor</p>

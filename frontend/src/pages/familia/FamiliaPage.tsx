@@ -241,7 +241,7 @@ export default function FamiliaPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="email-do-membro@exemplo.com"
-                className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary-500"
+                className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm outline-hidden focus:border-primary-500"
               />
               <button
                 onClick={convidar}

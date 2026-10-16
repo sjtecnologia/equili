@@ -176,7 +176,7 @@ export default function RelatoriosPage() {
             onClick={() => handleTabChange(t.key as 'fluxo' | 'detalhado' | 'extrato' | 'dia' | 'parcelas')}
             className={`flex-1 min-w-[100px] whitespace-nowrap py-2 text-sm font-medium rounded-lg transition-colors ${
               tab === t.key
-                ? 'bg-white text-primary-500 shadow-sm'
+                ? 'bg-white text-primary-500 shadow-xs'
                 : 'text-gray-600 hover:text-gray-800'
             }`}
           >

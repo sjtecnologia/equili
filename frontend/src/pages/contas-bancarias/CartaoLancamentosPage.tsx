@@ -330,7 +330,7 @@ export default function CartaoLancamentosPage() {
 
       {/* Limite */}
       {data && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-4">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-xs p-4 mb-4">
           <div className="flex justify-between text-sm mb-2">
             <span className="text-gray-500">Limite disponível</span>
             <span className={`font-bold ${percentUsado > 80 ? 'text-red-600' : 'text-success-600'}`}>
@@ -413,7 +413,7 @@ export default function CartaoLancamentosPage() {
                 {porMes[mes].map((l) => (
                   <div
                     key={l.id}
-                    className="bg-white rounded-xl border border-gray-100 px-3 py-2.5 flex items-center gap-3 shadow-sm"
+                    className="bg-white rounded-xl border border-gray-100 px-3 py-2.5 flex items-center gap-3 shadow-xs"
                   >
                     <div className={`p-1.5 rounded-lg ${l.tipo === 'pagamento' ? 'bg-green-100' : 'bg-gray-100'}`}>
                       {l.tipo === 'pagamento'

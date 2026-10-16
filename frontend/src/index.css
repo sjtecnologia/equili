@@ -1,6 +1,8 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind CSS v4 — requer iOS 16.4+ / Safari 16.4+ (usa @property e
+   color-mix). O deployment target do app iOS foi elevado para 16.4 para
+   acompanhar (ver IPHONEOS_DEPLOYMENT_TARGET no projeto Xcode). */
+@import "tailwindcss";
+@config "../tailwind.config.ts";
 
 html, body, #root { margin: 0; padding: 0; }
 *, *::before, *::after { box-sizing: border-box; }
@@ -15,6 +17,30 @@ html, body, #root { overflow-x: hidden; max-width: 100%; width: 100%; }
 }
 
 @layer base {
+  /* Tailwind v4 mudou a cor padrão de `border`/`divide` de gray-200 para
+     currentColor. Restauramos o padrão do v3 para não escurecer as ~115
+     bordas do app que usam `border` sem cor explícita. */
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+
+  /* v4 mudou o cursor padrão de <button> para `default`; restauramos o
+     `pointer` do v3 (relevante no app web/PWA). */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  /* v4 usa a cor do texto a 50% no placeholder; restauramos o gray-400 do v3. */
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-gray-400);
+  }
+
   html {
     height: 100%;
     background-color: #ffffff;
@@ -91,7 +117,7 @@ html, body, #root { overflow-x: hidden; max-width: 100%; width: 100%; }
     border-top: 1px solid #f3f4f6;
   }
   .card {
-    @apply bg-white rounded-card shadow-sm p-6;
+    @apply bg-white rounded-card shadow-xs p-6;
   }
 
   .btn-primary {
@@ -107,7 +133,7 @@ html, body, #root { overflow-x: hidden; max-width: 100%; width: 100%; }
   }
 
   .input-field {
-    @apply border border-gray-300 rounded px-4 py-3 w-full focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-colors duration-150;
+    @apply border border-gray-300 rounded px-4 py-3 w-full focus:outline-hidden focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-colors duration-150;
   }
 
   .scrollbar-none {

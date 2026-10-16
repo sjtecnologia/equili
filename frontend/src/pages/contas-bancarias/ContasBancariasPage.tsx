@@ -43,7 +43,7 @@ function ContaBancariaCard({
 }: ContaBancariaCardProps) {
   const navigate = useNavigate()
   return (
-    <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+    <div className="rounded-2xl overflow-hidden shadow-xs border border-gray-100">
       {/* Topo colorido — clicável para lançamentos */}
       <div
         role="button"
@@ -113,7 +113,7 @@ function CartaoCreditoCard({
     cartao.limite_atual < 0 ? 'bg-red-500' : percentDisponivel < 30 ? 'bg-amber-400' : 'bg-success-500'
 
   return (
-    <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+    <div className="rounded-2xl overflow-hidden shadow-xs border border-gray-100">
       {/* Topo colorido — clicável para lançamentos */}
       <div
         role="button"
@@ -233,7 +233,7 @@ export default function ContasBancariasPage() {
         <button
           onClick={() => setTab('contas')}
           className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${
-            tab === 'contas' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'
+            tab === 'contas' ? 'bg-white text-primary-600 shadow-xs' : 'text-gray-500'
           }`}
         >
           <Landmark size={16} />
@@ -242,7 +242,7 @@ export default function ContasBancariasPage() {
         <button
           onClick={() => setTab('cartoes')}
           className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${
-            tab === 'cartoes' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'
+            tab === 'cartoes' ? 'bg-white text-primary-600 shadow-xs' : 'text-gray-500'
           }`}
         >
           <CreditCard size={16} />

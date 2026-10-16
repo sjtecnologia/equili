@@ -210,7 +210,7 @@ export default function DashboardPage() {
               <Link
                 key={conta.id}
                 to={`/contas-bancarias/${conta.id}/lancamentos`}
-                className="rounded-xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+                className="rounded-xl overflow-hidden shadow-xs border border-gray-100 hover:shadow-md transition-shadow"
               >
                 <div className="p-2.5 text-white" style={{ backgroundColor: conta.cor }}>
                   <p className="text-xs opacity-80 truncate">{conta.banco}</p>
@@ -237,7 +237,7 @@ export default function DashboardPage() {
               <Link
                 key={cartao.id}
                 to={`/cartoes-credito/${cartao.id}/lancamentos`}
-                className="rounded-xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+                className="rounded-xl overflow-hidden shadow-xs border border-gray-100 hover:shadow-md transition-shadow"
               >
                 <div className="p-2.5 text-white" style={{ backgroundColor: cartao.cor }}>
                   <p className="text-xs opacity-80 truncate capitalize">{cartao.bandeira}</p>

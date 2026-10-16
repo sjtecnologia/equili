@@ -27,7 +27,7 @@ export default function RendaPage() {
       />
 
       {/* Total */}
-      <div className="card bg-success-500 bg-opacity-10 border border-green-200 p-4">
+      <div className="card bg-success-500/10 border border-green-200 p-4">
         <p className="text-sm text-gray-600">Total mensal</p>
         <p className="text-2xl font-bold text-success-500">{formatCurrency(total)}</p>
       </div>

@@ -523,7 +523,7 @@ export default function ContaLancamentosPage() {
                 {porMes[mes].map((l) => (
                   <div
                     key={l.id}
-                    className="bg-white rounded-xl border border-gray-100 px-3 py-2.5 flex items-center gap-3 shadow-sm"
+                    className="bg-white rounded-xl border border-gray-100 px-3 py-2.5 flex items-center gap-3 shadow-xs"
                   >
                     <div className={`p-1.5 rounded-lg ${l.tipo === 'entrada' ? 'bg-green-100' : 'bg-red-100'}`}>
                       {l.tipo === 'entrada'
