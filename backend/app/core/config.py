@@ -79,6 +79,9 @@ class Settings(BaseSettings):
     VAPID_SUBJECT: str = "mailto:suporte@equili.app"
 
     # Social Auth
+    # Client ID aceito nos tokens Google do app. O id_token do mobile vem com
+    # aud = client ID WEB e azp = client ID iOS (GIDConfiguration(clientID:
+    # serverClientID:)); a validação aceita os dois claims.
     GOOGLE_CLIENT_ID: str = ""  # ex: 123456789-xxx.apps.googleusercontent.com
     # Social Audiences: CSV com os "aud" aceitos dos tokens Apple (bundle IDs do app).
     APPLE_ALLOWED_AUDIENCES: str = "br.com.equili.app"  # ex: br.com.equili.app,br.com.equili.web

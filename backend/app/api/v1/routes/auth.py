@@ -345,8 +345,11 @@ async def login_google(data: SocialGoogleRequest, response: Response, db: DBSess
 
     info = r.json()
 
-    # Verificar audience se GOOGLE_CLIENT_ID estiver configurado
-    if settings.GOOGLE_CLIENT_ID and info.get("aud") != settings.GOOGLE_CLIENT_ID:
+    # Verificar audience se GOOGLE_CLIENT_ID estiver configurado.
+    # O app mobile usa GIDConfiguration(clientID: iOS, serverClientID: WEB),
+    # então o id_token vem com aud = client ID WEB e azp = client ID iOS.
+    # Sem serverClientID, aud seria o client ID iOS. Aceita os dois formatos.
+    if settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_ID not in (info.get("aud"), info.get("azp")):
         raise HTTPException(status_code=401, detail="Token não pertence a este app.")
 
     google_id = info.get("sub")

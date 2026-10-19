@@ -35,6 +35,7 @@ def auth_client():
                     apple_id TEXT,
                     telefone TEXT,
                     plano TEXT NOT NULL DEFAULT 'gratuito',
+                    is_admin INTEGER NOT NULL DEFAULT 0,
                     email_verificado INTEGER NOT NULL DEFAULT 0,
                     ativo INTEGER NOT NULL DEFAULT 1,
                     criado_em TEXT,
@@ -54,6 +55,22 @@ def auth_client():
                     user_agent TEXT,
                     ip TEXT,
                     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+                )
+                """
+            )
+            await conn.exec_driver_sql(
+                """
+                CREATE TABLE IF NOT EXISTS categorias (
+                    id TEXT PRIMARY KEY,
+                    usuario_id TEXT NOT NULL,
+                    nome TEXT NOT NULL,
+                    tipo TEXT NOT NULL,
+                    cor TEXT,
+                    icone TEXT,
+                    ativo INTEGER NOT NULL DEFAULT 1,
+                    created_at TEXT,
+                    updated_at TEXT,
+                    UNIQUE (usuario_id, tipo, nome)
                 )
                 """
             )
