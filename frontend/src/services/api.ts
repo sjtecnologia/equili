@@ -1,8 +1,7 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/authStore'
+import { API_BASE_URL } from './apiConfig'
 import type { AssinaturaMe, CheckoutResponse, ConviteCriado, FamiliaContexto, Meta, MetaPayload, MetasResponse, PlanoCatalogo, PlanoEntitlements, UsuarioAdmin } from '@/types/financeiro'
-
-const isNative = !!(window as unknown as { Capacitor?: { isNativePlatform?: boolean } }).Capacitor?.isNativePlatform
 
 function getCookie(name: string): string | null {
   const prefix = `${name}=`
@@ -11,7 +10,7 @@ function getCookie(name: string): string | null {
 }
 
 const api = axios.create({
-  baseURL: isNative ? 'https://equili.com.br/api/v1' : '/api/v1',
+  baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true, // necessário para enviar o httpOnly cookie do refresh
 })
@@ -174,7 +173,7 @@ api.interceptors.response.use(
       try {
         const csrf = getCookie('csrf_token')
         const { data } = await axios.post(
-          '/api/v1/auth/refresh',
+          `${API_BASE_URL}/auth/refresh`,
           {},
           {
             withCredentials: true,

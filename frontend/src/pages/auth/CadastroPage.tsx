@@ -54,6 +54,17 @@ export default function CadastroPage() {
 
   async function finalizarLogin(accessToken: string) {
     await authenticateWithToken(accessToken)
+    // Habilita o login por biometria caso o dispositivo suporte e o usuário
+    // ainda não tenha marcado. Para fluxos sociais não temos senha para salvar
+    // no Keychain; o botão "Entrar com Face ID" usa `bootstrapSession`.
+    try {
+      if (isNative && bioDisponivel && !bioHabilitado) {
+        const ok = window.confirm('Deseja habilitar o login com Face ID / biometria?')
+        if (ok) await bio.habilitar()
+      }
+    } catch (err) {
+      console.warn('[biometria] falha ao habilitar após login social', err)
+    }
     navigate('/onboarding', { replace: true })
   }
 
@@ -82,8 +93,12 @@ export default function CadastroPage() {
         scopes: [SignInScope.Email, SignInScope.FullName],
         redirectUrl: 'https://equili.com.br',
       })
+      // A Apple só entrega nome/e-mail na PRIMEIRA autorização do app; enviamos
+      // o nome ao backend para preencher `usuarios.nome` no cadastro automático.
+      const fullName = [result.givenName, result.familyName].filter(Boolean).join(' ').trim()
       const res = await api.post<{ access_token: string }>('/auth/apple', {
         identity_token: result.idToken,
+        full_name: fullName || null,
       })
       await finalizarLogin(res.data.access_token)
     } catch (e) {

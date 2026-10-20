@@ -2,6 +2,13 @@ import { create } from 'zustand'
 import axios from 'axios'
 import { queryClient } from '@/lib/queryClient'
 import { clearBiometricCredentials } from '@/services/biometrics'
+import { API_BASE_URL } from '@/services/apiConfig'
+
+function getCookie(name: string): string | null {
+  const prefix = `${name}=`
+  const found = document.cookie.split('; ').find((c) => c.startsWith(prefix))
+  return found ? decodeURIComponent(found.slice(prefix.length)) : null
+}
 
 export interface AuthUser {
   id: string
@@ -31,7 +38,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
   setAccessToken: (token) => set({ accessToken: token }),
   setUser: (user) => set({ user, status: 'authenticated' }),
   authenticateWithToken: async (token) => {
-    const me = await axios.get<AuthUser>('/api/v1/usuarios/me', {
+    const me = await axios.get<AuthUser>(`${API_BASE_URL}/usuarios/me`, {
       withCredentials: true,
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -40,13 +47,17 @@ export const useAuthStore = create<AuthStore>((set) => ({
   bootstrapSession: async () => {
     set({ status: 'loading' })
     try {
+      const csrf = getCookie('csrf_token')
       const refresh = await axios.post<{ access_token: string }>(
-        '/api/v1/auth/refresh',
+        `${API_BASE_URL}/auth/refresh`,
         {},
-        { withCredentials: true }
+        {
+          withCredentials: true,
+          headers: csrf ? { 'X-CSRF-Token': csrf } : undefined,
+        }
       )
       const token = refresh.data.access_token
-      const me = await axios.get<AuthUser>('/api/v1/usuarios/me', {
+      const me = await axios.get<AuthUser>(`${API_BASE_URL}/usuarios/me`, {
         withCredentials: true,
         headers: { Authorization: `Bearer ${token}` },
       })
