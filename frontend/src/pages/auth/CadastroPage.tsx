@@ -7,7 +7,9 @@ import { Loader2, Eye, EyeOff } from 'lucide-react'
 import { Capacitor } from '@capacitor/core'
 import { AppleSignIn, SignInScope } from '@capawesome/capacitor-apple-sign-in'
 import api from '@/services/api'
+import { saveRefreshToken } from '@/services/secureSession'
 import { useAuthStore } from '@/stores/authStore'
+import { useBiometricAuth } from '@/hooks/useBiometricAuth'
 import { useGoogleAuth } from '@/hooks/useGoogleAuth'
 import { parseApiError } from '@/utils/api'
 import logo from '@/assets/logo.png'
@@ -51,20 +53,34 @@ export default function CadastroPage() {
   const [appleLoading, setAppleLoading] = useState(false)
 
   const isNative = Capacitor.isNativePlatform()
+  const bio = useBiometricAuth()
 
-  async function finalizarLogin(accessToken: string) {
-    await authenticateWithToken(accessToken)
-    // Habilita o login por biometria caso o dispositivo suporte e o usuário
-    // ainda não tenha marcado. Para fluxos sociais não temos senha para salvar
-    // no Keychain; o botão "Entrar com Face ID" usa `bootstrapSession`.
+  /**
+   * Oferece a ativação do Face ID/biometria após o cadastro (conta nova por
+   * Google, Apple ou e-mail). A disponibilidade e o flag são lidos na hora —
+   * depender de estado da tela faz o prompt ser perdido.
+   */
+  async function oferecerBiometria(): Promise<void> {
+    if (!isNative) return
     try {
-      if (isNative && bioDisponivel && !bioHabilitado) {
-        const ok = window.confirm('Deseja habilitar o login com Face ID / biometria?')
-        if (ok) await bio.habilitar()
-      }
+      const [disp, hab] = await Promise.all([bio.isDisponivel(), bio.isHabilitado()])
+      if (!disp || hab) return
+      const ok = window.confirm('Deseja habilitar o login com Face ID / biometria?')
+      if (ok) await bio.habilitar()
     } catch (err) {
-      console.warn('[biometria] falha ao habilitar após login social', err)
+      console.warn('[biometria] falha ao habilitar após cadastro', err)
     }
+  }
+
+  async function finalizarLogin(accessToken: string, refreshToken?: string | null) {
+    // Garante que o token esteja no Keychain/Keystore antes de habilitar a
+    // restauração de sessão por Face ID, inclusive no cadastro social.
+    if (refreshToken) await saveRefreshToken(refreshToken)
+    await authenticateWithToken(accessToken)
+    // Vale para contas sociais e para e-mail/senha: o botão "Entrar com Face
+    // ID" usa o refresh token guardado no Keychain/Keystore via
+    // `bootstrapSession`, então não precisamos da senha para ativá-lo.
+    await oferecerBiometria()
     navigate('/onboarding', { replace: true })
   }
 
@@ -76,8 +92,8 @@ export default function CadastroPage() {
       return
     }
     try {
-      const res = await api.post<{ access_token: string }>('/auth/google', { id_token: token })
-      await finalizarLogin(res.data.access_token)
+      const res = await api.post<{ access_token: string; refresh_token?: string | null }>('/auth/google', { id_token: token })
+      await finalizarLogin(res.data.access_token, res.data.refresh_token)
     } catch (e) {
       const detail = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
       console.error('[CADASTRO_SOCIAL_DEBUG] google', e)
@@ -96,11 +112,11 @@ export default function CadastroPage() {
       // A Apple só entrega nome/e-mail na PRIMEIRA autorização do app; enviamos
       // o nome ao backend para preencher `usuarios.nome` no cadastro automático.
       const fullName = [result.givenName, result.familyName].filter(Boolean).join(' ').trim()
-      const res = await api.post<{ access_token: string }>('/auth/apple', {
+      const res = await api.post<{ access_token: string; refresh_token?: string | null }>('/auth/apple', {
         identity_token: result.idToken,
         full_name: fullName || null,
       })
-      await finalizarLogin(res.data.access_token)
+      await finalizarLogin(res.data.access_token, res.data.refresh_token)
     } catch (e) {
       const detail = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
       console.error('[CADASTRO_SOCIAL_DEBUG] apple', e)
@@ -119,8 +135,8 @@ export default function CadastroPage() {
   async function onSubmit(data: FormData) {
     setServerError(null)
     try {
-      const res = await api.post<{ access_token: string }>('/auth/register', data)
-      await finalizarLogin(res.data.access_token)
+      const res = await api.post<{ access_token: string; refresh_token?: string | null }>('/auth/register', data)
+      await finalizarLogin(res.data.access_token, res.data.refresh_token)
     } catch (err) {
       setServerError(parseApiError(err))
     }

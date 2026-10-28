@@ -8,6 +8,7 @@ import { Capacitor } from '@capacitor/core'
 import { AppleSignIn, SignInScope } from '@capawesome/capacitor-apple-sign-in'
 import api from '@/services/api'
 import { biometricLogin, isBiometricReady, saveBiometricCredentials } from '../../services/biometrics'
+import { getRefreshToken, saveRefreshToken } from '@/services/secureSession'
 import { useAuthStore } from '@/stores/authStore'
 import { useBiometricAuth } from '@/hooks/useBiometricAuth'
 import { useGoogleAuth } from '@/hooks/useGoogleAuth'
@@ -69,33 +70,48 @@ export default function LoginPage() {
     })
   }, [isNative])
 
-  async function finalizarLogin(accessToken: string) {
-    await authenticateWithToken(accessToken)
-    // Habilita o login por biometria caso o dispositivo suporte e o usuário
-    // ainda não tenha marcado. Não temos a senha do usuário social, mas o
-    // botão "Entrar com Face ID" funciona via `bootstrapSession` (refresh cookie).
+  /**
+   * Oferece a ativação do Face ID/biometria após qualquer login (e-mail/senha,
+   * Google ou Apple). A disponibilidade e o flag são lidos na hora: o estado
+   * da tela pode estar defasado e o prompt acaba sendo perdido.
+   */
+  async function oferecerBiometria(): Promise<void> {
+    if (!isNative) return
     try {
-      if (isNative && bioDisponivel && !bioHabilitado) {
-        const ok = window.confirm('Deseja habilitar o login com Face ID / biometria?')
-        if (ok) await bio.habilitar()
+      const [disp, hab] = await Promise.all([bio.isDisponivel(), bio.isHabilitado()])
+      setBioDisponivel(disp)
+      if (!disp || hab) {
+        setBioHabilitado(hab)
+        return
+      }
+      const ok = window.confirm('Deseja habilitar o login com Face ID / biometria?')
+      if (ok) {
+        await bio.habilitar()
+        setBioHabilitado(true)
       }
     } catch (err) {
-      console.warn('[biometria] falha ao habilitar após login social', err)
+      console.warn('[biometria] falha ao habilitar após login', err)
     }
+  }
+
+  async function finalizarLogin(accessToken: string, refreshToken?: string | null) {
+    // Persistimos explicitamente o token nativo antes de oferecer biometria.
+    // Assim o primeiro acesso por Google/Apple já pode ser restaurado pelo Face ID.
+    if (refreshToken) await saveRefreshToken(refreshToken)
+    await authenticateWithToken(accessToken)
+    // Vale para contas sociais e para e-mail/senha: o botão "Entrar com Face
+    // ID" usa o refresh token guardado no Keychain/Keystore via
+    // `bootstrapSession`, então não precisamos da senha para ativá-lo.
+    await oferecerBiometria()
     navigate('/dashboard', { replace: true })
   }
 
   async function doLogin(email: string, password: string) {
     setServerError(null)
     try {
-      const res = await api.post<{ access_token: string }>('/auth/login', { email, senha: password })
+      const res = await api.post<{ access_token: string; refresh_token?: string | null }>('/auth/login', { email, senha: password })
 
-      if (isNative && bioDisponivel && !bioHabilitado) {
-        const ok = window.confirm('Deseja habilitar o login com Face ID / biometria?')
-        if (ok) await bio.habilitar()
-      }
-
-      await finalizarLogin(res.data.access_token)
+      await finalizarLogin(res.data.access_token, res.data.refresh_token)
       try {
         await saveBiometricCredentials(email, password)
       } catch (err) {
@@ -141,10 +157,15 @@ export default function LoginPage() {
   useEffect(() => {
     let active = true
     ;(async () => {
+      const temSessaoSalva = (await getRefreshToken()) !== null
       const ready = await isBiometricReady()
       if (!active) return
       setBiometricReady(ready)
-      if (ready && !autoBiometricTried.current) {
+      // Com sessão salva no Keychain, a restauração com biometria acontece na
+      // abertura do app (bootstrapSession); este gatilho automático cobre o
+      // caminho legado de credenciais salvas (e-mail/senha) sem pedir biometria
+      // de novo para quem acabou de cancelar na abertura.
+      if (ready && !temSessaoSalva && !autoBiometricTried.current) {
         autoBiometricTried.current = true
         setTimeout(() => { void handleBiometricLogin() }, 400)
       }
@@ -160,7 +181,7 @@ export default function LoginPage() {
       return
     }
     try {
-      const restored = await bootstrapSession()
+      const restored = await bootstrapSession({ autenticarBiometria: false })
       if (!restored) {
         setServerError('Sessão expirada. Faça login com e-mail e senha novamente.')
         return
@@ -179,8 +200,8 @@ export default function LoginPage() {
       return
     }
     try {
-      const res = await api.post<{ access_token: string }>('/auth/google', { id_token: token })
-      await finalizarLogin(res.data.access_token)
+      const res = await api.post<{ access_token: string; refresh_token?: string | null }>('/auth/google', { id_token: token })
+      await finalizarLogin(res.data.access_token, res.data.refresh_token)
     } catch (e) {
       const detail = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
       console.error('[LOGIN_SOCIAL_DEBUG] google', e)
@@ -199,11 +220,11 @@ export default function LoginPage() {
       // A Apple só entrega nome/e-mail na PRIMEIRA autorização do app; enviamos
       // o nome ao backend para preencher `usuarios.nome` no cadastro automático.
       const fullName = [result.givenName, result.familyName].filter(Boolean).join(' ').trim()
-      const res = await api.post<{ access_token: string }>('/auth/apple', {
+      const res = await api.post<{ access_token: string; refresh_token?: string | null }>('/auth/apple', {
         identity_token: result.idToken,
         full_name: fullName || null,
       })
-      await finalizarLogin(res.data.access_token)
+      await finalizarLogin(res.data.access_token, res.data.refresh_token)
     } catch (e) {
       const detail = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
       console.error('[LOGIN_SOCIAL_DEBUG] apple', e)

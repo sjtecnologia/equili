@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/authStore'
 import { API_BASE_URL } from './apiConfig'
+import { getRefreshToken, saveRefreshToken } from './secureSession'
 import type { AssinaturaMe, CheckoutResponse, ConviteCriado, FamiliaContexto, Meta, MetaPayload, MetasResponse, PlanoCatalogo, PlanoEntitlements, UsuarioAdmin } from '@/types/financeiro'
 
 function getCookie(name: string): string | null {
@@ -155,9 +156,16 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// Interceptor: tenta renovar token ao receber 401
+// Interceptor: guarda o refresh token devolvido pelo login/refresh no
+// Keychain/Keystore (apenas no app nativo — na web quem cuida é o cookie).
 api.interceptors.response.use(
-  (response) => response,
+  async (response) => {
+    const data = response.data as { refresh_token?: string | null } | undefined
+    if (data?.refresh_token) {
+      await saveRefreshToken(data.refresh_token)
+    }
+    return response
+  },
   async (error) => {
     const original = error.config
     const isAuthEndpoint = original?.url?.includes('/auth/')
@@ -172,14 +180,20 @@ api.interceptors.response.use(
       original._retry = true
       try {
         const csrf = getCookie('csrf_token')
-        const { data } = await axios.post(
+        const stored = await getRefreshToken()
+        const { data } = await axios.post<{ access_token: string; refresh_token?: string | null }>(
           `${API_BASE_URL}/auth/refresh`,
-          {},
+          // No app nativo o cookie não chega ao backend, então o refresh vai
+          // no corpo com o token guardado no Keychain/Keystore.
+          stored ? { refresh_token: stored } : {},
           {
             withCredentials: true,
             headers: csrf ? { 'X-CSRF-Token': csrf } : undefined,
           }
         )
+        if (data.refresh_token) {
+          await saveRefreshToken(data.refresh_token)
+        }
         useAuthStore.getState().setAccessToken(data.access_token)
         original.headers.Authorization = `Bearer ${data.access_token}`
         return api(original)

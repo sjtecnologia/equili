@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class RegisterRequest(BaseModel):
@@ -28,6 +28,15 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     email_verificado: bool = False
     verification_required: bool = False
+    # Preenchido apenas quando o cliente é o app nativo: o WebView do app roda
+    # em capacitor://localhost (iOS) / https://localhost (Android) e não lê nem
+    # envia os cookies de refresh/CSRF do domínio equili.com.br. Nesses casos o
+    # refresh token vai no corpo da resposta e é guardado no Keychain/Keystore.
+    refresh_token: str | None = None
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str | None = Field(default=None, min_length=20, max_length=4096)
 
 
 class EmailVerificationRequest(BaseModel):

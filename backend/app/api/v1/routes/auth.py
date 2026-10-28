@@ -31,6 +31,7 @@ from app.schemas.auth import (
     EmailResendRequest,
     EmailVerificationRequest,
     LoginRequest,
+    RefreshRequest,
     RegisterRequest,
     TokenResponse,
 )
@@ -44,6 +45,10 @@ CSRF_COOKIE = "csrf_token"
 CSRF_HEADER = "X-CSRF-Token"
 _EMAIL_VERIFY_RATE_LIMIT_SECONDS = 60
 _EMAIL_VERIFY_RATE_LIMIT_CACHE: dict[str, list[float]] = defaultdict(list)
+
+# Origens do WebView do app mobile (Capacitor): iOS usa capacitor://localhost e
+# Android usa https://localhost (androidScheme: https em capacitor.config.ts).
+NATIVE_ORIGINS = frozenset({"capacitor://localhost", "https://localhost", "http://localhost"})
 
 def _set_refresh_cookie(response: Response, token: str) -> None:
     response.set_cookie(
@@ -82,6 +87,18 @@ def _validate_csrf(origin: str | None, csrf_cookie: str | None, csrf_header: str
         raise HTTPException(status_code=403, detail="CSRF token inválido.")
 
 
+def _is_native_client(request: Request) -> bool:
+    """Detecta requisições vindas do WebView do app mobile.
+
+    O navegador envia o header Origin automaticamente em requisições
+    cross-origin (o app roda em capacitor://localhost ou https://localhost e a
+    API em https://equili.com.br), então não há como uma página web forjar essa
+    origem para se passar pelo app.
+    """
+    origin = request.headers.get("origin")
+    return bool(origin) and origin.rstrip("/") in NATIVE_ORIGINS
+
+
 def _request_metadata(request: Request) -> tuple[str | None, str | None]:
     user_agent = request.headers.get("user-agent")
     ip = request.client.host if request.client else None
@@ -98,7 +115,12 @@ def _is_session_valid_for_refresh(sessao: Sessao | None, usuario_id: UUID, now: 
         return False
     if sessao.revogada_em is not None:
         return False
-    return not sessao.expira_em <= now
+    expira_em = sessao.expira_em
+    if expira_em.tzinfo is None:
+        # SQLite (usado nos testes) devolve datetime sem fuso horário; no
+        # Postgres o DateTime(timezone=True) já volta aware.
+        expira_em = expira_em.replace(tzinfo=timezone.utc)
+    return not expira_em <= now
 
 
 async def _register_refresh_session(
@@ -222,11 +244,12 @@ async def register(data: RegisterRequest, response: Response, db: DBSession, req
     _send_verification_email(usuario.email, verification_token)
 
     access_token = create_access_token(str(usuario.id))
-    await _issue_refresh_and_session(db, response, request, usuario.id)
+    refresh_token = await _issue_refresh_and_session(db, response, request, usuario.id)
     return TokenResponse(
         access_token=access_token,
         email_verificado=usuario.email_verificado,
         verification_required=not usuario.email_verificado,
+        refresh_token=refresh_token if _is_native_client(request) else None,
     )
 
 
@@ -301,11 +324,12 @@ async def login(data: LoginRequest, response: Response, db: DBSession, request: 
         )
 
     access_token = create_access_token(str(usuario.id))
-    await _issue_refresh_and_session(db, response, request, usuario.id)
+    refresh_token = await _issue_refresh_and_session(db, response, request, usuario.id)
     return TokenResponse(
         access_token=access_token,
         email_verificado=usuario.email_verificado,
         verification_required=not usuario.email_verificado,
+        refresh_token=refresh_token if _is_native_client(request) else None,
     )
 
 
@@ -392,11 +416,12 @@ async def login_google(data: SocialGoogleRequest, response: Response, db: DBSess
     await db.refresh(usuario)
 
     access_token = create_access_token(str(usuario.id))
-    await _issue_refresh_and_session(db, response, request, usuario.id)
+    refresh_token = await _issue_refresh_and_session(db, response, request, usuario.id)
     return TokenResponse(
         access_token=access_token,
         email_verificado=usuario.email_verificado,
         verification_required=False,
+        refresh_token=refresh_token if _is_native_client(request) else None,
     )
 
 
@@ -541,11 +566,12 @@ async def login_apple(data: SocialAppleRequest, response: Response, db: DBSessio
     await db.refresh(usuario)
 
     access_token = create_access_token(str(usuario.id))
-    await _issue_refresh_and_session(db, response, request, usuario.id)
+    refresh_token = await _issue_refresh_and_session(db, response, request, usuario.id)
     return TokenResponse(
         access_token=access_token,
         email_verificado=usuario.email_verificado,
         verification_required=False,
+        refresh_token=refresh_token if _is_native_client(request) else None,
     )
 
 
@@ -556,19 +582,34 @@ async def refresh_token(
     db: DBSession,
     origin: str | None = Header(default=None),
     csrf_header: str | None = Header(default=None, alias=CSRF_HEADER),
-    refresh_token: str | None = Cookie(default=None, alias="refresh_token"),
+    refresh_cookie: str | None = Cookie(default=None, alias=REFRESH_COOKIE),
     csrf_cookie: str | None = Cookie(default=None, alias=CSRF_COOKIE),
+    data: RefreshRequest | None = None,
 ):
-    _validate_csrf(origin, csrf_cookie, csrf_header)
+    body_token = data.refresh_token if data else None
+    if body_token:
+        # App nativo: o refresh token vem no corpo (estilo bearer) porque o
+        # WebView do app não lê o cookie csrf_token (domínio equili.com.br,
+        # SameSite=Strict) nem envia um Origin igual a FRONTEND_URL, o que
+        # faria o double-submit de CSRF falhar sempre. Aqui o token não é
+        # credencial ambiente — ele existe apenas no Keychain/Keystore do
+        # dispositivo e é rotacionado a cada uso, então o ataque CSRF não se
+        # aplica e a checagem de origem/CSRF é dispensada.
+        token = body_token
+        devolver_refresh = True
+    else:
+        _validate_csrf(origin, csrf_cookie, csrf_header)
+        token = refresh_cookie
+        devolver_refresh = False
 
-    if not refresh_token:
-        raise HTTPException(status_code=401, detail="Refresh token não encontrado.")
+        if not token:
+            raise HTTPException(status_code=401, detail="Refresh token não encontrado.")
 
-    payload = decode_token(refresh_token)
+    payload = decode_token(token)
     if not payload or payload.get("type") != "refresh":
         raise HTTPException(status_code=401, detail="Refresh token inválido. Faça login novamente.")
 
-    jti = get_refresh_jti(refresh_token)
+    jti = get_refresh_jti(token)
     if not jti:
         raise HTTPException(status_code=401, detail="Refresh token sem sessão válida. Faça login novamente.")
 
@@ -597,8 +638,11 @@ async def refresh_token(
     await db.commit()
 
     access_token = create_access_token(str(usuario.id))
-    await _issue_refresh_and_session(db, response, request, usuario.id)
-    return TokenResponse(access_token=access_token)
+    novo_refresh = await _issue_refresh_and_session(db, response, request, usuario.id)
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=novo_refresh if devolver_refresh else None,
+    )
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)

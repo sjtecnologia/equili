@@ -65,3 +65,29 @@ export async function clearBiometricCredentials(): Promise<void> {
     console.error('[biometria] falha ao remover credenciais', err);
   }
 }
+
+/**
+ * Exige Face ID / código do dispositivo antes de restaurar a sessão salva
+ * (refresh token no Keychain/Keystore). Sem biometria cadastrada no aparelho
+ * não bloqueia o acesso — devolve `true` direto.
+ *
+ * Usado pelo `bootstrapSession` na abertura do app para que a sessão restaurada
+ * nunca fique protegida apenas por estar "guardada no aparelho".
+ */
+export async function confirmarRestauracaoSessao(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) return true;
+  try {
+    const res = await NativeBiometric.isAvailable();
+    if (!res.isAvailable) return true;
+  } catch {
+    return true;
+  }
+  try {
+    await NativeBiometric.verifyIdentity({
+      reason: 'Confirme sua identidade para acessar o Equili.',
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
