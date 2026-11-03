@@ -67,12 +67,16 @@ export function AiConsentProvider({ children }: { children: React.ReactNode }) {
     resolverPendentes(false)
   }, [resolverPendentes])
 
+  // Versão do texto de consentimento (deve corresponder ao backend CONSENTIMENTO_IA_VERSAO_ATUAL)
+  const CONSENTIMENTO_VERSAO = '2026-11-01'
+
   const aceitar = useCallback(async () => {
     setSalvando(true)
     setErro(null)
     try {
       const { data } = await api.post<AuthUser>('/usuarios/me/consentimento-ia', {
         aceito: true,
+        versao: CONSENTIMENTO_VERSAO,
       })
       setUser(data)
       setModalAberto(false)
