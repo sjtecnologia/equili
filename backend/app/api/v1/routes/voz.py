@@ -11,7 +11,8 @@ from pydantic import BaseModel, Field
 
 from app.core import planos as planos_core
 from app.core.config import settings
-from app.core.dependencies import CurrentUserID, requer_recurso
+from app.core.dependencies import CurrentUserID, DBSession, requer_recurso
+from app.services.consentimento_ia import exigir_consentimento_ia
 from app.services.openrouter import chamar_openrouter
 
 router = APIRouter(
@@ -155,8 +156,10 @@ class InterpretarDataResponse(BaseModel):
 async def interpretar_data(
     data: InterpretarDataRequest,
     usuario_id: CurrentUserID,
+    db: DBSession,
 ):
     """Interpreta uma expressão de data falada (ex: 'dia 10', 'quinze de maio') e retorna YYYY-MM-DD."""
+    await exigir_consentimento_ia(usuario_id, db)
     if not data.texto.strip():
         return InterpretarDataResponse(data_iso=None)
 
@@ -188,7 +191,9 @@ Sem explicações, apenas o JSON."""
 async def interpretar_comando(
     data: VozComandoRequest,
     usuario_id: CurrentUserID,
+    db: DBSession,
 ):
+    await exigir_consentimento_ia(usuario_id, db)
     if not data.transcricao.strip():
         raise HTTPException(status_code=400, detail="Transcrição vazia.")
 

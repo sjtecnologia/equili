@@ -34,6 +34,9 @@ import NfsPage from '@/pages/NfsPage'
 import AdminUsuariosPage from '@/pages/admin/AdminUsuariosPage'
 import PoliticaDePrivacidade from '@/pages/PoliticaDePrivacidade'
 import PlanosPage from '@/pages/planos/PlanosPage'
+import SuportePage from '@/pages/SuportePage'
+import TermosPage from '@/pages/TermosPage'
+import { AiConsentProvider } from '@/components/ai/AiConsentProvider'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const status = useAuthStore((s) => s.status)
@@ -99,49 +102,53 @@ export default function App() {
     <>
     <AnimatedSplash ready={status !== 'loading'} />
     <BrowserRouter>
-      <Routes>
-        {/* Rotas públicas */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/cadastro" element={<CadastroPage />} />
-        <Route path="/privacidade" element={<PoliticaDePrivacidade />} />
+      <AiConsentProvider>
+        <Routes>
+          {/* Rotas públicas */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/cadastro" element={<CadastroPage />} />
+          <Route path="/privacidade" element={<PoliticaDePrivacidade />} />
+          <Route path="/suporte" element={<SuportePage />} />
+          <Route path="/termos" element={<TermosPage />} />
 
-        {/* Rotas protegidas */}
-        <Route
-          path="/"
-          element={
-            <PrivateRoute>
-              <AppLayout />
-            </PrivateRoute>
-          }
-        >
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="onboarding" element={<OnboardingPage />} />
-          <Route path="dashboard" element={<DashboardPage />} />
-          <Route path="renda" element={<RendaPage />} />
-          <Route path="metas" element={<MetasPage />} />
-          <Route path="familia" element={<FamiliaPage />} />
-          <Route path="dividas" element={<DividasPage />} />
-          <Route path="dividas/baixas" element={<BaixasPage />} />
-          <Route path="contas-pagar" element={<ContasPagarPage />} />
-          <Route path="categorias" element={<CategoriasPage />} />
-          <Route path="contas-receber" element={<ContasReceberPage />} />
-          <Route path="contas-bancarias" element={<ContasBancariasPage />} />
-          <Route path="contas-bancarias/:contaId/lancamentos" element={<ContaLancamentosPage />} />
-          <Route path="cartoes-credito/:cartaoId/lancamentos" element={<CartaoLancamentosPage />} />
-          <Route path="relatorios" element={<RelatoriosPage />} />
-          <Route path="planos" element={<PlanosPage />} />
-          <Route path="plano-de-acao" element={<PlanoAcaoPage />} />
-          <Route path="chat" element={<ChatPage />} />
-          <Route path="investimentos" element={<InvestimentosPage />} />
-          <Route path="listas" element={<ListasPage />} />
-          <Route path="nfs" element={<NfsPage />} />
-          <Route path="configuracoes" element={<ConfiguracoesPage />} />
-          <Route path="admin/usuarios" element={<AdminUsuariosPage />} />
-        </Route>
+          {/* Rotas protegidas */}
+          <Route
+            path="/"
+            element={
+              <PrivateRoute>
+                <AppLayout />
+              </PrivateRoute>
+            }
+          >
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="onboarding" element={<OnboardingPage />} />
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="renda" element={<RendaPage />} />
+            <Route path="metas" element={<MetasPage />} />
+            <Route path="familia" element={<FamiliaPage />} />
+            <Route path="dividas" element={<DividasPage />} />
+            <Route path="dividas/baixas" element={<BaixasPage />} />
+            <Route path="contas-pagar" element={<ContasPagarPage />} />
+            <Route path="categorias" element={<CategoriasPage />} />
+            <Route path="contas-receber" element={<ContasReceberPage />} />
+            <Route path="contas-bancarias" element={<ContasBancariasPage />} />
+            <Route path="contas-bancarias/:contaId/lancamentos" element={<ContaLancamentosPage />} />
+            <Route path="cartoes-credito/:cartaoId/lancamentos" element={<CartaoLancamentosPage />} />
+            <Route path="relatorios" element={<RelatoriosPage />} />
+            <Route path="planos" element={<PlanosPage />} />
+            <Route path="plano-de-acao" element={<PlanoAcaoPage />} />
+            <Route path="chat" element={<ChatPage />} />
+            <Route path="investimentos" element={<InvestimentosPage />} />
+            <Route path="listas" element={<ListasPage />} />
+            <Route path="nfs" element={<NfsPage />} />
+            <Route path="configuracoes" element={<ConfiguracoesPage />} />
+            <Route path="admin/usuarios" element={<AdminUsuariosPage />} />
+          </Route>
 
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-      <InstallBanner />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+        <InstallBanner />
+      </AiConsentProvider>
     </BrowserRouter>
     </>
   )

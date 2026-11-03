@@ -21,6 +21,11 @@ class Usuario(Base):
     apple_id: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True, index=True)
     telefone: Mapped[str | None] = mapped_column(String(30), unique=True, nullable=True, index=True)
     plano: Mapped[str] = mapped_column(String(20), nullable=False, default="gratuito")
+    # Consentimento explícito para envio de dados aos provedores de IA (LGPD/Apple 5.1.1)
+    consentimento_ia_em: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    consentimento_ia_versao: Mapped[str | None] = mapped_column(String(20), nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     email_verificado: Mapped[bool] = mapped_column(Boolean, default=False)
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

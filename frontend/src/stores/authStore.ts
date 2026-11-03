@@ -17,6 +17,11 @@ export interface AuthUser {
   email: string
   plano: string
   is_admin: boolean
+  email_verificado?: boolean
+  consentimento_ia_em: string | null
+  consentimento_ia_versao: string | null
+  consentimento_ia_versao_atual?: string | null
+  criado_em?: string
 }
 
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'

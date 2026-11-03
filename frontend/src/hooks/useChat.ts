@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import api from '@/services/api'
+import { useAiConsent } from '@/components/ai/AiConsentProvider'
 
 export interface ChatMessage {
   role: 'user' | 'assistant'
@@ -17,25 +18,40 @@ export function useChat() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const { garantirConsentimento, solicitarConsentimento } = useAiConsent()
 
   const send = async (text?: string) => {
     const userText = (text ?? input).trim()
     if (!userText || loading) return
 
-    const userMsg: ChatMessage = { role: 'user', content: userText }
-    const newMessages = [...messages, userMsg]
-    setMessages(newMessages)
-    setInput('')
     setLoading(true)
-
     try {
+      // Nenhum dado é enviado à OpenRouter antes desta autorização explícita.
+      const autorizado = await garantirConsentimento()
+      if (!autorizado) return
+
+      const userMsg: ChatMessage = { role: 'user', content: userText }
+      const newMessages = [...messages, userMsg]
+      setMessages(newMessages)
+      setInput('')
+
       const { data } = await api.post('/chat', {
         messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
       })
       setMessages((prev) => [...prev, { role: 'assistant', content: data.reply }])
     } catch (e: unknown) {
       const status = (e as { response?: { status?: number } })?.response?.status
-      if (status === 429) {
+      if (status === 428) {
+        solicitarConsentimento()
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content:
+              'Preciso da sua autorização para enviar dados à IA antes de responder. Autorize na janela que abri e envie sua pergunta novamente.',
+          },
+        ])
+      } else if (status === 429) {
         setMessages((prev) => [
           ...prev,
           {

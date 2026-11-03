@@ -73,6 +73,18 @@ class Settings(BaseSettings):
     # Validade do checkout (PIX/cartão) em minutos.
     PAYMENT_CHECKOUT_EXPIRA_MINUTOS: int = 30
 
+    # RevenueCat / App Store (iOS) — assinaturas dentro do app.
+    # A chave pública do SDK fica no frontend (VITE_REVENUECAT_IOS_API_KEY).
+    # O segredo abaixo é usado somente no backend para consultar o assinante
+    # durante a sincronização pós-compra. O webhook usa o valor configurado no
+    # painel da RevenueCat em "Authorization header".
+    REVENUECAT_SECRET_KEY: str = ""
+    REVENUECAT_WEBHOOK_AUTH: str = ""
+    REVENUECAT_API_URL: str = "https://api.revenuecat.com/v1"
+    # Identificadores das entitlements criadas no painel da RevenueCat.
+    REVENUECAT_ENTITLEMENT_PREMIUM: str = "premium"
+    REVENUECAT_ENTITLEMENT_PRO: str = "pro"
+
     # Web Push / VAPID
     VAPID_PUBLIC_KEY: str = ""
     VAPID_PRIVATE_KEY_B64: str = ""

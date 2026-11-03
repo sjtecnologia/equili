@@ -20,6 +20,7 @@ from app.models.divida import Divida
 from app.models.renda import Renda
 from app.services.openrouter import OpenRouterNotConfigured, chamar_openrouter
 from app.services import uso_ia as uso_ia_service
+from app.services.consentimento_ia import verificar_consentimento
 
 router = APIRouter(prefix="/chat", tags=["Chat IA"])
 logger = logging.getLogger(__name__)
@@ -33,6 +34,7 @@ async def _verificar_cota_chat(usuario_id, db) -> None:
     from app.models.usuario import Usuario
 
     usuario = await db.get(Usuario, usuario_id)
+    verificar_consentimento(usuario)
     plano = planos_core.normalizar_plano(usuario.plano if usuario else None)
     limite = planos_core.limite(plano, planos_core.LIMITE_CHAT_MSGS_MES)
     if limite is None:

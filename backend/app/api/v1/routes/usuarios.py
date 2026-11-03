@@ -19,6 +19,10 @@ from app.models.renda import Renda
 from app.models.sessao import Sessao
 from app.models.uso_ia import UsoIA
 from app.models.usuario import Usuario
+from app.services.consentimento_ia import (
+    CONSENTIMENTO_IA_VERSAO_ATUAL,
+    registrar_consentimento,
+)
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import delete, select
@@ -33,6 +37,26 @@ class PlanoUpdateRequest(BaseModel):
 
 class UsuarioAtivoUpdateRequest(BaseModel):
     ativo: bool
+
+
+class ConsentimentoIARequest(BaseModel):
+    aceito: bool
+    versao: Optional[str] = Field(default=None, max_length=20)
+
+
+def _usuario_me_response(usuario: Usuario) -> dict:
+    return {
+        "id": str(usuario.id),
+        "nome": usuario.nome,
+        "email": usuario.email,
+        "plano": usuario.plano,
+        "is_admin": usuario.is_admin,
+        "email_verificado": usuario.email_verificado,
+        "consentimento_ia_em": usuario.consentimento_ia_em,
+        "consentimento_ia_versao": usuario.consentimento_ia_versao,
+        "consentimento_ia_versao_atual": CONSENTIMENTO_IA_VERSAO_ATUAL,
+        "criado_em": usuario.criado_em,
+    }
 
 
 def _usuario_admin_response(usuario: Usuario) -> dict:
@@ -64,15 +88,32 @@ async def get_me(usuario_id: CurrentUserID, db: DBSession):
     usuario = await db.get(Usuario, usuario_id)
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
-    return {
-        "id": str(usuario.id),
-        "nome": usuario.nome,
-        "email": usuario.email,
-        "plano": usuario.plano,
-        "is_admin": usuario.is_admin,
-        "email_verificado": usuario.email_verificado,
-        "criado_em": usuario.criado_em,
-    }
+    return _usuario_me_response(usuario)
+
+
+@router.post("/me/consentimento-ia")
+async def atualizar_consentimento_ia(
+    data: ConsentimentoIARequest,
+    usuario_id: CurrentUserID,
+    db: DBSession,
+):
+    """Registra ou revoga a autorização para os recursos de IA.
+
+    A autorização é pré-requisito para chat, Plano de Ação e assistente de voz.
+    Revogar não apaga os dados já existentes, mas impede novas chamadas à IA.
+    """
+    usuario = await db.get(Usuario, usuario_id)
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+
+    registrar_consentimento(
+        usuario,
+        aceito=data.aceito,
+        versao=data.versao or CONSENTIMENTO_IA_VERSAO_ATUAL,
+    )
+    await db.commit()
+    await db.refresh(usuario)
+    return _usuario_me_response(usuario)
 
 
 @router.put("/me")
@@ -103,15 +144,7 @@ async def update_me(data: UpdatePerfilRequest, usuario_id: CurrentUserID, db: DB
 
     await db.commit()
     await db.refresh(usuario)
-    return {
-        "id": str(usuario.id),
-        "nome": usuario.nome,
-        "email": usuario.email,
-        "plano": usuario.plano,
-        "is_admin": usuario.is_admin,
-        "email_verificado": usuario.email_verificado,
-        "criado_em": usuario.criado_em,
-    }
+    return _usuario_me_response(usuario)
 
 
 # ─── LGPD: Exportação de dados pessoais ──────────────────────────────────────

@@ -12,6 +12,7 @@ from app.core.dependencies import CurrentUserID, DBSession
 from app.core.rastro_client import rastro_client
 from app.models.plano_acao import PlanoAcao
 from app.services.openrouter import OpenRouterNotConfigured
+from app.services.consentimento_ia import verificar_consentimento
 from app.services.plano_acao.geracao import PlanoIAError, gerar_plano_ia
 from app.services.plano_acao.resumo_financeiro import montar_resumo_financeiro
 
@@ -24,6 +25,7 @@ async def _verificar_cota_ia(usuario_id: UUID, db) -> None:
     from app.models.usuario import Usuario
 
     usuario = await db.get(Usuario, usuario_id)
+    verificar_consentimento(usuario)
     plano = planos.normalizar_plano(usuario.plano if usuario else None)
     limite = planos.limite(plano, planos.LIMITE_PLANOS_IA_MES)
     if limite is None:

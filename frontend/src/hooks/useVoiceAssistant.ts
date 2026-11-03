@@ -8,6 +8,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import api from '@/services/api'
 import { invalidateFinanceiroBase } from '@/lib/queryInvalidation'
 import { useVoiceStore } from '@/stores/voiceStore'
+import { useAiConsent } from '@/components/ai/AiConsentProvider'
 
 // Helper para requisições com timeout de 12s
 function withTimeout<T>(promise: Promise<T>, ms = 12000): Promise<T> {
@@ -232,6 +233,7 @@ export function useVoiceAssistant() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const voiceConfirmationEnabled = useVoiceStore((s) => s.voiceConfirmationEnabled)
+  const { garantirConsentimento } = useAiConsent()
 
   const isSupportedBrowser = Boolean(
     (window as AnyWindow).SpeechRecognition ||
@@ -363,6 +365,11 @@ export function useVoiceAssistant() {
         setEstado('pedindo_data')
         return
       }
+      const autorizado = await garantirConsentimento()
+      if (!autorizado) {
+        setEstado('pedindo_data')
+        return
+      }
       try {
         const res = await api.post<{ data_iso: string }>('/voz/interpretar-data', { texto })
         if (res.data.data_iso) {
@@ -374,7 +381,7 @@ export function useVoiceAssistant() {
       setEstado('pedindo_data')
     }
     rec.start()
-  }, [])
+  }, [garantirConsentimento, setDataSelecionada, setEstado])
 
   const pararEscuta = useCallback(() => {
     reconhecimentoRef.current?.stop()
@@ -432,6 +439,11 @@ export function useVoiceAssistant() {
   async function processarTranscricao() {
     const texto = transcricaoRef.current || ''
     if (!texto.trim()) {
+      setEstado('idle')
+      return
+    }
+    const autorizado = await garantirConsentimento()
+    if (!autorizado) {
       setEstado('idle')
       return
     }

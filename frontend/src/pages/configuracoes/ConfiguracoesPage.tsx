@@ -3,9 +3,10 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Download, Loader2, Lock, LogOut, ShieldCheck, Trash2, User, CheckCircle, Bell, Smartphone, Check, Mic } from 'lucide-react'
+import { Download, Loader2, Lock, LogOut, ShieldCheck, Trash2, User, CheckCircle, Bell, Smartphone, Check, Mic, Bot } from 'lucide-react'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'
+import { useAiConsent } from '@/components/ai/AiConsentProvider'
 import { useNavStore } from '@/stores/navStore'
 import { useVoiceStore } from '@/stores/voiceStore'
 import { usePlano } from '@/hooks/usePlano'
@@ -419,6 +420,9 @@ export default function ConfiguracoesPage() {
         <PushNotificationToggle />
       </section>
 
+      {/* IA — autorização explícita (Apple 5.1.1/5.1.2) */}
+      <SecaoConsentimentoIA />
+
       {/* LGPD — Privacidade e dados */}
       <SecaoPrivacidade />
 
@@ -437,6 +441,112 @@ export default function ConfiguracoesPage() {
   )
 }
 
+
+// ─── Seção IA: autorização para envio de dados a terceiros ───────────────────
+function SecaoConsentimentoIA() {
+  const user = useAuthStore((s) => s.user)
+  const { consentimentoAtivo, solicitarConsentimento, revogar, salvando, erro } = useAiConsent()
+  const [confirmandoRevogacao, setConfirmandoRevogacao] = useState(false)
+
+  async function handleRevogar() {
+    const ok = await revogar()
+    if (ok) setConfirmandoRevogacao(false)
+  }
+
+  return (
+    <section className="card p-6 space-y-3">
+      <div className="flex items-center gap-2">
+        <Bot size={18} className="text-primary-500" />
+        <h2 className="text-base font-semibold text-gray-800">Recursos de inteligência artificial</h2>
+      </div>
+
+      <p className="text-sm text-gray-500">
+        Chat IA, Plano de Ação e assistente de voz enviam suas mensagens e um resumo dos seus dados
+        financeiros para a <strong>OpenRouter</strong>, que os encaminha a provedores de modelos de
+        IA. Nome, e-mail, senha e dados de cartão não são enviados.
+      </p>
+
+      <div
+        className={`rounded-xl border px-3 py-2 text-sm ${
+          consentimentoAtivo
+            ? 'border-green-200 bg-green-50 text-green-700'
+            : 'border-amber-200 bg-amber-50 text-amber-800'
+        }`}
+      >
+        {consentimentoAtivo ? (
+          <span className="flex items-center gap-2">
+            <CheckCircle size={15} />
+            Autorização ativa
+            {user?.consentimento_ia_em && (
+              <span className="text-xs font-normal">
+                desde {new Date(user.consentimento_ia_em).toLocaleDateString('pt-BR')}
+              </span>
+            )}
+          </span>
+        ) : (
+          'Recursos de IA desativados até você autorizar o envio dos dados.'
+        )}
+      </div>
+
+      {erro && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {erro}
+        </p>
+      )}
+
+      {consentimentoAtivo ? (
+        !confirmandoRevogacao ? (
+          <button
+            type="button"
+            onClick={() => setConfirmandoRevogacao(true)}
+            className="w-full rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+          >
+            Revogar autorização de IA
+          </button>
+        ) : (
+          <div className="space-y-2 rounded-xl border border-red-200 bg-red-50 p-3">
+            <p className="text-sm text-red-700">
+              Ao revogar, o chat, o Plano de Ação e a voz deixam de funcionar. Você pode autorizar
+              novamente quando quiser.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmandoRevogacao(false)}
+                disabled={salvando}
+                className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleRevogar}
+                disabled={salvando}
+                className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {salvando && <Loader2 size={14} className="animate-spin" />}
+                Revogar
+              </button>
+            </div>
+          </div>
+        )
+      ) : (
+        <button
+          type="button"
+          onClick={solicitarConsentimento}
+          className="btn-primary w-full flex items-center justify-center gap-2 text-sm"
+        >
+          <Bot size={15} />
+          Autorizar uso de IA
+        </button>
+      )}
+
+      <Link to="/privacidade" className="block text-sm font-medium text-primary-500 hover:underline">
+        Ver detalhes na Política de Privacidade
+      </Link>
+    </section>
+  )
+}
 
 // ─── Seção LGPD: Privacidade ──────────────────────────────────────────────────
 function SecaoPrivacidade() {

@@ -40,7 +40,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col px-3 pt-2 pb-2 max-w-2xl" style={{ height: 'calc(100vh - 120px)' }}>
+    <div className="flex h-full min-h-0 w-full max-w-2xl flex-col px-3 pt-2 pb-2 lg:mx-auto lg:p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>

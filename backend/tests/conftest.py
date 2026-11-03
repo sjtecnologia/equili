@@ -1,6 +1,7 @@
 import asyncio
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -49,6 +50,8 @@ async def _create_sqlite_schema(conn) -> None:
             apple_id TEXT,
             telefone TEXT,
             plano TEXT NOT NULL DEFAULT 'gratuito',
+            consentimento_ia_em TEXT,
+            consentimento_ia_versao TEXT,
             is_admin INTEGER NOT NULL DEFAULT 0,
             email_verificado INTEGER NOT NULL DEFAULT 0,
             ativo INTEGER NOT NULL DEFAULT 1,
@@ -425,6 +428,8 @@ def finance_client():
                     email=f"finance-{user_id}@example.com",
                     senha_hash="hashed-password",
                     plano="gratuito",
+                    consentimento_ia_em=datetime.now(timezone.utc),
+                    consentimento_ia_versao="teste",
                     email_verificado=True,
                     ativo=True,
                 )

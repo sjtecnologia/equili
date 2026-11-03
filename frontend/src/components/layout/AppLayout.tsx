@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Outlet, Link } from 'react-router-dom'
+import { Outlet, Link, useLocation } from 'react-router-dom'
 import { Settings, Menu } from 'lucide-react'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
@@ -18,6 +18,9 @@ export default function AppLayout() {
   const user = useAuthStore((s) => s.user)
   const { temRecurso } = usePlano()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const { pathname } = useLocation()
+  // Telas que ocupam toda a altura disponível e rolam internamente.
+  const preencherAltura = pathname.startsWith('/chat')
 
   return (
     // 100dvh = dynamic viewport height, certo em iOS WebView
@@ -76,8 +79,12 @@ export default function AppLayout() {
         </header>
 
         {/* min-h-0 aqui é essencial: permite que o flex-1 encolha no iOS WebKit */}
-        <main className="flex-1 min-w-0 min-h-0 overflow-y-auto">
-          <div className="lg:max-w-5xl lg:mx-auto lg:p-8">
+        <main
+          className={`flex-1 min-w-0 min-h-0 ${
+            preencherAltura ? 'overflow-hidden' : 'overflow-y-auto'
+          }`}
+        >
+          <div className={preencherAltura ? 'h-full' : 'lg:max-w-5xl lg:mx-auto lg:p-8'}>
             <ErrorBoundary>
               <Outlet />
             </ErrorBoundary>
