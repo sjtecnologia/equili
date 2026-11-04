@@ -12,6 +12,7 @@
 import { Capacitor } from '@capacitor/core'
 import {
   PACKAGE_TYPE,
+  PURCHASES_ERROR_CODE,
   Purchases,
   type CustomerInfo,
   type PurchasesError,
@@ -211,7 +212,7 @@ export function iapCancelado(erro: unknown): boolean {
   const e = erro as Partial<PurchasesError> | null | undefined
   return Boolean(
     e?.userCancelled ||
-      e?.code === 'PURCHASE_CANCELLED_ERROR' ||
+      e?.code === PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR ||
       e?.readableErrorCode === 'PURCHASE_CANCELLED_ERROR',
   )
 }
