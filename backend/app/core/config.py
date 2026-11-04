@@ -34,7 +34,7 @@ class Settings(BaseSettings):
 
     # Email (Resend)
     RESEND_API_KEY: str = ""
-    EMAIL_FROM: str = "noreply@equili.app"
+    EMAIL_FROM: str = "contato@sjtecnologia.com"
 
     # Frontend URL (para CORS)
     FRONTEND_URL: str = "https://equili.com.br"
