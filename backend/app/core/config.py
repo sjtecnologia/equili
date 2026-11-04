@@ -34,7 +34,7 @@ class Settings(BaseSettings):
 
     # Email (Resend)
     RESEND_API_KEY: str = ""
-    EMAIL_FROM: str = "contato@sjtecnologia.com"
+    EMAIL_FROM: str = "suporte@equili.com.br"
 
     # Frontend URL (para CORS)
     FRONTEND_URL: str = "https://equili.com.br"
@@ -88,7 +88,7 @@ class Settings(BaseSettings):
     # Web Push / VAPID
     VAPID_PUBLIC_KEY: str = ""
     VAPID_PRIVATE_KEY_B64: str = ""
-    VAPID_SUBJECT: str = "mailto:contato@sjtecnologia.com"
+    VAPID_SUBJECT: str = "mailto:suporte@equili.com.br"
 
     # Social Auth
     # Client ID aceito nos tokens Google do app. O id_token do mobile vem com

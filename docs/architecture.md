@@ -720,7 +720,7 @@ OPENROUTER_DISABLE_REASONING=true
 
 # Email
 RESEND_API_KEY=re_xxxxxxxxxxxx
-EMAIL_FROM=contato@sjtecnologia.com
+EMAIL_FROM=suporte@equili.com.br
 
 # Pagamento
 STRIPE_SECRET_KEY=sk_test_xxxx

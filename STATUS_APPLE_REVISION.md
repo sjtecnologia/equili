@@ -23,7 +23,7 @@
 
 ### 4. Guideline 1.5 — URL de Suporte ✅ RESOLVIDO
 - **Suporte URL:** `https://equili.com.br/suporte` (página `SuportePage.tsx` já existente)
-- **Página contém:** FAQ completo, e-mail (`contato@sjtecnologia.com`), links para privacidade/termos, instruções de cancelamento App Store
+- **Página contém:** FAQ completo, e-mail (`suporte@equili.com.br`), links para privacidade/termos, instruções de cancelamento App Store
 
 ---
 

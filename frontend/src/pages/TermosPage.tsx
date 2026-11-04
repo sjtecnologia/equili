@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 
-const EMAIL_SUPORTE = 'contato@sjtecnologia.com'
+const EMAIL_SUPORTE = 'suporte@equili.com.br'
 const EULA_APPLE = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/'
 
 export default function TermosPage() {
