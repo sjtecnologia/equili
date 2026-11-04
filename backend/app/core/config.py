@@ -88,7 +88,7 @@ class Settings(BaseSettings):
     # Web Push / VAPID
     VAPID_PUBLIC_KEY: str = ""
     VAPID_PRIVATE_KEY_B64: str = ""
-    VAPID_SUBJECT: str = "mailto:suporte@equili.app"
+    VAPID_SUBJECT: str = "mailto:contato@sjtecnologia.com"
 
     # Social Auth
     # Client ID aceito nos tokens Google do app. O id_token do mobile vem com

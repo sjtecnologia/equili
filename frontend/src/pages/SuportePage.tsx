@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Mail, MessageCircle, ShieldCheck } from 'lucide-react'
 
-const EMAIL_SUPORTE = 'suporte@equili.app'
+const EMAIL_SUPORTE = 'contato@sjtecnologia.com'
 
 export default function SuportePage() {
   return (

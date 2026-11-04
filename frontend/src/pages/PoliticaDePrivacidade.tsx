@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 
-const EMAIL_SUPORTE = 'suporte@equili.app'
+const EMAIL_SUPORTE = 'contato@sjtecnologia.com'
 const OPENROUTER_PRIVACIDADE = 'https://openrouter.ai/privacy'
 
 export default function PoliticaDePrivacidade() {
